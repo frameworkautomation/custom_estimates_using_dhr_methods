@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPOS_FILE="$SCRIPT_DIR/repos.txt"
+CLONES_DIR="$SCRIPT_DIR/../clones"
+
+if [[ ! -f "$REPOS_FILE" ]]; then
+    echo "Error: repos.txt not found at $REPOS_FILE"
+    exit 1
+fi
+
+mkdir -p "$CLONES_DIR"
+
+while IFS= read -r line; do
+    # Skip empty lines and comments
+    [[ -z "$line" || "$line" == \#* ]] && continue
+
+    repo_url="$line"
+    repo_name="$(basename "$repo_url" .git)"
+
+    if [[ -d "$CLONES_DIR/$repo_name" ]]; then
+        echo "Skipping $repo_name — already exists in clones/"
+    else
+        echo "Cloning $repo_url into clones/$repo_name ..."
+        git clone "$repo_url" "$CLONES_DIR/$repo_name"
+    fi
+done < "$REPOS_FILE"
+
+echo "Done."

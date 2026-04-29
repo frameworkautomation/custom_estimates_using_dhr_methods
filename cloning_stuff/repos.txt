@@ -1,0 +1,2 @@
+# Add one SSH repo URL per line, e.g.:
+# git@github.com:username/repo-name.git
