@@ -22,8 +22,8 @@ if not exist "%LOG%" (
     goto waitforlog
 )
 
-:: Stream the log file until Rhino writes "Done." then exit
-powershell -Command "Get-Content -Path '%LOG%' -Wait | ForEach-Object { Write-Host $_; if ($_ -match 'Done\.') { Start-Sleep 1; exit } }"
+:: Stream the log file, show a progress bar, exit when done
+powershell -Command "Get-Content -Path '%LOG%' -Wait | ForEach-Object { Write-Host $_; if ($_ -match '\[(\d+)/(\d+)\]') { $c = [int]$Matches[1]; $t = [int]$Matches[2]; Write-Progress -Activity 'Converting SolidWorks to STEP' -Status \"$c of $t files\" -PercentComplete ([int]($c/$t*100)) }; if ($_ -match 'Done\.') { Write-Progress -Activity 'Converting SolidWorks to STEP' -Completed; Start-Sleep 1; exit } }"
 
 echo.
 echo Conversion complete. See rhino_convert.log for full output.
