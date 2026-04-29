@@ -14,13 +14,13 @@ The contractor delivers SolidWorks assemblies (`.SLDASM`) in `clones/`. To use t
 On your **Windows machine** (not WSL), double-click:
 
 ```
-run_rhino_convert.bat
+using_rhino_to_convert_solid_works\run_rhino_convert.bat
 ```
 
 Or run it from a Windows command prompt:
 
 ```bat
-cd C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods
+cd C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\using_rhino_to_convert_solid_works
 run_rhino_convert.bat
 ```
 
@@ -43,4 +43,4 @@ Files that already have a corresponding `.step` output are skipped on re-runs.
 ### Notes
 
 - Assemblies that reference parts from other repos may open partially if those parts are missing. The geometry that does load will still export.
-- If Rhino is not found at the default path, edit the `RHINO` variable at the top of `run_rhino_convert.bat`.
+- If Rhino is not found at the default path, edit the `RHINO` variable at the top of `using_rhino_to_convert_solid_works\run_rhino_convert.bat`.

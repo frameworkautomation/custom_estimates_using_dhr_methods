@@ -20,8 +20,9 @@ There is a `cloning_stuff/` folder at the project root that manages external rep
 ├── README.md
 ├── clones/                     # cloned repos land here (git-ignored)
 ├── steps_from_SolidWorks/      # derived STEP exports (git-ignored, see below)
-├── rhino_convert_to_step.py    # Rhino Python script that does the conversion
-├── run_rhino_convert.bat       # double-click on Windows to run the conversion
+├── using_rhino_to_convert_solid_works/
+│   ├── rhino_convert_to_step.py    # Rhino Python script that does the conversion
+│   └── run_rhino_convert.bat       # double-click on Windows to run the conversion
 └── cloning_stuff/
     ├── repos.txt
     ├── make_clones.sh
@@ -51,7 +52,7 @@ steps_from_SolidWorks/<repo>/<subpath>/file.step
 If you need a STEP file and it doesn't exist in `steps_from_SolidWorks/`, the user needs to run the conversion. Tell them to:
 
 1. Make sure the source `.SLDASM` exists under `clones/` (run `cloning_stuff/make_clones.sh` if needed).
-2. On their Windows machine, double-click `run_rhino_convert.bat` at the project root. Rhino must be installed (version 7 or 8).
+2. On their Windows machine, double-click `using_rhino_to_convert_solid_works\run_rhino_convert.bat`. Rhino must be installed (version 7 or 8).
 3. The STEP file will appear at the mirrored path under `steps_from_SolidWorks/`.
 
 Do not attempt to read or use `.SLDASM` or `.SLDPRT` files directly — always use the corresponding `.step` file from `steps_from_SolidWorks/`.
