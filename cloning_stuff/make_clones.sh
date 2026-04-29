@@ -31,12 +31,10 @@ while IFS= read -r line; do
         echo "Skipping $repo_name — already exists in clones/"
     else
         echo "Cloning $repo_url into clones/$repo_name ..."
-        if output=$(git clone "$repo_url" "$CLONES_DIR/$repo_name" 2>&1); then
-            echo "$output"
+        if git clone "$repo_url" "$CLONES_DIR/$repo_name"; then
             echo "OK: $repo_name cloned."
         else
-            echo "ERROR cloning $repo_name:"
-            echo "$output"
+            echo "ERROR cloning $repo_name"
             errors=$((errors + 1))
         fi
     fi
