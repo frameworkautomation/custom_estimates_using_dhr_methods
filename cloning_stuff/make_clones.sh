@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOS_FILE="$SCRIPT_DIR/repos.txt"
@@ -12,6 +12,8 @@ fi
 
 mkdir -p "$CLONES_DIR"
 
+errors=0
+
 while IFS= read -r line; do
     # Skip empty lines and comments
     [[ -z "$line" || "$line" == \#* ]] && continue
@@ -23,8 +25,19 @@ while IFS= read -r line; do
         echo "Skipping $repo_name — already exists in clones/"
     else
         echo "Cloning $repo_url into clones/$repo_name ..."
-        git clone "$repo_url" "$CLONES_DIR/$repo_name"
+        if output=$(git clone "$repo_url" "$CLONES_DIR/$repo_name" 2>&1); then
+            echo "$output"
+            echo "OK: $repo_name cloned."
+        else
+            echo "ERROR cloning $repo_name:"
+            echo "$output"
+            errors=$((errors + 1))
+        fi
     fi
 done < "$REPOS_FILE"
 
-echo "Done."
+if [[ $errors -gt 0 ]]; then
+    echo "Done with $errors error(s)."
+else
+    echo "Done."
+fi
