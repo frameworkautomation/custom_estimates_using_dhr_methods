@@ -1,12 +1,13 @@
 """Batch convert all SolidWorks assemblies in clones/ to STEP using Rhino.
 
 Run this from inside Rhino via:
-    -_RunPythonScript (C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\rhino_convert_to_step.py)
+    -_RunPythonScript (C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\using_rhino_to_convert_solid_works\rhino_convert_to_step.py)
 
 Or launch headlessly with run_rhino_convert.bat
 """
 import os
 import datetime
+import json
 import rhinoscriptsyntax as rs
 
 PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
@@ -14,6 +15,7 @@ CLONES_DIR = os.path.join(PROJECT_DIR, "clones")
 OUTPUT_DIR = os.path.join(PROJECT_DIR, "steps_from_SolidWorks")
 LOG_FILE = os.path.join(PROJECT_DIR, "rhino_convert.log")
 HISTORY_FILE = os.path.join(PROJECT_DIR, "rhino_convert_history.log")
+CONFIG_FILE = os.path.join(PROJECT_DIR, "using_rhino_to_convert_solid_works", "convert_config.json")
 
 
 def log(msg):
@@ -44,7 +46,18 @@ def main():
         f.write("\n=== Run started {0} ===\n".format(run_ts))
     log("Starting conversion...")
 
-    sldasm_files = find_sldasm_files(CLONES_DIR)
+    with open(CONFIG_FILE) as f:
+        config = json.load(f)
+
+    mode = config.get("all_or_subset", "all")
+    if mode == "subset":
+        subset_paths = config.get("subset", [])
+        sldasm_files = [os.path.join(CLONES_DIR, p.replace("/", os.sep)) for p in subset_paths]
+        log("Mode: subset ({0} files)".format(len(sldasm_files)))
+    else:
+        sldasm_files = find_sldasm_files(CLONES_DIR)
+        log("Mode: all")
+
     total = len(sldasm_files)
     log("Found {0} SLDASM files".format(total))
 

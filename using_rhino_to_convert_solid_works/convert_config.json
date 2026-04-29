@@ -1,0 +1,9 @@
+{
+    "all_or_subset": "subset",
+    "subset": [
+        "atomic-knitting-machine-tending-cell/V1-01-27-2026/Layout-V1-1-27-2026.SLDASM",
+        "atomic-knitting-machine-tending-cell/V2-adapted-to-Factory-1/Layout-V2-1-29-2026.SLDASM",
+        "atomic-knitting-machine-tending-cell/V2-single-machine-cell/knitting-cell-single-machine-assy.SLDASM",
+        "robots/Fanuc R-2000iC 125L/3D_R-2000iC_125L_IF2_v01.SLDASM"
+    ]
+}
