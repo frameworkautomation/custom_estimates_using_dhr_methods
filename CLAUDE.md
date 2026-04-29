@@ -15,9 +15,13 @@ There is a `cloning_stuff/` folder at the project root that manages external rep
 
 ```
 .
-├── .gitignore              # ignores clones/
-├── CLAUDE.md               # this file
-├── clones/                 # cloned repos land here (git-ignored)
+├── .gitignore                  # ignores clones/ and steps_from_SolidWorks/
+├── CLAUDE.md                   # this file
+├── README.md
+├── clones/                     # cloned repos land here (git-ignored)
+├── steps_from_SolidWorks/      # derived STEP exports (git-ignored, see below)
+├── rhino_convert_to_step.py    # Rhino Python script that does the conversion
+├── run_rhino_convert.bat       # double-click on Windows to run the conversion
 └── cloning_stuff/
     ├── repos.txt
     ├── make_clones.sh
@@ -29,3 +33,25 @@ There is a `cloning_stuff/` folder at the project root that manages external rep
 - `clones/` is git-ignored — never commit it.
 - SSH keys need to be configured on the machine for `make_clones.sh` and `update_clones.sh` to succeed. Until then, both scripts will print the SSH errors and continue rather than exiting immediately.
 - Both scripts use `set -uo pipefail` (not `-e`) so a single failure doesn't abort the whole run.
+
+## STEP file conversion
+
+SolidWorks assemblies (`.SLDASM`) and parts (`.SLDPRT`) in `clones/` are converted to STEP using Rhino. The output lives in `steps_from_SolidWorks/`, which mirrors the folder structure of `clones/` exactly:
+
+```
+clones/<repo>/<subpath>/file.SLDASM
+  ->
+steps_from_SolidWorks/<repo>/<subpath>/file.step
+```
+
+`steps_from_SolidWorks/` is git-ignored — these are derived files, not source.
+
+### If a STEP file is missing
+
+If you need a STEP file and it doesn't exist in `steps_from_SolidWorks/`, the user needs to run the conversion. Tell them to:
+
+1. Make sure the source `.SLDASM` exists under `clones/` (run `cloning_stuff/make_clones.sh` if needed).
+2. On their Windows machine, double-click `run_rhino_convert.bat` at the project root. Rhino must be installed (version 7 or 8).
+3. The STEP file will appear at the mirrored path under `steps_from_SolidWorks/`.
+
+Do not attempt to read or use `.SLDASM` or `.SLDPRT` files directly — always use the corresponding `.step` file from `steps_from_SolidWorks/`.
