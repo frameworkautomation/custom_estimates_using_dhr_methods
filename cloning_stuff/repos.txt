@@ -1,2 +1,11 @@
 # Add one SSH repo URL per line, e.g.:
 # git@github.com:username/repo-name.git
+git@gitlab.com:framework2813905/atomic-knitting-machine-tending-cell.git
+git@gitlab.com:framework2813905/knitting-machines.git
+git@gitlab.com:framework2813905/robots.git
+git@gitlab.com:framework2813905/linear-rails.git
+git@gitlab.com:framework2813905/eoats.git
+git@gitlab.com:framework2813905/trays.git
+git@gitlab.com:framework2813905/buffer-rack.git
+git@gitlab.com:framework2813905/carts.git
+git@gitlab.com:framework2813905/safety-fencing.git
