@@ -6,11 +6,21 @@ Run this from inside Rhino via:
 Or launch headlessly with run_rhino_convert.bat
 """
 import os
+import datetime
 import rhinoscriptsyntax as rs
 
 PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 CLONES_DIR = os.path.join(PROJECT_DIR, "clones")
 OUTPUT_DIR = os.path.join(PROJECT_DIR, "steps_from_SolidWorks")
+LOG_FILE = os.path.join(PROJECT_DIR, "rhino_convert.log")
+
+
+def log(msg):
+    ts = datetime.datetime.now().strftime("%H:%M:%S")
+    line = f"[{ts}] {msg}"
+    print(line)
+    with open(LOG_FILE, "a") as f:
+        f.write(line + "\n")
 
 
 def find_sldasm_files(root_dir):
@@ -23,9 +33,14 @@ def find_sldasm_files(root_dir):
 
 
 def main():
+    # Clear log file at start of each run
+    with open(LOG_FILE, "w") as f:
+        f.write("")
+    log("Starting conversion...")
+
     sldasm_files = find_sldasm_files(CLONES_DIR)
     total = len(sldasm_files)
-    print(f"Found {total} SLDASM files")
+    log(f"Found {total} SLDASM files")
 
     skipped = 0
     converted = 0
@@ -37,11 +52,11 @@ def main():
         out = os.path.join(OUTPUT_DIR, os.path.splitext(rel)[0] + ".step")
 
         if os.path.exists(out):
-            print(f"[{i+1}/{total}] Skip (exists): {os.path.basename(sldasm)}")
+            log(f"[{i+1}/{total}] Skip (exists): {os.path.basename(sldasm)}")
             skipped += 1
             continue
 
-        print(f"[{i+1}/{total}] Converting: {os.path.basename(sldasm)}")
+        log(f"[{i+1}/{total}] Converting: {os.path.basename(sldasm)}")
 
         try:
             os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -56,20 +71,20 @@ def main():
 
             if os.path.exists(out):
                 converted += 1
-                print(f"  -> {out}")
+                log(f"  -> OK")
             else:
                 failed.append(sldasm)
-                print(f"  FAILED (no output file)")
+                log(f"  FAILED (no output file)")
 
         except Exception as e:
             failed.append(sldasm)
-            print(f"  ERROR: {e}")
+            log(f"  ERROR: {e}")
 
-    print(f"\nDone. Converted: {converted}  Skipped: {skipped}  Failed: {len(failed)}")
+    log(f"Done. Converted: {converted}  Skipped: {skipped}  Failed: {len(failed)}")
     if failed:
-        print("\nFailed files:")
+        log("Failed files:")
         for f in failed:
-            print(f"  {f}")
+            log(f"  {f}")
 
 
 main()
