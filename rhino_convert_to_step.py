@@ -13,6 +13,7 @@ PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_metho
 CLONES_DIR = os.path.join(PROJECT_DIR, "clones")
 OUTPUT_DIR = os.path.join(PROJECT_DIR, "steps_from_SolidWorks")
 LOG_FILE = os.path.join(PROJECT_DIR, "rhino_convert.log")
+HISTORY_FILE = os.path.join(PROJECT_DIR, "rhino_convert_history.log")
 
 
 def log(msg):
@@ -20,6 +21,8 @@ def log(msg):
     line = "[{0}] {1}".format(ts, msg)
     print(line)
     with open(LOG_FILE, "a") as f:
+        f.write(line + "\n")
+    with open(HISTORY_FILE, "a") as f:
         f.write(line + "\n")
 
 
@@ -33,9 +36,12 @@ def find_sldasm_files(root_dir):
 
 
 def main():
-    # Clear log file at start of each run
+    # Clear the live log each run; append a separator to the history log
     with open(LOG_FILE, "w") as f:
         f.write("")
+    run_ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(HISTORY_FILE, "a") as f:
+        f.write("\n=== Run started {0} ===\n".format(run_ts))
     log("Starting conversion...")
 
     sldasm_files = find_sldasm_files(CLONES_DIR)
