@@ -13,7 +13,7 @@ echo Progress will appear below. This window will close when done.
 echo.
 
 :: Launch Rhino in the background
-start "" %RHINO% /nosplash /runscript="-_RunPythonScript (%SCRIPT%)"
+start "" %RHINO% /nosplash /runscript="-_RunPythonScript (%SCRIPT%) -_Exit"
 
 :: Wait for the log file to appear (Rhino takes a moment to start)
 :waitforlog
