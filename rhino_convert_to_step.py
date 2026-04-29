@@ -17,7 +17,7 @@ LOG_FILE = os.path.join(PROJECT_DIR, "rhino_convert.log")
 
 def log(msg):
     ts = datetime.datetime.now().strftime("%H:%M:%S")
-    line = f"[{ts}] {msg}"
+    line = "[{0}] {1}".format(ts, msg)
     print(line)
     with open(LOG_FILE, "a") as f:
         f.write(line + "\n")
@@ -40,7 +40,7 @@ def main():
 
     sldasm_files = find_sldasm_files(CLONES_DIR)
     total = len(sldasm_files)
-    log(f"Found {total} SLDASM files")
+    log("Found {0} SLDASM files".format(total))
 
     skipped = 0
     converted = 0
@@ -52,39 +52,41 @@ def main():
         out = os.path.join(OUTPUT_DIR, os.path.splitext(rel)[0] + ".step")
 
         if os.path.exists(out):
-            log(f"[{i+1}/{total}] Skip (exists): {os.path.basename(sldasm)}")
+            log("[{0}/{1}] Skip (exists): {2}".format(i+1, total, os.path.basename(sldasm)))
             skipped += 1
             continue
 
-        log(f"[{i+1}/{total}] Converting: {os.path.basename(sldasm)}")
+        log("[{0}/{1}] Converting: {2}".format(i+1, total, os.path.basename(sldasm)))
 
         try:
-            os.makedirs(os.path.dirname(out), exist_ok=True)
+            out_dir = os.path.dirname(out)
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
 
             # Open the assembly. Double _Enter dismisses any missing-ref dialogs.
-            rs.Command(f'-_Open "{sldasm}" _Enter _Enter', False)
+            rs.Command('-_Open "{0}" _Enter _Enter'.format(sldasm), False)
 
             # Select everything and export as STEP.
             # Leading hyphen on _Export suppresses the options dialog.
             rs.Command("_SelAll", False)
-            result = rs.Command(f'-_Export "{out}" _Enter _Enter', False)
+            result = rs.Command('-_Export "{0}" _Enter _Enter'.format(out), False)
 
             if os.path.exists(out):
                 converted += 1
-                log(f"  -> OK")
+                log("  -> OK")
             else:
                 failed.append(sldasm)
-                log(f"  FAILED (no output file)")
+                log("  FAILED (no output file)")
 
         except Exception as e:
             failed.append(sldasm)
-            log(f"  ERROR: {e}")
+            log("  ERROR: {0}".format(e))
 
-    log(f"Done. Converted: {converted}  Skipped: {skipped}  Failed: {len(failed)}")
+    log("Done. Converted: {0}  Skipped: {1}  Failed: {2}".format(converted, skipped, len(failed)))
     if failed:
         log("Failed files:")
         for f in failed:
-            log(f"  {f}")
+            log("  {0}".format(f))
 
 
 main()
