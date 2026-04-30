@@ -36,9 +36,13 @@ try:
         sys.path.insert(0, ROBODK_SETUP_DIR)
     import modifications
 
-    # Determine which file to load
-    load_file = SAVED_MODIFIED if os.path.getsize(SAVED_MODIFIED) > 100000 if os.path.exists(SAVED_MODIFIED) else False else STATION_FILE
-    run_modifications = (load_file == STATION_FILE)
+    # Use pre-modified save if it exists and is a real file (not an empty stub)
+    if os.path.exists(SAVED_MODIFIED) and os.path.getsize(SAVED_MODIFIED) > 100000:
+        load_file = SAVED_MODIFIED
+        run_modifications = False
+    else:
+        load_file = STATION_FILE
+        run_modifications = True
 
     print(f"Loading: {load_file}")
     RDK.AddFile(load_file)
