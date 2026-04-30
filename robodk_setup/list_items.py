@@ -11,7 +11,7 @@ from datetime import datetime
 PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 OUTPUT_DIR  = os.path.join(PROJECT_DIR, "robo_dk_output")
 
-if "RDK" not in dir():
+if "RDK" not in globals():
     RDK = Robolink()
 
 itemlist = RDK.ItemList()
