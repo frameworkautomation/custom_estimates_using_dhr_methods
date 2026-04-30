@@ -12,19 +12,18 @@ Or run directly from RoboDK's built-in IDE:
 from robodk import *
 from robolink import *
 import os
+import sys
 import runpy
 import traceback
 from datetime import datetime
 
-PROJECT_DIR   = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
-STATION_FILE  = os.path.join(PROJECT_DIR, "robo_dk_saves", "TestStationFanuc.rdk")
-MODIFICATIONS = os.path.join(PROJECT_DIR, "robodk_setup", "modifications.py")
-LIST_ITEMS    = os.path.join(PROJECT_DIR, "robodk_setup", "list_items.py")
-OUTPUT_DIR    = os.path.join(PROJECT_DIR, "robo_dk_output")
-ERROR_LOG     = os.path.join(OUTPUT_DIR, "error.txt")
-
-# Save filename: set to a string for an explicit title, or None to use date-time.
-SAVE_TITLE = "all_dhr_cones_removed"
+PROJECT_DIR      = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+STATION_FILE     = os.path.join(PROJECT_DIR, "robo_dk_saves", "TestStationFanuc.rdk")
+SAVED_MODIFIED   = os.path.join(PROJECT_DIR, "robo_dk_saves", "all_dhr_cones_removed.rdk")
+LIST_ITEMS       = os.path.join(PROJECT_DIR, "robodk_setup", "list_items.py")
+OUTPUT_DIR       = os.path.join(PROJECT_DIR, "robo_dk_output")
+ERROR_LOG        = os.path.join(OUTPUT_DIR, "error.txt")
+ROBODK_SETUP_DIR = os.path.join(PROJECT_DIR, "robodk_setup")
 
 def write_error(e):
     msg = traceback.format_exc()
@@ -36,40 +35,47 @@ def write_error(e):
 try:
     RDK = Robolink()
 
-    assert os.path.exists(STATION_FILE), (
-        f"Station file not found: {STATION_FILE}\n"
-        "Make sure robo_dk_saves/TestStationFanuc.rdk exists in the repo directory."
-    )
+    # Add robodk_setup/ to path so modifications.py can be imported as a module
+    if ROBODK_SETUP_DIR not in sys.path:
+        sys.path.insert(0, ROBODK_SETUP_DIR)
+    import modifications
 
-    RDK.AddFile(STATION_FILE)
-    print(f"Loaded station: {STATION_FILE}")
-
-    # List all items before modifications
-    print("Listing station items...")
-    runpy.run_path(LIST_ITEMS, init_globals={"RDK": RDK})
-
-    # Apply modifications
-    print("Running modifications...")
-    runpy.run_path(MODIFICATIONS, init_globals={"RDK": RDK})
-
-    # Save the result to robo_dk_saves/
-    save_dir = os.path.dirname(STATION_FILE)
-    if SAVE_TITLE:
-        save_name = SAVE_TITLE + ".rdk"
+    if os.path.exists(SAVED_MODIFIED):
+        # Fast path: pre-modified station already exists, skip modifications
+        print(f"Pre-modified station found, loading directly: {SAVED_MODIFIED}")
+        RDK.AddFile(SAVED_MODIFIED)
     else:
-        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        save_name = "TestStationFanuc_" + ts + ".rdk"
-    save_path = os.path.join(save_dir, save_name)
-    RDK.Save(save_path)
-    print(f"Saved station: {save_path}")
+        # Slow path: load base station, record cone positions, delete cones, save
+        assert os.path.exists(STATION_FILE), (
+            f"Station file not found: {STATION_FILE}\n"
+            "Make sure robo_dk_saves/TestStationFanuc.rdk exists in the repo directory."
+        )
 
-    # Write summary to robo_dk_output/
+        print(f"Loading base station: {STATION_FILE}")
+        RDK.AddFile(STATION_FILE)
+
+        print("Listing station items...")
+        runpy.run_path(LIST_ITEMS, init_globals={"RDK": RDK})
+
+        print("Recording cone positions...")
+        modifications.record_cone_positions(RDK)
+
+        print("Deleting cones...")
+        modifications.delete_cones(RDK)
+
+        print(f"Saving modified station: {SAVED_MODIFIED}")
+        RDK.Save(SAVED_MODIFIED)
+
+    # Write run summary
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    summary = f"=== Setup Station ===\n\nTimestamp: {timestamp}\n\nLoaded: {STATION_FILE}\nSaved:  {save_path}\n"
-    print(summary)
-
+    summary = (
+        f"=== Setup Station ===\n\n"
+        f"Timestamp: {timestamp}\n\n"
+        f"Loaded: {SAVED_MODIFIED if os.path.exists(SAVED_MODIFIED) else STATION_FILE}\n"
+    )
     with open(os.path.join(OUTPUT_DIR, "setup_station.txt"), "w") as f:
         f.write(summary)
+    print(summary)
 
 except Exception as e:
     write_error(e)
