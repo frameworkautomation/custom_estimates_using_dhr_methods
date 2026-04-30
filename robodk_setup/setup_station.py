@@ -9,7 +9,9 @@ Or from the command line (requires robodk package installed):
     python setup_station.py
 """
 import os
+import math
 from robodk.robolink import Robolink
+from robodk.robomath import rotx, roty, rotz, transl
 
 PROJECT_DIR  = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 STEPS_DIR    = os.path.join(PROJECT_DIR, "steps_from_SolidWorks")
@@ -21,6 +23,13 @@ CELL_LAYOUT  = os.path.join(STEPS_DIR, "atomic-knitting-machine-tending-cell",
                              "V2-adapted-to-Factory-1", "Layout-V2-1-29-2026.step")
 SHIMA_STL    = os.path.join(CLONES_DIR, "knitting-machines", "Shima Seiki SWG-XR",
                              "3D Scan", "OBJ", "3DModel", "Shima Seiki SWG-XR.STL")
+
+# MACHINE POSITIONS (mm) relative to world origin, one tuple per machine.
+# Update these once you know the layout — check the PDF or the loaded cell layout STEP.
+SHIMA_POSITIONS = [
+    (0, 0, 0),   # machine 1 — placeholder
+    # (x, y, z), # machine 2 — add more as needed
+]
 
 RDK = Robolink()
 # Large STEP files take a long time to import — increase the socket timeout
@@ -51,18 +60,23 @@ def load_cell_layout():
     return layout
 
 
-def load_shima(count=1):
-    """Load the Shima Seiki STL and place count instances of it."""
+def load_shima():
+    """Load the Shima Seiki STL for each position in SHIMA_POSITIONS."""
     if not os.path.exists(SHIMA_STL):
         print("ERROR: Shima Seiki STL not found: " + SHIMA_STL)
         return []
 
+    # STL scan axes don't always match RoboDK — rotate 90deg around X to stand it upright.
+    # Adjust SHIMA_ORIENTATION if it still looks wrong after running.
+    SHIMA_ORIENTATION = rotx(math.pi / 2)
+
     instances = []
-    for i in range(count):
+    for i, (x, y, z) in enumerate(SHIMA_POSITIONS):
         obj = RDK.AddFile(SHIMA_STL)
         obj.setName("Shima Seiki SWG-XR " + str(i + 1))
+        obj.setPose(transl(x, y, z) * SHIMA_ORIENTATION)
         instances.append(obj)
-        print("Loaded Shima Seiki instance " + str(i + 1))
+        print("Loaded Shima Seiki " + str(i + 1) + " at (" + str(x) + ", " + str(y) + ", " + str(z) + ")")
     return instances
 
 
@@ -71,7 +85,7 @@ def main():
 
     robot  = load_fanuc()
     layout = load_cell_layout()   # loads even if robot failed
-    shimas = load_shima(count=1)  # change count to match number of machines in your cell
+    shimas = load_shima()
 
     print("")
     print("Done. Next steps:")
