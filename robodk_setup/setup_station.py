@@ -64,7 +64,19 @@ try:
         modifications.delete_cones(RDK)
 
         print(f"Saving modified station: {SAVED_MODIFIED}")
+        save_dir = os.path.dirname(SAVED_MODIFIED)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
         RDK.Save(SAVED_MODIFIED)
+        if os.path.exists(SAVED_MODIFIED):
+            print(f"Save confirmed: {SAVED_MODIFIED}")
+        else:
+            print(f"WARNING: RDK.Save() returned but file not found: {SAVED_MODIFIED}")
+            # Try saving the active station item directly
+            station = RDK.ActiveStation()
+            print(f"Active station: {station.Name()}")
+            station.Save(SAVED_MODIFIED)
+            print(f"Station.Save() called. File exists: {os.path.exists(SAVED_MODIFIED)}")
 
     # Write run summary
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
