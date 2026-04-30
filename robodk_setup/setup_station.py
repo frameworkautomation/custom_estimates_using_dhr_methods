@@ -1,9 +1,8 @@
-"""Apply modifications to the currently open RoboDK station and save the result.
+"""Load TestStationFanuc into RoboDK, apply modifications, and save.
 
-IMPORTANT: Open the station manually in RoboDK first before running this script.
-    File > Open > robo_dk_saves/TestStationFanuc.rdk
+RoboDK must be open and running before you run this script.
 
-Then run via the caller script:
+Run via the caller script (recommended):
     Copy robodk_setup/setup_station_caller.py to C:\RoboDK\Scripts\ once,
     then: Tools > Run Script > setup_station_caller
 """
@@ -16,6 +15,7 @@ import traceback
 from datetime import datetime
 
 PROJECT_DIR      = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+STATION_FILE     = os.path.join(PROJECT_DIR, "robo_dk_saves", "TestStationFanuc.rdk")
 SAVED_MODIFIED   = os.path.join(PROJECT_DIR, "robo_dk_saves", "all_dhr_cones_removed.rdk")
 LIST_ITEMS       = os.path.join(PROJECT_DIR, "robodk_setup", "list_items.py")
 OUTPUT_DIR       = os.path.join(PROJECT_DIR, "robo_dk_output")
@@ -36,31 +36,40 @@ try:
         sys.path.insert(0, ROBODK_SETUP_DIR)
     import modifications
 
-    # Check if cones are already gone by looking for matching items
-    cone_items = modifications._get_cone_items(RDK)
+    # Determine which file to load
+    load_file = SAVED_MODIFIED if os.path.getsize(SAVED_MODIFIED) > 100000 if os.path.exists(SAVED_MODIFIED) else False else STATION_FILE
+    run_modifications = (load_file == STATION_FILE)
 
-    if not cone_items:
-        print("No cone items found — station already modified or wrong station open.")
-        print("Make sure TestStationFanuc.rdk is open in RoboDK.")
-    else:
-        print(f"Found {len(cone_items)} cone items. Running modifications...")
+    print(f"Loading: {load_file}")
+    RDK.AddFile(load_file)
 
+    # Find the station we just loaded and make it the active station for saving
+    stations = [s for s in RDK.ItemList(ITEM_TYPE_STATION) if s.Valid()]
+    print(f"Open stations: {[s.Name() for s in stations]}")
+    if stations:
+        RDK.setActiveStation(stations[-1])
+        print(f"Active station set to: {stations[-1].Name()}")
+
+    if run_modifications:
+        print("Listing station items...")
         runpy.run_path(LIST_ITEMS, init_globals={"RDK": RDK})
 
+        print("Recording cone positions...")
         modifications.record_cone_positions(RDK)
+
+        print("Deleting cones...")
         modifications.delete_cones(RDK)
 
         print(f"Saving to: {SAVED_MODIFIED}")
         RDK.Save(SAVED_MODIFIED)
 
-        if os.path.exists(SAVED_MODIFIED):
-            size = os.path.getsize(SAVED_MODIFIED)
-            print(f"Save confirmed ({size} bytes): {SAVED_MODIFIED}")
-        else:
-            print(f"WARNING: file not found after save: {SAVED_MODIFIED}")
+        size = os.path.getsize(SAVED_MODIFIED) if os.path.exists(SAVED_MODIFIED) else 0
+        print(f"Save result: {size} bytes at {SAVED_MODIFIED}")
+    else:
+        print("Loaded pre-modified station, skipping modifications.")
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    summary = f"=== Setup Station ===\n\nTimestamp: {timestamp}\n\nCones found: {len(cone_items)}\n"
+    summary = f"=== Setup Station ===\n\nTimestamp: {timestamp}\nLoaded: {load_file}\nModifications run: {run_modifications}\n"
     with open(os.path.join(OUTPUT_DIR, "setup_station.txt"), "w") as f:
         f.write(summary)
     print(summary)
