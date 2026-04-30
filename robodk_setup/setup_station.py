@@ -15,8 +15,7 @@ PROJECT_DIR  = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_meth
 STEPS_DIR    = os.path.join(PROJECT_DIR, "steps_from_SolidWorks")
 CLONES_DIR   = os.path.join(PROJECT_DIR, "clones")
 
-ROBODK_SETUP = os.path.join(PROJECT_DIR, "robodk_setup")
-FANUC_ROBOT  = os.path.join(ROBODK_SETUP, "Fanuc R-2000iC 125L.robot")
+FANUC_ROBOT  = r"C:\RoboDK\Library\Fanuc-R-2000iC-125L.robot"
 
 CELL_LAYOUT  = os.path.join(STEPS_DIR, "atomic-knitting-machine-tending-cell",
                              "V2-adapted-to-Factory-1", "Layout-V2-1-29-2026.step")
@@ -32,7 +31,6 @@ def load_fanuc():
     """Load Fanuc R-2000iC 125L from robodk_setup/."""
     assert os.path.exists(FANUC_ROBOT), (
         "Fanuc robot file not found at: " + FANUC_ROBOT + "\n"
-        "Copy 'Fanuc R-2000iC 125L.robot' from your Downloads into the robodk_setup/ folder.\n"
         "Download it from RoboDK: File > Open Online Library > search 'R-2000iC 125L' > download."
     )
     robot = RDK.AddFile(FANUC_ROBOT)
