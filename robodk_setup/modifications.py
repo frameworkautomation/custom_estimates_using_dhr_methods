@@ -14,8 +14,8 @@ OUTPUT_DIR  = os.path.join(PROJECT_DIR, "robo_dk_output")
 
 RDK = Robolink()
 
-# Matches: Machine<N>YarnTray<N>Slot2Base
-YARN_TRAY_RE = re.compile(r"^Machine\d+YarnTray\d+Slot2Base$")
+# Matches all yarn tray items on machines: MachineNYarnTrayN..., ApproachMachineNYarnTrayN...
+YARN_TRAY_RE = re.compile(r"^(Approach)?Machine\d+YarnTray\d+")
 
 # Collect first, then delete (avoid mutating list while iterating)
 to_delete = [item for item in RDK.ItemList() if YARN_TRAY_RE.match(item.Name())]
