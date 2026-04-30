@@ -15,8 +15,8 @@ OUTPUT_DIR  = os.path.join(PROJECT_DIR, "robo_dk_output")
 if "RDK" not in dir():
     RDK = Robolink()
 
-# Matches all yarn tray items anywhere in the station (Machine, Rack, Cart, etc.)
-YARN_TRAY_RE = re.compile(r"YarnTray")
+# Matches: Machine<N>YarnTray<N>Slot<N>Base
+YARN_TRAY_RE = re.compile(r"^Machine\d+YarnTray\d+Slot\d+Base$")
 
 # Collect first, then delete (avoid mutating list while iterating)
 # item.Valid() guards against invalid handles that ItemList() can include
