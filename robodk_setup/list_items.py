@@ -28,4 +28,3 @@ with open(filepath, "w") as f:
     f.write(message)
 
 print(f"Output saved to: {filepath}")
-RDK.ShowMessage(message + f"\n\nSaved to:\n{filepath}")

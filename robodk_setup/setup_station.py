@@ -18,6 +18,7 @@ from datetime import datetime
 PROJECT_DIR   = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 STATION_FILE  = os.path.join(PROJECT_DIR, "robo_dk_saves", "TestStationFanuc.rdk")
 MODIFICATIONS = os.path.join(PROJECT_DIR, "robodk_setup", "modifications.py")
+LIST_ITEMS    = os.path.join(PROJECT_DIR, "robodk_setup", "list_items.py")
 OUTPUT_DIR    = os.path.join(PROJECT_DIR, "robo_dk_output")
 
 # Save filename: set to a string for an explicit title, or None to use date-time.
@@ -32,6 +33,10 @@ assert os.path.exists(STATION_FILE), (
 
 RDK.AddFile(STATION_FILE)
 print(f"Loaded station: {STATION_FILE}")
+
+# List all items before modifications
+print("Listing station items...")
+runpy.run_path(LIST_ITEMS)
 
 # Apply modifications
 print("Running modifications...")
