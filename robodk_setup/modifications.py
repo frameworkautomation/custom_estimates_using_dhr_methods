@@ -19,7 +19,8 @@ if "RDK" not in dir():
 YARN_TRAY_RE = re.compile(r"^(Approach)?Machine\d+YarnTray\d+")
 
 # Collect first, then delete (avoid mutating list while iterating)
-to_delete = [item for item in RDK.ItemList() if YARN_TRAY_RE.match(item.Name())]
+# item.Valid() guards against invalid handles that ItemList() can include
+to_delete = [item for item in RDK.ItemList() if item.Valid() and YARN_TRAY_RE.match(item.Name())]
 
 deleted_names = []
 for item in to_delete:
