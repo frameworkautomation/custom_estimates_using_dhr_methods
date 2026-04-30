@@ -72,4 +72,31 @@ To use it:
 
 The caller script must not be moved into the RoboDK Scripts folder permanently from the repo — it lives in `robodk_setup/` in the repo and is copied manually. This avoids committing anything into RoboDK's install directory.
 
-`robodk_setup/setup_station.py` is an older script that builds the station from scratch (loads robot, cell layout STEP, and Shima Seiki STLs individually). Use the caller/saved-station approach instead unless rebuilding from scratch is needed.
+`robodk_setup/setup_station.py` is the main setup script. It loads the station, records cone positions, and deletes cones. It does NOT save the station (see license note below).
+
+`robodk_setup/modifications.py` contains the functions called by setup_station.py:
+- `record_cone_positions(RDK)` — writes cone world poses to `robo_dk_output/cone_positions.json` before deletion
+- `delete_cones(RDK)` — deletes all `Machine<N>YarnTray<N>Slot<N>(Base)?` items
+
+`robodk_setup/list_items.py` — standalone diagnostic that writes all station item names/types to `robo_dk_output/station_items.txt`. Run it manually if you need to inspect item names.
+
+### License limitation — saving disabled
+
+`TestStationFanuc.rdk` contains two robots: a Fanuc R-2000iC 125L and a linear rail mechanism. RoboDK's free license allows *loading* multi-robot stations but not *saving* them via the API — `RDK.Save()` silently produces an empty ~1KB stub file instead of the real station.
+
+**Do not attempt to save the station via script until a paid RoboDK license is in place.**
+
+### Progress tracking — steps.json
+
+Because saving is disabled, session progress is tracked in `robo_dk_output/steps.json`:
+
+```json
+{
+  "station_loaded": true,
+  "cone_positions_recorded": true,
+  "cones_deleted": true,
+  "last_updated": "2026-04-30 15:17:16"
+}
+```
+
+Each time the caller runs, setup_station.py reads this file and skips steps that are already done. Cone deletion is also verified live by querying the station (since the station resets to its original state each RoboDK session). To force a full re-run, delete `steps.json`.
