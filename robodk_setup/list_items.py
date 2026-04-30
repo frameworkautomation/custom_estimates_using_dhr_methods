@@ -11,7 +11,8 @@ from datetime import datetime
 PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 OUTPUT_DIR  = os.path.join(PROJECT_DIR, "robo_dk_output")
 
-RDK = Robolink()
+if "RDK" not in dir():
+    RDK = Robolink()
 
 itemlist = RDK.ItemList()
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

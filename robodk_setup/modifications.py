@@ -12,7 +12,8 @@ from datetime import datetime
 PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 OUTPUT_DIR  = os.path.join(PROJECT_DIR, "robo_dk_output")
 
-RDK = Robolink()
+if "RDK" not in dir():
+    RDK = Robolink()
 
 # Matches all yarn tray items on machines: MachineNYarnTrayN..., ApproachMachineNYarnTrayN...
 YARN_TRAY_RE = re.compile(r"^(Approach)?Machine\d+YarnTray\d+")

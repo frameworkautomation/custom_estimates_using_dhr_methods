@@ -46,11 +46,11 @@ try:
 
     # List all items before modifications
     print("Listing station items...")
-    runpy.run_path(LIST_ITEMS)
+    runpy.run_path(LIST_ITEMS, init_globals={"RDK": RDK})
 
     # Apply modifications
     print("Running modifications...")
-    runpy.run_path(MODIFICATIONS)
+    runpy.run_path(MODIFICATIONS, init_globals={"RDK": RDK})
 
     # Save the result to robo_dk_saves/
     save_dir = os.path.dirname(STATION_FILE)
