@@ -23,8 +23,9 @@ CELL_LAYOUT  = os.path.join(STEPS_DIR, "atomic-knitting-machine-tending-cell",
 SHIMA_STL    = os.path.join(CLONES_DIR, "knitting-machines", "Shima Seiki SWG-XR",
                              "3D Scan", "OBJ", "3DModel", "Shima Seiki SWG-XR.STL")
 
+RDK = Robolink()
 # Large STEP files take a long time to import — increase the socket timeout
-RDK = Robolink(timeout=300)
+RDK.COM.settimeout(300)
 
 
 def load_fanuc():
