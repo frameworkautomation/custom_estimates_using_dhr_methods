@@ -56,3 +56,20 @@ If you need a STEP file and it doesn't exist in `steps_from_SolidWorks/`, the us
 3. The STEP file will appear at the mirrored path under `steps_from_SolidWorks/`.
 
 Do not attempt to read or use `.SLDASM` or `.SLDPRT` files directly — always use the corresponding `.step` file from `steps_from_SolidWorks/`.
+
+## RoboDK station setup
+
+The saved RoboDK station lives at `robo_dk_saves/TestStationFanuc.rdk` (git-ignored). It contains the Fanuc R-2000iC 125L robot and the factory cell geometry already positioned.
+
+### Caller script (one-time setup per machine)
+
+`robodk_setup/setup_station_caller.py` is meant to be copied once to `C:\RoboDK\Scripts\` and left there. It connects to a running RoboDK instance and loads `robo_dk_saves/TestStationFanuc.rdk` into the station.
+
+To use it:
+1. Copy `robodk_setup/setup_station_caller.py` to `C:\RoboDK\Scripts\`.
+2. Open RoboDK.
+3. Run it via: Tools > Run Script > setup_station_caller.
+
+The caller script must not be moved into the RoboDK Scripts folder permanently from the repo — it lives in `robodk_setup/` in the repo and is copied manually. This avoids committing anything into RoboDK's install directory.
+
+`robodk_setup/setup_station.py` is an older script that builds the station from scratch (loads robot, cell layout STEP, and Shima Seiki STLs individually). Use the caller/saved-station approach instead unless rebuilding from scratch is needed.
