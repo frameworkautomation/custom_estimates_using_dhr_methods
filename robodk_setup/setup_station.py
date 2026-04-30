@@ -32,8 +32,11 @@ SHIMA_POSITIONS = [
 ]
 
 RDK = Robolink()
-# Large STEP files take a long time to import — increase the socket timeout
-RDK.COM.settimeout(300)
+# Remove socket timeout entirely — large STEP files can take several minutes
+try:
+    RDK.COM.settimeout(None)
+except Exception:
+    pass
 
 
 def load_fanuc():
