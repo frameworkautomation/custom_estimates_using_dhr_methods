@@ -1,8 +1,12 @@
-"""Load TestStationFanuc into RoboDK, apply modifications, and save.
+"""Load TestStationFanuc into RoboDK and apply modifications.
+
+NOTE ON SAVING: RoboDK's free license limits stations to 1 robot.
+TestStationFanuc contains a Fanuc robot + linear rail (2 robots), which
+prevents saving via the API. All progress is tracked in steps.json instead.
 
 RoboDK must be open and running before you run this script.
 
-Run via the caller script (recommended):
+Run via the caller script:
     Copy robodk_setup/setup_station_caller.py to C:\RoboDK\Scripts\ once,
     then: Tools > Run Script > setup_station_caller
 """
@@ -10,15 +14,31 @@ from robodk import *
 from robolink import *
 import os
 import sys
+import json
 import traceback
 from datetime import datetime
 
 PROJECT_DIR      = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 STATION_FILE     = os.path.join(PROJECT_DIR, "robo_dk_saves", "TestStationFanuc.rdk")
-SAVED_MODIFIED   = os.path.join(PROJECT_DIR, "robo_dk_saves", "all_dhr_cones_removed.rdk")
 OUTPUT_DIR       = os.path.join(PROJECT_DIR, "robo_dk_output")
+STEPS_FILE       = os.path.join(OUTPUT_DIR, "steps.json")
 ERROR_LOG        = os.path.join(OUTPUT_DIR, "error.txt")
 ROBODK_SETUP_DIR = os.path.join(PROJECT_DIR, "robodk_setup")
+
+
+def load_steps():
+    if os.path.exists(STEPS_FILE):
+        with open(STEPS_FILE) as f:
+            return json.load(f)
+    return {"station_loaded": False, "cone_positions_recorded": False, "cones_deleted": False}
+
+
+def save_steps(steps):
+    steps["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(STEPS_FILE, "w") as f:
+        json.dump(steps, f, indent=2)
+    print(f"Steps saved: {steps}")
+
 
 def write_error(e):
     msg = traceback.format_exc()
@@ -27,6 +47,7 @@ def write_error(e):
         f.write(msg)
     print(f"Error written to: {ERROR_LOG}")
 
+
 try:
     RDK = Robolink()
 
@@ -34,44 +55,47 @@ try:
         sys.path.insert(0, ROBODK_SETUP_DIR)
     import modifications
 
-    # Use pre-modified save if it exists and is a real file (not an empty stub)
-    if os.path.exists(SAVED_MODIFIED) and os.path.getsize(SAVED_MODIFIED) > 100000:
-        load_file = SAVED_MODIFIED
-        run_modifications = False
+    steps = load_steps()
+
+    # --- Step 1: Load station ---
+    if not steps["station_loaded"]:
+        print(f"Loading station: {STATION_FILE}")
+        RDK.AddFile(STATION_FILE)
+        stations = [s for s in RDK.ItemList(ITEM_TYPE_STATION) if s.Valid()]
+        if stations:
+            RDK.setActiveStation(stations[-1])
+            print(f"Active station: {stations[-1].Name()}")
+        steps["station_loaded"] = True
+        # Reset downstream steps since we loaded a fresh station
+        steps["cones_deleted"] = False
+        save_steps(steps)
     else:
-        load_file = STATION_FILE
-        run_modifications = True
+        print("Station already loaded this session, skipping.")
 
-    print(f"Loading: {load_file}")
-    RDK.AddFile(load_file)
+    # --- Step 2: Record cone positions (only once — don't overwrite good data) ---
+    if not steps["cone_positions_recorded"]:
+        cone_items = modifications._get_cone_items(RDK)
+        if cone_items:
+            print(f"Recording positions of {len(cone_items)} cones...")
+            modifications.record_cone_positions(RDK)
+            steps["cone_positions_recorded"] = True
+            save_steps(steps)
+        else:
+            print("No cones found to record.")
+    else:
+        print("Cone positions already recorded, skipping.")
 
-    # Find the station we just loaded and make it the active station for saving
-    stations = [s for s in RDK.ItemList(ITEM_TYPE_STATION) if s.Valid()]
-    print(f"Open stations: {[s.Name() for s in stations]}")
-    if stations:
-        RDK.setActiveStation(stations[-1])
-        print(f"Active station set to: {stations[-1].Name()}")
-
-    if run_modifications:
-        print("Recording cone positions...")
-        modifications.record_cone_positions(RDK)
-
-        print("Deleting cones...")
+    # --- Step 3: Delete cones (check live — station can't be saved) ---
+    cone_items = modifications._get_cone_items(RDK)
+    if cone_items:
+        print(f"Deleting {len(cone_items)} cones...")
         modifications.delete_cones(RDK)
-
-        print(f"Saving to: {SAVED_MODIFIED}")
-        RDK.Save(SAVED_MODIFIED)
-
-        size = os.path.getsize(SAVED_MODIFIED) if os.path.exists(SAVED_MODIFIED) else 0
-        print(f"Save result: {size} bytes at {SAVED_MODIFIED}")
+        steps["cones_deleted"] = True
+        save_steps(steps)
     else:
-        print("Loaded pre-modified station, skipping modifications.")
-
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    summary = f"=== Setup Station ===\n\nTimestamp: {timestamp}\nLoaded: {load_file}\nModifications run: {run_modifications}\n"
-    with open(os.path.join(OUTPUT_DIR, "setup_station.txt"), "w") as f:
-        f.write(summary)
-    print(summary)
+        print("Cones already deleted this session, skipping.")
+        steps["cones_deleted"] = True
+        save_steps(steps)
 
 except Exception as e:
     write_error(e)
