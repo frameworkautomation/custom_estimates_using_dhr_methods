@@ -21,7 +21,8 @@ CELL_LAYOUT  = os.path.join(STEPS_DIR, "atomic-knitting-machine-tending-cell",
 SHIMA_STL    = os.path.join(CLONES_DIR, "knitting-machines", "Shima Seiki SWG-XR",
                              "3D Scan", "OBJ", "3DModel", "Shima Seiki SWG-XR.STL")
 
-RDK = Robolink()
+# Large STEP files take a long time to import — increase the socket timeout
+RDK = Robolink(timeout=300)
 
 
 def load_fanuc():
@@ -30,7 +31,8 @@ def load_fanuc():
     matches = glob.glob(os.path.join(lib, "*R-2000iC*125L*.robot"))
     if not matches:
         print("ERROR: Fanuc R-2000iC 125L not found in RoboDK library.")
-        print("Download it first: File > Open Online Library > search 'R-2000iC 125L'")
+        print("Do this once: File > Open Online Library > search 'R-2000iC 125L' > double-click to download.")
+        print("Then re-run this script.")
         return None
     robot = RDK.AddFile(matches[0])
     robot.setName("Fanuc R-2000iC 125L")
@@ -69,7 +71,7 @@ def main():
     print("Setting up knitting cell station in RoboDK...")
 
     robot  = load_fanuc()
-    layout = load_cell_layout()
+    layout = load_cell_layout()   # loads even if robot failed
     shimas = load_shima(count=1)  # change count to match number of machines in your cell
 
     print("")
