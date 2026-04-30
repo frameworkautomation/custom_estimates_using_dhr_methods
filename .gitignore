@@ -2,5 +2,6 @@ clones/
 steps_from_SolidWorks/
 robo_dk_output/
 robo_dk_saves/
+extracted_assets/
 rhino_convert.log
 rhino_convert_history.log
