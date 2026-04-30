@@ -19,8 +19,11 @@ timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 message = f"=== RoboDK Station Items ===\n\nTimestamp: {timestamp}\n\n"
 for item in itemlist:
-    if item.Valid():
-        message += f"  [{item.Type()}] {item.Name()}\n"
+    try:
+        if item.Valid():
+            message += f"  [{item.Type()}] {item.Name()}\n"
+    except Exception:
+        continue
 message += f"\nTotal: {len(itemlist)} item(s)"
 
 print(message)

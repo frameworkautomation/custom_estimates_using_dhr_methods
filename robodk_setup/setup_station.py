@@ -43,7 +43,8 @@ try:
     if os.path.exists(SAVED_MODIFIED):
         # Fast path: pre-modified station already exists, skip modifications
         print(f"Pre-modified station found, loading directly: {SAVED_MODIFIED}")
-        RDK.AddFile(SAVED_MODIFIED)
+        result = RDK.AddFile(SAVED_MODIFIED)
+        print(f"AddFile result valid: {result.Valid()}, name: {result.Name() if result.Valid() else 'N/A'}")
     else:
         # Slow path: load base station, record cone positions, delete cones, save
         assert os.path.exists(STATION_FILE), (
@@ -52,7 +53,8 @@ try:
         )
 
         print(f"Loading base station: {STATION_FILE}")
-        RDK.AddFile(STATION_FILE)
+        result = RDK.AddFile(STATION_FILE)
+        print(f"AddFile result valid: {result.Valid()}, name: {result.Name() if result.Valid() else 'N/A'}")
 
         print("Listing station items...")
         runpy.run_path(LIST_ITEMS, init_globals={"RDK": RDK})
