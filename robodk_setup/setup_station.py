@@ -10,14 +10,12 @@ from robodk import *
 from robolink import *
 import os
 import sys
-import runpy
 import traceback
 from datetime import datetime
 
 PROJECT_DIR      = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 STATION_FILE     = os.path.join(PROJECT_DIR, "robo_dk_saves", "TestStationFanuc.rdk")
 SAVED_MODIFIED   = os.path.join(PROJECT_DIR, "robo_dk_saves", "all_dhr_cones_removed.rdk")
-LIST_ITEMS       = os.path.join(PROJECT_DIR, "robodk_setup", "list_items.py")
 OUTPUT_DIR       = os.path.join(PROJECT_DIR, "robo_dk_output")
 ERROR_LOG        = os.path.join(OUTPUT_DIR, "error.txt")
 ROBODK_SETUP_DIR = os.path.join(PROJECT_DIR, "robodk_setup")
@@ -55,9 +53,6 @@ try:
         print(f"Active station set to: {stations[-1].Name()}")
 
     if run_modifications:
-        print("Listing station items...")
-        runpy.run_path(LIST_ITEMS, init_globals={"RDK": RDK})
-
         print("Recording cone positions...")
         modifications.record_cone_positions(RDK)
 
