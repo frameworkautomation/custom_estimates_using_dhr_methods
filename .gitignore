@@ -3,5 +3,6 @@ steps_from_SolidWorks/
 robo_dk_output/
 robo_dk_saves/
 extracted_assets/
+saved_rhino/
 rhino_convert.log
 rhino_convert_history.log
