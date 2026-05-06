@@ -10,10 +10,39 @@ import re
 import json
 from datetime import datetime
 
-PROJECT_DIR = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
-OUTPUT_DIR  = os.path.join(PROJECT_DIR, "robo_dk_output")
+PROJECT_DIR        = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+OUTPUT_DIR         = os.path.join(PROJECT_DIR, "robo_dk_output")
+DHR_END_EFFECTOR_DIR = os.path.join(PROJECT_DIR, "extracted_assets", "dhr_end_effector")
+DHR_EOAT_STL       = os.path.join(DHR_END_EFFECTOR_DIR, "MaintenanceGripper.stl")
 
 YARN_TRAY_RE = re.compile(r"^Machine\d+YarnTray\d+Slot\d+(Base)?$")
+
+
+def extract_dhr_end_effector(RDK):
+    """Export MaintenanceGripper from the loaded station as STL.
+
+    Skipped if extracted_assets/dhr_end_effector/ already has content.
+    """
+    if not os.path.exists(DHR_END_EFFECTOR_DIR):
+        os.makedirs(DHR_END_EFFECTOR_DIR)
+
+    existing = [f for f in os.listdir(DHR_END_EFFECTOR_DIR) if not f.startswith(".")]
+    if existing:
+        print("DHR end effector already extracted, skipping.")
+        return
+
+    item = RDK.Item("MaintenanceGripper")
+    if not item.Valid():
+        print("ERROR: MaintenanceGripper not found in station.")
+        return
+
+    print(f"Exporting MaintenanceGripper to: {DHR_EOAT_STL}")
+    item.Export(DHR_EOAT_STL)
+
+    if os.path.exists(DHR_EOAT_STL):
+        print("  -> OK")
+    else:
+        print("  FAILED (no output file)")
 
 
 def _get_cone_items(RDK):

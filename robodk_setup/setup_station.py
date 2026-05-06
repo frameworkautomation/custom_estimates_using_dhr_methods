@@ -72,7 +72,10 @@ try:
     else:
         print("Station already loaded this session, skipping.")
 
-    # --- Step 2: Record cone positions (only once — don't overwrite good data) ---
+    # --- Step 2: Extract DHR end effector STL (once, after station is loaded) ---
+    modifications.extract_dhr_end_effector(RDK)
+
+    # --- Step 3: Record cone positions (only once — don't overwrite good data) ---
     if not steps["cone_positions_recorded"]:
         cone_items = modifications._get_cone_items(RDK)
         if cone_items:
@@ -85,7 +88,7 @@ try:
     else:
         print("Cone positions already recorded, skipping.")
 
-    # --- Step 3: Delete cones (check live — station can't be saved) ---
+    # --- Step 4: Delete cones (check live — station can't be saved) ---
     cone_items = modifications._get_cone_items(RDK)
     if cone_items:
         print(f"Deleting {len(cone_items)} cones...")
