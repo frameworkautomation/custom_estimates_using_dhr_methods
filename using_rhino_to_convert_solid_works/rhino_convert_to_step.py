@@ -17,6 +17,10 @@ LOG_FILE = os.path.join(PROJECT_DIR, "rhino_convert.log")
 HISTORY_FILE = os.path.join(PROJECT_DIR, "rhino_convert_history.log")
 CONFIG_FILE = os.path.join(PROJECT_DIR, "using_rhino_to_convert_solid_works", "convert_config.json")
 
+DHR_END_EFFECTOR_DIR = os.path.join(PROJECT_DIR, "extracted_assets", "dhr_end_effector")
+DHR_EOAT_SLDPRT = os.path.join(CLONES_DIR, "eoats", "Maintenance EOAT", "V1", "Maintenance-EOAT-V1.SLDPRT")
+DHR_EOAT_STL = os.path.join(DHR_END_EFFECTOR_DIR, "MaintenanceGripper.stl")
+
 
 def log(msg):
     ts = datetime.datetime.now().strftime("%H:%M:%S")
@@ -37,6 +41,37 @@ def find_sldasm_files(root_dir):
     return results
 
 
+def extract_dhr_end_effector():
+    """Export the DHR Maintenance EOAT SLDPRT as STL into extracted_assets/dhr_end_effector/.
+
+    Skipped if the folder already contains any files.
+    """
+    if not os.path.exists(DHR_END_EFFECTOR_DIR):
+        os.makedirs(DHR_END_EFFECTOR_DIR)
+
+    existing = [f for f in os.listdir(DHR_END_EFFECTOR_DIR) if not f.startswith(".")]
+    if existing:
+        log("DHR end effector already extracted, skipping.")
+        return
+
+    if not os.path.exists(DHR_EOAT_SLDPRT):
+        log("ERROR: DHR end effector SLDPRT not found: " + DHR_EOAT_SLDPRT)
+        return
+
+    log("Extracting DHR end effector to: " + DHR_EOAT_STL)
+    try:
+        rs.Command('-_Open "{0}" _Enter _Enter'.format(DHR_EOAT_SLDPRT), False)
+        rs.Command("_SelAll", False)
+        rs.Command('-_Export "{0}" _Enter _Enter'.format(DHR_EOAT_STL), False)
+
+        if os.path.exists(DHR_EOAT_STL):
+            log("  -> OK")
+        else:
+            log("  FAILED (no output file)")
+    except Exception as e:
+        log("  ERROR: {0}".format(e))
+
+
 def main():
     # Clear the live log each run; append a separator to the history log
     with open(LOG_FILE, "w") as f:
@@ -45,6 +80,8 @@ def main():
     with open(HISTORY_FILE, "a") as f:
         f.write("\n=== Run started {0} ===\n".format(run_ts))
     log("Starting conversion...")
+
+    extract_dhr_end_effector()
 
     with open(CONFIG_FILE) as f:
         config = json.load(f)
