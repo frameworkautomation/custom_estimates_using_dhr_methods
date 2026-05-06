@@ -77,11 +77,19 @@ def delete_cones(RDK):
             deleted.append(name)
             print(f"Deleted: {name}")
 
+    gripper = RDK.Item("MaintenanceGripper")
+    if gripper.Valid():
+        gripper.Delete()
+        deleted.append("MaintenanceGripper")
+        print("Deleted: MaintenanceGripper")
+    else:
+        print("MaintenanceGripper not found, skipping.")
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message = (
         f"=== Modifications ===\n\n"
         f"Timestamp: {timestamp}\n\n"
-        f"Deleted {len(deleted)} cone item(s):\n"
+        f"Deleted {len(deleted)} item(s):\n"
     )
     for name in deleted:
         message += f"  {name}\n"
