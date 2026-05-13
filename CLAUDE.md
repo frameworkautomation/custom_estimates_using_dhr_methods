@@ -61,6 +61,27 @@ Do not attempt to read or use `.SLDASM` or `.SLDPRT` files directly — always u
 
 The saved RoboDK station lives at `robo_dk_saves/TestStationFanuc.rdk` (git-ignored). It contains the Fanuc R-2000iC 125L robot and the factory cell geometry already positioned.
 
+### Direct API access (preferred for live queries)
+
+RoboDK exposes a TCP/IP API on `localhost:20500`. While RoboDK is running, any Python process on the same machine can connect directly via `Robolink()` — no need to copy scripts into `C:\RoboDK\Scripts\`, no need to run them through Tools > Run Script, and no need to round-trip through JSON files in `robo_dk_output/`.
+
+Minimal connect:
+
+```python
+import sys
+sys.path.append("C:/RoboDK/Python")
+from robodk.robolink import Robolink
+from robodk.robomath import *
+
+RDK = Robolink()  # connects to running RoboDK on localhost:20500
+robot = RDK.Item("Fanuc R2000iC 125L")
+print(robot.Name())
+```
+
+Run with `python script.py` from a normal terminal. You can read items, move the robot, solve IK, etc. — everything the API supports.
+
+Use this pattern for one-off queries and interactive work. The caller-script + file-I/O pattern below is still used for things that need to persist across RoboDK sessions (since the station resets without a paid license to save) or that need to run inside RoboDK for other reasons.
+
 ### Caller script (one-time setup per machine)
 
 `robodk_setup/setup_station_caller.py` is meant to be copied once to `C:\RoboDK\Scripts\` and left there. It connects to a running RoboDK instance and loads `robo_dk_saves/TestStationFanuc.rdk` into the station.
