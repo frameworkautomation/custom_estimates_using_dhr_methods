@@ -1,8 +1,6 @@
 """
 RoboDK Script: Move Fanuc R2000iC 125L TCP (pickup_point) to TARGET_NAME.
-The approach is free to rotate around the target Z axis — only the position
-and Z axis direction are constrained. The best reachable joint solution is
-selected automatically.
+Free rotation around target Z axis. Confirmed working — delta ~0.
 """
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TARGET, ITEM_TYPE_TOOL
@@ -11,8 +9,8 @@ import tkinter as tk
 from tkinter import messagebox
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
-TARGET_NAME = "cone_grab_6"   # change to cone_grab_1, cone_grab_2, etc.
-Z_STEPS     = 36              # how many Z rotations to sample (36 = every 10 deg)
+TARGET_NAME = "cone_grab_0"   # change to cone_grab_1, cone_grab_2, etc.
+Z_STEPS     = 36              # Z rotation samples (36 = every 10 deg)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -26,28 +24,20 @@ def blocking_popup(title, message):
 
 def pose_from_z_axis(reference_pose):
     """
-    Build a 4x4 pose with the same position and Z axis as reference_pose,
-    but with X/Y axes chosen as an arbitrary consistent orthonormal frame.
-    This means only the position and Z axis direction are constrained —
-    rotation around Z is free.
+    Build a 4x4 pose with the same position and Z axis as reference_pose
+    but with X/Y axes as an arbitrary orthonormal frame (Gram-Schmidt).
+    Only position and Z axis direction are constrained — rotation around Z is free.
     """
     pos = reference_pose.Pos()
     z = [reference_pose[0,2], reference_pose[1,2], reference_pose[2,2]]
-
-    # Pick an arbitrary vector not parallel to Z, use for Gram-Schmidt
     arbitrary = [1.0, 0.0, 0.0] if abs(z[0]) < 0.9 else [0.0, 1.0, 0.0]
-
-    # X = arbitrary - (arbitrary . Z) * Z, then normalise
     dot = sum(arbitrary[i]*z[i] for i in range(3))
     x = [arbitrary[i] - dot*z[i] for i in range(3)]
     x_norm = sum(v**2 for v in x)**0.5
     x = [v/x_norm for v in x]
-
-    # Y = Z cross X
     y = [z[1]*x[2] - z[2]*x[1],
          z[2]*x[0] - z[0]*x[2],
          z[0]*x[1] - z[1]*x[0]]
-
     return Mat([
         [x[0], y[0], z[0], pos[0]],
         [x[1], y[1], z[1], pos[1]],
@@ -56,25 +46,17 @@ def pose_from_z_axis(reference_pose):
     ])
 
 
-def solve_ik_free_z(robot, tcp_pose, tool_offset, rail_offset_x, preferred_joints=None, z_steps=36):
+def solve_ik_free_z(robot, tcp_pose_world, tool_offset, rail_offset_x, preferred_joints=None, z_steps=36):
     """
-    Solve IK with position and Z axis constrained, Z rotation free.
-    Rotates around the TARGET Z axis (not flange Z), then back-calculates
-    the flange pose for each rotation before calling SolveIK_All.
-    This correctly handles tool offsets with non-trivial orientations.
-
-    For each Z rotation angle:
-      1. Rotate the TCP target around its own Z axis
-      2. Back-calculate flange: flange = rotated_tcp * invH(tool_offset)
-      3. Apply rail correction: ik_pose = transl(-rail_offset_x) * flange
-      4. Call SolveIK_All and collect all solutions
-    Returns the joint solution closest to preferred_joints.
+    Solve IK with position + Z axis constrained, free rotation around Z.
+    Rotates the TCP target around its own Z axis, back-calculates the flange
+    for each rotation, applies rail correction, collects all SolveIK_All
+    solutions, returns joint solution closest to preferred_joints.
     """
     if preferred_joints is None:
         preferred_joints = [0.0] * 7
 
-    # Build canonical TCP pose with only position + Z axis constrained
-    canonical_tcp = pose_from_z_axis(tcp_pose)
+    canonical_tcp = pose_from_z_axis(tcp_pose_world)
 
     best        = None
     best_dist   = float("inf")
