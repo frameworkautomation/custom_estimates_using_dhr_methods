@@ -1,7 +1,8 @@
 """
 RoboDK Script: Move Fanuc R2000iC 125L TCP (pickup_point) to TARGET_NAME.
-Uses SolveIK_All which supports the 7th axis (linear track).
-Tool TCP offset handled via invH back-calculation before IK.
+The approach is free to rotate around the target Z axis — only the position
+and Z axis direction are constrained. The best reachable joint solution is
+selected automatically.
 """
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TARGET, ITEM_TYPE_TOOL
@@ -10,7 +11,8 @@ import tkinter as tk
 from tkinter import messagebox
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
-TARGET_NAME = "cone_grab_0"   # change to cone_grab_1, cone_grab_2, etc.
+TARGET_NAME = "cone_grab_6"   # change to cone_grab_1, cone_grab_2, etc.
+Z_STEPS     = 36              # how many Z rotations to sample (36 = every 10 deg)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -22,35 +24,97 @@ def blocking_popup(title, message):
     root.destroy()
 
 
-def solve_ik_with_7th(robot, flange_pose, preferred_joints=None):
+def pose_from_z_axis(reference_pose):
     """
-    Solve IK using SolveIK_All — the only RoboDK API call that supports
-    7-axis robots with a linear track (d7). The target must be expressed
-    as the FLANGE pose (not TCP) in the robot base frame.
+    Build a 4x4 pose with the same position and Z axis as reference_pose,
+    but with X/Y axes chosen as an arbitrary consistent orthonormal frame.
+    This means only the position and Z axis direction are constrained —
+    rotation around Z is free.
+    """
+    pos = reference_pose.Pos()
+    z = [reference_pose[0,2], reference_pose[1,2], reference_pose[2,2]]
+
+    # Pick an arbitrary vector not parallel to Z, use for Gram-Schmidt
+    arbitrary = [1.0, 0.0, 0.0] if abs(z[0]) < 0.9 else [0.0, 1.0, 0.0]
+
+    # X = arbitrary - (arbitrary . Z) * Z, then normalise
+    dot = sum(arbitrary[i]*z[i] for i in range(3))
+    x = [arbitrary[i] - dot*z[i] for i in range(3)]
+    x_norm = sum(v**2 for v in x)**0.5
+    x = [v/x_norm for v in x]
+
+    # Y = Z cross X
+    y = [z[1]*x[2] - z[2]*x[1],
+         z[2]*x[0] - z[0]*x[2],
+         z[0]*x[1] - z[1]*x[0]]
+
+    return Mat([
+        [x[0], y[0], z[0], pos[0]],
+        [x[1], y[1], z[1], pos[1]],
+        [x[2], y[2], z[2], pos[2]],
+        [0,    0,    0,    1     ],
+    ])
+
+
+def solve_ik_free_z(robot, tcp_pose, tool_offset, rail_offset_x, preferred_joints=None, z_steps=36):
+    """
+    Solve IK with position and Z axis constrained, Z rotation free.
+    Rotates around the TARGET Z axis (not flange Z), then back-calculates
+    the flange pose for each rotation before calling SolveIK_All.
+    This correctly handles tool offsets with non-trivial orientations.
+
+    For each Z rotation angle:
+      1. Rotate the TCP target around its own Z axis
+      2. Back-calculate flange: flange = rotated_tcp * invH(tool_offset)
+      3. Apply rail correction: ik_pose = transl(-rail_offset_x) * flange
+      4. Call SolveIK_All and collect all solutions
     Returns the joint solution closest to preferred_joints.
     """
     if preferred_joints is None:
         preferred_joints = [0.0] * 7
 
-    all_solutions = robot.SolveIK_All(flange_pose)
+    # Build canonical TCP pose with only position + Z axis constrained
+    canonical_tcp = pose_from_z_axis(tcp_pose)
 
-    if all_solutions is None or len(all_solutions) == 0:
-        raise RuntimeError("IK solver returned no solutions.")
+    best        = None
+    best_dist   = float("inf")
+    best_angle  = 0.0
+    found_any   = False
 
-    best = None
-    best_dist = float("inf")
-    for sol in all_solutions:
-        joints = list(sol)
-        if len(joints) < 6:
+    for i in range(z_steps):
+        angle_rad = (2.0 * pi * i) / z_steps
+
+        # 1. Rotate TCP target around its own Z axis
+        rotated_tcp = canonical_tcp * rotz(angle_rad)
+
+        # 2. Back-calculate flange pose from rotated TCP
+        flange = rotated_tcp * invH(tool_offset)
+
+        # 3. Apply rail offset correction
+        flange_for_ik = transl(-rail_offset_x, 0, 0) * flange
+
+        # 4. Solve IK
+        solutions = robot.SolveIK_All(flange_for_ik)
+        if solutions is None or len(solutions) == 0:
             continue
-        padded = joints + [0.0] * (7 - len(joints))
-        dist = sum((padded[i] - preferred_joints[i]) ** 2 for i in range(7))
-        if dist < best_dist:
-            best_dist = dist
-            best = padded
+        found_any = True
+        for sol in solutions:
+            joints = list(sol)
+            if len(joints) < 6:
+                continue
+            padded = joints + [0.0] * (7 - len(joints))
+            dist = sum((padded[j] - preferred_joints[j]) ** 2 for j in range(7))
+            if dist < best_dist:
+                best_dist  = dist
+                best       = padded
+                best_angle = angle_rad * 180.0 / pi
 
+    if not found_any:
+        raise RuntimeError("IK solver returned no solutions across all Z rotations.")
     if best is None:
         raise RuntimeError("Could not select a valid IK solution.")
+
+    print(f"[INFO] Best Z rotation: {best_angle:.1f} deg  joint dist={best_dist:.2f}")
     return best
 
 
@@ -103,23 +167,15 @@ def main():
     tgt_rx, tgt_ry, tgt_rz = tgt[3], tgt[4], tgt[5]
     print(f"[INFO] Target (world):  X={tgt_x:.3f}  Y={tgt_y:.3f}  Z={tgt_z:.3f} mm")
 
-    # ── 6. Back-calculate flange target from TCP target ───────────────────────
-    # SolveIK_All solves to the FLANGE. To land the TCP at the target we need:
-    #   flange_target = tcp_target * inv(tool_offset)
-    flange_target_world = target_pose_world * invH(tool_offset)
-    ft = Pose_2_TxyzRxyz(flange_target_world)
-    print(f"[INFO] Flange target (world):  X={ft[0]:.3f}  Y={ft[1]:.3f}  Z={ft[2]:.3f} mm")
-
-    # ── 7. Apply rail offset correction ───────────────────────────────────────
-    # SolveIK_All expects the target in the rail frame (not world).
-    flange_for_ik = transl(-rail_base_offset_x, 0, 0) * flange_target_world
-    ft_ik = Pose_2_TxyzRxyz(flange_for_ik)
-    print(f"[INFO] Flange target (IK-adjusted):  X={ft_ik[0]:.3f}  Y={ft_ik[1]:.3f}  Z={ft_ik[2]:.3f} mm")
-
-    # ── 8. IK ─────────────────────────────────────────────────────────────────
+    # ── 6. IK — free Z rotation ───────────────────────────────────────────────
+    # solve_ik_free_z rotates around the TARGET Z axis, back-calculates the
+    # flange pose for each rotation, applies the rail correction, and picks
+    # the joint solution closest to current joints across all rotations.
     current_joints_7 = (robot.Joints().tolist() + [0.0] * 7)[:7]
-    print("[INFO] Solving IK...")
-    joints_to_target = solve_ik_with_7th(robot, flange_for_ik, current_joints_7)
+    print(f"[INFO] Solving IK with free Z rotation ({Z_STEPS} steps)...")
+    joints_to_target = solve_ik_free_z(
+        robot, target_pose_world, tool_offset, rail_base_offset_x, current_joints_7, Z_STEPS
+    )
     print(f"[INFO] IK solution: {[round(j, 4) for j in joints_to_target]}")
     print(f"[INFO] d7={joints_to_target[6]:.3f} mm")
 
@@ -166,7 +222,6 @@ def main():
     # ── 12. Return to zero and restore original tool ──────────────────────────
     robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     print("[INFO] All axes at zero.")
-
     if original_tool.Valid():
         robot.setTool(original_tool)
         print(f"[INFO] Tool restored to: {original_tool.Name()}")
@@ -175,3 +230,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
