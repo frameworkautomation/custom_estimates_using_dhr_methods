@@ -1,5 +1,7 @@
 # Add one SSH repo URL per line, e.g.:
 # git@github.com:username/repo-name.git
+# To pass extra git clone flags, append | followed by the flags, e.g.:
+# git@github.com:username/repo-name.git | -c core.compression=0
 git@gitlab.com:framework2813905/atomic-knitting-machine-tending-cell.git
 git@gitlab.com:framework2813905/knitting-machines.git
 git@gitlab.com:framework2813905/robots.git
@@ -9,3 +11,7 @@ git@gitlab.com:framework2813905/trays.git
 git@gitlab.com:framework2813905/buffer-rack.git
 git@gitlab.com:framework2813905/carts.git
 git@gitlab.com:framework2813905/safety-fencing.git
+git@github.com:DHREngineering/rdkconfig.git
+git@github.com:DHREngineering/mock-knitwear-cell-safety.git
+git@github.com:DHREngineering/mock-knitwear-cell-robotics-framework.git
+git@github.com:DHREngineering/knitwear-cell.git | --depth 1

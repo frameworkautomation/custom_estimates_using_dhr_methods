@@ -24,14 +24,23 @@ while IFS= read -r line; do
     # Skip empty lines and comments
     [[ -z "$line" || "$line" == \#* ]] && continue
 
-    repo_url="$line"
+    # Split on | to extract optional extra clone flags
+    repo_url="${line%%|*}"
+    repo_url="${repo_url%"${repo_url##*[! ]}"}"  # trim trailing whitespace
+    extra_flags=""
+    if [[ "$line" == *"|"* ]]; then
+        extra_flags="${line#*|}"
+        extra_flags="${extra_flags#"${extra_flags%%[! ]*}"}"  # trim leading whitespace
+        extra_flags="${extra_flags%"${extra_flags##*[! ]}"}"  # trim trailing whitespace
+    fi
+
     repo_name="$(basename "$repo_url" .git)"
 
     if [[ -d "$CLONES_DIR/$repo_name" ]]; then
         echo "Skipping $repo_name — already exists in clones/"
     else
         echo "Cloning $repo_url into clones/$repo_name ..."
-        if git clone "$repo_url" "$CLONES_DIR/$repo_name"; then
+        if git clone $extra_flags "$repo_url" "$CLONES_DIR/$repo_name"; then
             echo "OK: $repo_name cloned."
         else
             echo "ERROR cloning $repo_name"
