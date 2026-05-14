@@ -104,9 +104,14 @@ def main():
     dist = (dx * dx + dy * dy + dz * dz) ** 0.5
     verdict = "PASS" if dist <= tol else "FAIL"
 
+    joints = list(robot.Joints().tolist())
+
     print("=" * 72)
     print(f"Robot:  {robot.Name()}   (tool: {tool_name})")
     print(f"Target: {target.Name()}")
+    print("-" * 72)
+    joint_strs = [f"j{i+1}={j:.4f}" for i, j in enumerate(joints)]
+    print(f"Robot joints ({len(joints)} DOF): " + "  ".join(joint_strs))
     print("-" * 72)
     print("World frame (absolute):")
     print(f"  Robot TCP:   X={rx_w:10.4f}  Y={ry_w:10.4f}  Z={rz_w:10.4f} mm")
