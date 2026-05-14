@@ -12,8 +12,18 @@ Settable accuracy:
       --target NAME       which base_cone_grab to reach (default cone 0)
       --pos-tol  MM       position tolerance (default 0.5 mm)
       --angle-tol DEG     Z-axis angle tolerance (default 2.0 deg)
-      --go-home           after the grab, move all joints (incl. j7) to 0
+      --max-iters N       max IK iterations before giving up (default 200)
+      --no-home           skip the return-to-zero MoveJ at the end
       --dry-run           solve and report, but DO NOT MoveJ
+      --no-pause          suppress the modal popups (headless)
+
+Pauses by default:
+  * After the IK solver returns: popup shows the converged joints and
+    both error values; the MoveJ doesn't happen until you click OK.
+  * After the MoveJ to the grab pose completes: popup pauses before the
+    return-to-zero so you can inspect.
+  * On failure (no solution within tolerance): popup shows the closest
+    achievable pos/angle error; no MoveJ is performed.
 
 Strategy:
   1. Seed from the robot's CURRENT joints. j7 is held fixed at its current
@@ -28,6 +38,8 @@ sys.path.append("C:/RoboDK/Python")
 
 import argparse
 import os
+import tkinter as tk
+from tkinter import messagebox
 
 import numpy as np
 
@@ -37,6 +49,16 @@ from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from test_reach_base_cone import custom_ik_pos_and_zaxis, pos_and_z, fmt_joints
 
+
+def blocking_popup(title, message):
+    """Show a modal popup that blocks until the user clicks OK. Used so the
+    user can inspect the solution + the robot's pose before the next move."""
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    messagebox.showinfo(title, message, parent=root)
+    root.destroy()
+
 # ── CONFIG (used when no CLI override) ───────────────────────────────────────
 CONFIG_TARGET     = "base_cone_grab_0"
 CONFIG_POS_TOL    = 0.5    # mm
@@ -44,6 +66,7 @@ CONFIG_ANGLE_TOL  = 2.0    # deg
 CONFIG_MAX_ITERS  = 200    # max IK iterations (LM steps) before giving up
 CONFIG_GO_HOME    = True   # after the grab, return to [0]*7
 CONFIG_DRY_RUN    = False
+CONFIG_PAUSE      = True   # show modal popups at the solution and after the MoveJ
 SPEED_MM_S        = 200
 SPEED_J_DEG_S     = 200
 # ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +80,7 @@ def parse_args():
     ap.add_argument("--max-iters", default=None, type=int,   help=f"max IK iterations (default {CONFIG_MAX_ITERS})")
     ap.add_argument("--no-home",   action="store_true",      help="skip the return-to-zero MoveJ at the end")
     ap.add_argument("--dry-run",   action="store_true",      help="solve and report only, do not MoveJ")
+    ap.add_argument("--no-pause",  action="store_true",      help="suppress the modal popups (headless)")
     a = ap.parse_args()
     return {
         "target":    a.target    if a.target    is not None else CONFIG_TARGET,
@@ -65,6 +89,7 @@ def parse_args():
         "max_iters": a.max_iters if a.max_iters is not None else CONFIG_MAX_ITERS,
         "go_home":   (not a.no_home) and CONFIG_GO_HOME,
         "dry_run":   a.dry_run   or CONFIG_DRY_RUN,
+        "pause":     (not a.no_pause) and CONFIG_PAUSE,
     }
 
 
@@ -131,7 +156,35 @@ def main():
                   f"Best achievable from this seed: pos_err={pos_err:.4f} mm  "
                   f"angle_err={angle_deg:.4f} deg.")
             print("[FAIL] No move performed.")
+            if cfg["pause"]:
+                blocking_popup(
+                    title=f"No solution for {cfg['target']}",
+                    message=(
+                        f"Could not converge within tolerance.\n\n"
+                        f"Tolerances:  pos < {cfg['pos_tol']} mm,  angle < {cfg['angle_tol']} deg\n"
+                        f"Best from this seed:\n"
+                        f"  position error = {pos_err:.4f} mm\n"
+                        f"  Z-axis angle   = {angle_deg:.4f} deg\n\n"
+                        f"j7 locked at {j7_locked:.3f} mm\n"
+                        f"Iterations cap: {cfg['max_iters']}\n\n"
+                        "No move performed. Click OK to dismiss."
+                    ),
+                )
             sys.exit(1)
+
+        # Pause #1: show solution + errors. User clicks OK before MoveJ.
+        if cfg["pause"]:
+            blocking_popup(
+                title=f"IK solution for {cfg['target']}",
+                message=(
+                    f"Converged.\n\n"
+                    f"Position error: {pos_err:.4f} mm   (tol {cfg['pos_tol']} mm)\n"
+                    f"Z-axis angle:   {angle_deg:.4f} deg  (tol {cfg['angle_tol']} deg)\n"
+                    f"j7 vs seed:     delta {result[6] - j7_locked:.6f} mm\n\n"
+                    f"Final joints:\n  {fmt_joints(result)}\n\n"
+                    "Click OK to MoveJ to this configuration."
+                ),
+            )
 
         if cfg["dry_run"]:
             print("[INFO] Dry run -- not calling MoveJ.")
@@ -150,6 +203,20 @@ def main():
         print("[INFO] MoveJ to converged joints...")
         robot.MoveJ(result)
         print("[INFO] Move complete.")
+
+        # Pause #2: after MoveJ completes, before returning home.
+        if cfg["pause"]:
+            home_note = "Click OK to return home (all joints to 0)." if cfg["go_home"] else "Click OK to finish."
+            blocking_popup(
+                title=f"At {cfg['target']}",
+                message=(
+                    f"MoveJ to grab pose complete.\n\n"
+                    f"Position error: {pos_err:.4f} mm\n"
+                    f"Z-axis angle:   {angle_deg:.4f} deg\n"
+                    f"j7 = {result[6]:.3f} mm (locked)\n\n"
+                    f"{home_note}"
+                ),
+            )
 
         if cfg["go_home"]:
             print("[INFO] Returning home (all joints incl. j7 -> 0)...")
