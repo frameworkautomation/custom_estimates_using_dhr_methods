@@ -121,3 +121,13 @@ Because saving is disabled, session progress is tracked in `robo_dk_output/steps
 ```
 
 Each time the caller runs, setup_station.py reads this file and skips steps that are already done. Cone deletion is also verified live by querying the station (since the station resets to its original state each RoboDK session). To force a full re-run, delete `steps.json`.
+
+## Known issues / future work
+
+### Custom IK in `move_to_base_cone_grab_with_setable_accuracy.py` moves the robot visibly during the solve
+
+`robodk_code/test_reach_base_cone.py::custom_ik_pos_and_zaxis` runs a damped least-squares loop that calls `robot.setJoints(...)` on every Jacobian finite-difference step and every LM update. RoboDK's GUI redraws on each `setJoints`, so the robot visually "stutter-moves into place" during the IK refinement. By the time the post-solve popup appears, the robot is already at the converged position — there is no animated `MoveJ` afterwards because the goal joints equal the current joints.
+
+The clean fix is to wrap the IK loop in `RDK.Render(False)` / `RDK.Render(True)` so the GUI doesn't update during iteration, and explicitly `robot.setJoints(seed)` before showing the post-solve popup. Then on OK, `MoveJ(result)` will animate the real motion from seed to grab pose.
+
+Until that's done, treat the IK script as a *solver* that records the joint solution; the actual choreographed motion can be done by a separate script that reads the recorded joints and calls `MoveJ` directly. Useful when you want to inspect/approve the solution before the robot actually moves.
