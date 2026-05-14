@@ -22,6 +22,7 @@ How world position is read:
 """
 
 import argparse
+import math
 import sys
 
 sys.path.append("C:/RoboDK/Python")
@@ -51,6 +52,21 @@ def xyz(pose):
     """Pull (x, y, z) in mm from a 4x4 pose Mat."""
     v = Pose_2_TxyzRxyz(pose)
     return v[0], v[1], v[2]
+
+
+def xyz_rpy_deg(pose):
+    """Pull (x, y, z, Rx, Ry, Rz) — translation in mm, rotation in DEGREES."""
+    v = Pose_2_TxyzRxyz(pose)
+    rad2deg = 180.0 / math.pi
+    return v[0], v[1], v[2], v[3] * rad2deg, v[4] * rad2deg, v[5] * rad2deg
+
+
+def fmt_pose(label, pose):
+    x, y, z, rx, ry, rz = xyz_rpy_deg(pose)
+    return (
+        f"  {label}: X={x:10.4f} mm  Y={y:10.4f} mm  Z={z:10.4f} mm  "
+        f"Rx={rx:9.4f} deg  Ry={ry:9.4f} deg  Rz={rz:9.4f} deg"
+    )
 
 
 def parse_args():
@@ -95,10 +111,8 @@ def main():
     tcp_pose_wf    = wf_inv * tcp_pose_world
     target_pose_wf = wf_inv * target_pose_world
 
-    rx_w,  ry_w,  rz_w  = xyz(tcp_pose_world)
-    tx_w,  ty_w,  tz_w  = xyz(target_pose_world)
-    rx_f,  ry_f,  rz_f  = xyz(tcp_pose_wf)
-    tx_f,  ty_f,  tz_f  = xyz(target_pose_wf)
+    rx_w, ry_w, rz_w = xyz(tcp_pose_world)
+    tx_w, ty_w, tz_w = xyz(target_pose_world)
 
     dx, dy, dz = rx_w - tx_w, ry_w - ty_w, rz_w - tz_w
     dist = (dx * dx + dy * dy + dz * dz) ** 0.5
@@ -114,11 +128,11 @@ def main():
     print(f"Robot joints ({len(joints)} DOF): " + "  ".join(joint_strs))
     print("-" * 72)
     print("World frame (absolute):")
-    print(f"  Robot TCP:   X={rx_w:10.4f}  Y={ry_w:10.4f}  Z={rz_w:10.4f} mm")
-    print(f"  Target:      X={tx_w:10.4f}  Y={ty_w:10.4f}  Z={tz_w:10.4f} mm")
+    print(fmt_pose("Robot TCP", tcp_pose_world))
+    print(fmt_pose("Target   ", target_pose_world))
     print("Relative to WorldFrame item:")
-    print(f"  Robot TCP:   X={rx_f:10.4f}  Y={ry_f:10.4f}  Z={rz_f:10.4f} mm")
-    print(f"  Target:      X={tx_f:10.4f}  Y={ty_f:10.4f}  Z={tz_f:10.4f} mm")
+    print(fmt_pose("Robot TCP", tcp_pose_wf))
+    print(fmt_pose("Target   ", target_pose_wf))
     print("-" * 72)
     print(f"Delta (TCP - target, world): dX={dx:.4f}  dY={dy:.4f}  dZ={dz:.4f} mm")
     print(f"|delta| = {dist:.4f} mm   tolerance = {tol:.4f} mm")
