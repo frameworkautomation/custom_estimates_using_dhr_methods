@@ -5,5 +5,6 @@ robo_dk_saves/
 extracted_assets/
 saved_rhino/
 robodk_setup/__pycache__/
+robodk_code/__pycache__/
 rhino_convert.log
 rhino_convert_history.log
