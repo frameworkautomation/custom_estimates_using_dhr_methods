@@ -3,6 +3,9 @@ RoboDK Script: Move Fanuc R2000iC 125L TCP (pickup_point) to TARGET_NAME.
 Free rotation around target Z axis. Confirmed working — delta ~0.
 """
 
+import sys
+sys.path.append("C:/RoboDK/Python")  # so external Python can find the robodk package
+
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TARGET, ITEM_TYPE_TOOL
 from robodk.robomath import *
 import tkinter as tk
