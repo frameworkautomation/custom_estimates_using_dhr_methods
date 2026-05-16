@@ -157,7 +157,7 @@ def main():
     print(f"\nFound {len(cone_targets)} cone targets.")
     print(f"Approach offset : {APPROACH_OFFSET_MM} mm along grab Z-axis")
     print(f"j7 locked at    : {J7_LOCKED} mm")
-    print(f"Tolerances      : pos < {POS_TOL_MM} mm,  angle < {ANGLE_TOL_DEG} deg")
+    print(f"Solver          : RoboDK OptimAxes Algorithm 3 (DLS), MaxIter=500")
     print("=" * 72)
 
     results = []
@@ -234,8 +234,7 @@ def main():
         "generated":       timestamp,
         "j7_locked":       J7_LOCKED,
         "approach_offset_mm": APPROACH_OFFSET_MM,
-        "pos_tol_mm":      POS_TOL_MM,
-        "angle_tol_deg":   ANGLE_TOL_DEG,
+        "solver":          "OptimAxes Algorithm 3 DLS",
         "tool":            TOOL_NAME,
         "robot":           ROBOT_NAME,
         "solutions":       results,
