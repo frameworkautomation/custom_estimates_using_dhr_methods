@@ -172,19 +172,19 @@ def main():
         robot.setJoints(HOME_SEED)
 
     # ── Summary table ────────────────────────────────────────────────────────
-    print("\n" + "=" * 72)
+    print("\n" + "=" * 90)
     print("REACHABILITY SUMMARY")
     print(f"  j7 locked={J7_LOCKED} mm   approach offset={APPROACH_OFFSET_MM} mm")
-    print(f"  {'Cone':<25} {'Grab':>7} {'Grab err':>10}   {'Approach':>9} {'App err':>10}")
-    print("-" * 72)
+    print(f"  {'Cone':<25} {'Grab':>7} {'pos err':>9} {'ang err':>9}   {'Approach':>9} {'pos err':>9} {'ang err':>9}")
+    print("-" * 90)
     for r in results:
-        gs = "REACH" if r["grab_ok"] else "FAIL"
+        gs  = "REACH" if r["grab_ok"] else "FAIL"
         as_ = "REACH" if r["app_ok"]  else "FAIL"
         print(
-            f"  {r['name']:<25} {gs:>7} {r['grab_pos_err']:>9.3f}mm"
-            f"   {as_:>9} {r['app_pos_err']:>9.3f}mm"
+            f"  {r['name']:<25} {gs:>7} {r['grab_pos_err']:>8.3f}mm {r['grab_angle']:>8.3f}deg"
+            f"   {as_:>9} {r['app_pos_err']:>8.3f}mm {r['app_angle']:>8.3f}deg"
         )
-    print("=" * 72)
+    print("=" * 90)
 
     n       = len(results)
     n_grab  = sum(1 for r in results if r["grab_ok"])
