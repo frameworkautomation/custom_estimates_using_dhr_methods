@@ -25,7 +25,7 @@ import datetime
 sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT
+from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT, TargetReachError
 from robodk.robomath import transl, invH, rotz
 import tkinter as tk
 from tkinter import messagebox
@@ -381,24 +381,37 @@ def main():
 
     dest_ik_map = compute_dest_ik(RDK, robot, dest_cones)
 
+    # Filter to only reachable destination cones
+    reachable_dest = [t for t in dest_cones
+                      if dest_ik_map[t.Name()]["grab_ok"] and dest_ik_map[t.Name()]["app_ok"]]
+    failed_dest = [t.Name() for t in dest_cones if t not in reachable_dest]
+    if failed_dest:
+        print(f"\n[WARN] Skipping {len(failed_dest)} unreachable destination cone(s): {failed_dest}")
+    if not reachable_dest:
+        raise RuntimeError("No reachable destination cones found.")
+
+    print(f"\nReachable destination cones — {len(reachable_dest)} of {len(dest_cones)}:")
+    for i, t in enumerate(reachable_dest):
+        print(f"  [{i}] {t.Name()}")
+
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
     while True:
         try:
             base_idx = int(input(f"Base cone number (0–{len(base_cones)-1}): ").strip())
-            dest_idx = int(input(f"Destination cone number (0–{len(dest_cones)-1}): ").strip())
+            dest_idx = int(input(f"Destination cone number (0–{len(reachable_dest)-1}): ").strip())
             if not (0 <= base_idx < len(base_cones)):
                 print(f"[ERROR] Base cone index out of range (0–{len(base_cones)-1}).")
                 continue
-            if not (0 <= dest_idx < len(dest_cones)):
-                print(f"[ERROR] Destination cone index out of range (0–{len(dest_cones)-1}).")
+            if not (0 <= dest_idx < len(reachable_dest)):
+                print(f"[ERROR] Destination cone index out of range (0–{len(reachable_dest)-1}).")
                 continue
             break
         except ValueError:
             print("[ERROR] Enter an integer.")
 
     base_target = base_cones[base_idx]
-    tgt_target  = dest_cones[dest_idx]
+    tgt_target  = reachable_dest[dest_idx]
     base_name   = base_target.Name()
     tgt_name    = tgt_target.Name()
 
@@ -445,17 +458,12 @@ def main():
         ):
             print("[ABORT] User cancelled at base approach.")
             return
-        lims = robot.JointLimits()
-        lo = [float(lims[0][i, 0]) for i in range(7)]
-        hi = [float(lims[1][i, 0]) for i in range(7)]
-        print(f"[DEBUG] base_app_joints : {[round(v,3) for v in base_app_joints]}")
-        print(f"[DEBUG] joint lo limits : {[round(v,3) for v in lo]}")
-        print(f"[DEBUG] joint hi limits : {[round(v,3) for v in hi]}")
-        for k, (v, l, h) in enumerate(zip(base_app_joints, lo, hi)):
-            if v < l or v > h:
-                print(f"[DEBUG] *** j{k+1}={v:.4f} OUTSIDE [{l:.4f}, {h:.4f}]")
         print(f"[INFO] Moving to base approach: {base_name} ...")
-        robot.MoveJ(base_app_joints)
+        try:
+            robot.MoveJ(base_app_joints)
+        except TargetReachError as e:
+            print(f"[ERROR] MoveJ failed at base approach: {e}")
+            return
         print("[INFO] At base approach.")
 
         # Step 5: base cone grab
@@ -468,7 +476,11 @@ def main():
             print("[ABORT] User cancelled at base grab.")
             return
         print(f"[INFO] Moving to base grab: {base_name} ...")
-        robot.MoveJ(base_grab_joints)
+        try:
+            robot.MoveJ(base_grab_joints)
+        except TargetReachError as e:
+            print(f"[ERROR] MoveJ failed at base grab: {e}")
+            return
         print("[INFO] At base grab.")
 
         # Step 6: target cone approach
@@ -481,7 +493,11 @@ def main():
             print("[ABORT] User cancelled at target approach.")
             return
         print(f"[INFO] Moving to target approach: {tgt_name} ...")
-        robot.MoveJ(tgt_app_joints)
+        try:
+            robot.MoveJ(tgt_app_joints)
+        except TargetReachError as e:
+            print(f"[ERROR] MoveJ failed at target approach: {e}")
+            return
         print("[INFO] At target approach.")
 
         # Step 7: target cone place
@@ -494,7 +510,11 @@ def main():
             print("[ABORT] User cancelled at target place.")
             return
         print(f"[INFO] Moving to target place: {tgt_name} ...")
-        robot.MoveJ(tgt_grab_joints)
+        try:
+            robot.MoveJ(tgt_grab_joints)
+        except TargetReachError as e:
+            print(f"[ERROR] MoveJ failed at target place: {e}")
+            return
         print("[INFO] At target place.")
 
         # Step 8: return home
