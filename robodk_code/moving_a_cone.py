@@ -25,7 +25,7 @@ import datetime
 sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT, TargetReachError
+from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT
 from robodk.robomath import transl, invH, rotz
 import tkinter as tk
 from tkinter import messagebox
@@ -381,37 +381,28 @@ def main():
 
     dest_ik_map = compute_dest_ik(RDK, robot, dest_cones)
 
-    # Filter to only reachable destination cones
-    reachable_dest = [t for t in dest_cones
-                      if dest_ik_map[t.Name()]["grab_ok"] and dest_ik_map[t.Name()]["app_ok"]]
-    failed_dest = [t.Name() for t in dest_cones if t not in reachable_dest]
-    if failed_dest:
-        print(f"\n[WARN] Skipping {len(failed_dest)} unreachable destination cone(s): {failed_dest}")
-    if not reachable_dest:
-        raise RuntimeError("No reachable destination cones found.")
-
-    print(f"\nReachable destination cones — {len(reachable_dest)} of {len(dest_cones)}:")
-    for i, t in enumerate(reachable_dest):
-        print(f"  [{i}] {t.Name()}")
-
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
     while True:
         try:
             base_idx = int(input(f"Base cone number (0–{len(base_cones)-1}): ").strip())
-            dest_idx = int(input(f"Destination cone number (0–{len(reachable_dest)-1}): ").strip())
+            dest_idx = int(input(f"Destination cone number (0–{len(dest_cones)-1}): ").strip())
             if not (0 <= base_idx < len(base_cones)):
                 print(f"[ERROR] Base cone index out of range (0–{len(base_cones)-1}).")
                 continue
-            if not (0 <= dest_idx < len(reachable_dest)):
-                print(f"[ERROR] Destination cone index out of range (0–{len(reachable_dest)-1}).")
+            if not (0 <= dest_idx < len(dest_cones)):
+                print(f"[ERROR] Destination cone index out of range (0–{len(dest_cones)-1}).")
+                continue
+            if not (dest_ik_map[dest_cones[dest_idx].Name()]["grab_ok"] and
+                    dest_ik_map[dest_cones[dest_idx].Name()]["app_ok"]):
+                print(f"[ERROR] '{dest_cones[dest_idx].Name()}' IK failed — pick a SUCCESS cone.")
                 continue
             break
         except ValueError:
             print("[ERROR] Enter an integer.")
 
     base_target = base_cones[base_idx]
-    tgt_target  = reachable_dest[dest_idx]
+    tgt_target  = dest_cones[dest_idx]
     base_name   = base_target.Name()
     tgt_name    = tgt_target.Name()
 
@@ -461,7 +452,7 @@ def main():
         print(f"[INFO] Moving to base approach: {base_name} ...")
         try:
             robot.MoveJ(base_app_joints)
-        except TargetReachError as e:
+        except Exception as e:
             print(f"[ERROR] MoveJ failed at base approach: {e}")
             return
         print("[INFO] At base approach.")
@@ -478,7 +469,7 @@ def main():
         print(f"[INFO] Moving to base grab: {base_name} ...")
         try:
             robot.MoveJ(base_grab_joints)
-        except TargetReachError as e:
+        except Exception as e:
             print(f"[ERROR] MoveJ failed at base grab: {e}")
             return
         print("[INFO] At base grab.")
@@ -495,7 +486,7 @@ def main():
         print(f"[INFO] Moving to target approach: {tgt_name} ...")
         try:
             robot.MoveJ(tgt_app_joints)
-        except TargetReachError as e:
+        except Exception as e:
             print(f"[ERROR] MoveJ failed at target approach: {e}")
             return
         print("[INFO] At target approach.")
@@ -512,7 +503,7 @@ def main():
         print(f"[INFO] Moving to target place: {tgt_name} ...")
         try:
             robot.MoveJ(tgt_grab_joints)
-        except TargetReachError as e:
+        except Exception as e:
             print(f"[ERROR] MoveJ failed at target place: {e}")
             return
         print("[INFO] At target place.")
