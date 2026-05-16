@@ -232,15 +232,16 @@ def _diagnose_dest_ik(RDK, robot, target):
     pose = target.PoseAbs()
     print(f"[DIAG] Target '{target.Name()}' PoseAbs:\n{pose}")
 
-    raw_joints = target.getJoints()
-    print(f"[DIAG] target.getJoints() type={type(raw_joints)} value={raw_joints}")
-
     for j7 in _J7_SEEDS:
         seed = list(HOME_SEED)
         seed[6] = j7
         robot.setJoints(seed)
         result = robot.SolveIK(pose)
-        print(f"[DIAG] j7={j7:7.1f} → SolveIK type={type(result).__name__}  raw={result}")
+        try:
+            rlist = list(result)
+        except Exception as e:
+            rlist = f"(could not convert: {e})"
+        print(f"[DIAG] j7={j7:7.1f} → SolveIK type={type(result).__name__}  len={len(result) if hasattr(result,'__len__') else '?'}  val={rlist}")
 
     if saved_frame.Valid():
         robot.setPoseFrame(saved_frame)
