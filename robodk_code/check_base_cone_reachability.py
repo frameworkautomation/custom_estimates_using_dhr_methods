@@ -35,6 +35,8 @@ ANGLE_TOL_DEG       = 2.0
 MAX_ITERS           = 200
 VERBOSE_IK          = False   # True for per-iteration output
 VIZ_GROUP_NAME      = "ReachabilityCheck"  # parent frame grouping viz frames
+ROBOT_NAME          = "Fanuc R2000iC 125L"
+TOOL_NAME           = "pickup_closed"      # set to your tool name in RoboDK
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -85,13 +87,16 @@ def add_frame(RDK, name, pose, parent):
 def main():
     RDK = connect()
 
-    robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
+    robot = RDK.Item(ROBOT_NAME, ITEM_TYPE_ROBOT)
     if not robot.Valid():
-        raise RuntimeError("Robot 'Fanuc R2000iC 125L' not found.")
+        raise RuntimeError("Robot '" + ROBOT_NAME + "' not found.")
 
-    tool = RDK.Item("pickup_point", ITEM_TYPE_TOOL)
+    tool = RDK.Item(TOOL_NAME, ITEM_TYPE_TOOL)
     if not tool.Valid():
-        raise RuntimeError("Tool 'pickup_point' not found.")
+        all_tools = [i.Name() for i in RDK.ItemList(ITEM_TYPE_TOOL)]
+        raise RuntimeError(
+            "Tool '" + TOOL_NAME + "' not found. Tools in station: " + str(all_tools)
+        )
     robot.setTool(tool)
 
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
