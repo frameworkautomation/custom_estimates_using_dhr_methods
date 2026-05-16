@@ -146,7 +146,7 @@ def main():
                 robot, app_pose, app_seed, J7_LOCKED, f"approach (+{APPROACH_OFFSET_MM:.0f}mm)"
             )
 
-            # Add XYZ triad frames in station for visualisation
+            # Add XYZ triad frames in station for visualization
             add_frame(RDK, f"viz_grab_{name}",     grab_pose, group)
             add_frame(RDK, f"viz_approach_{name}", app_pose,  group)
 
