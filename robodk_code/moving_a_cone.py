@@ -272,6 +272,25 @@ def compute_dest_ik(RDK, robot, dest_cones):
     return results
 
 
+def safe_joints(robot, joints):
+    """Nudge any joint sitting exactly at a limit 1 unit inward.
+
+    RoboDK adds an internal safety margin so joints exactly at the reported
+    limit boundary (e.g. j7=0.0 with lo=0.0) are rejected by MoveJ.
+    """
+    lims = robot.JointLimits()
+    lo = [float(lims[0][i, 0]) for i in range(len(joints))]
+    hi = [float(lims[1][i, 0]) for i in range(len(joints))]
+    result = list(joints)
+    MARGIN = 1.0  # mm for rail, deg for arm joints
+    for k in range(len(result)):
+        if result[k] <= lo[k]:
+            result[k] = lo[k] + MARGIN
+        elif result[k] >= hi[k]:
+            result[k] = hi[k] - MARGIN
+    return result
+
+
 def save_solutions(all_results):
     os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -417,10 +436,10 @@ def main():
     if not tgt_ik["grab_ok"] or not tgt_ik["app_ok"]:
         raise RuntimeError(f"Destination cone '{tgt_name}' IK did not converge — cannot proceed.")
 
-    base_app_joints  = base_ik["app_joints"]
-    base_grab_joints = base_ik["grab_joints"]
-    tgt_app_joints   = tgt_ik["app_joints"]
-    tgt_grab_joints  = tgt_ik["grab_joints"]
+    base_app_joints  = safe_joints(robot, base_ik["app_joints"])
+    base_grab_joints = safe_joints(robot, base_ik["grab_joints"])
+    tgt_app_joints   = safe_joints(robot, tgt_ik["app_joints"])
+    tgt_grab_joints  = safe_joints(robot, tgt_ik["grab_joints"])
 
     # ── Step 4: delete destination Cone_<N> from station ─────────────────────
     # tgt_target is cone_grab_<N>; its parent is Cone_<N>; deleting the parent
