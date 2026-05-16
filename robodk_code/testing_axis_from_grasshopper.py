@@ -26,7 +26,12 @@ def blocking_popup(title, message):
 
 
 def main():
-    RDK = Robolink()
+    try:
+        RDK = Robolink()
+        RDK.Item("")  # probe connection
+    except Exception:
+        print("[INFO] localhost failed, trying 172.23.208.1 ...")
+        RDK = Robolink(robodk_ip="172.23.208.1")
 
     # Find MovingPart by searching for an item whose name starts with "MovingPart|"
     # Angles are encoded in the name: "MovingPart|open=0|closed=9|import=0"
@@ -76,6 +81,7 @@ def main():
         """
         total_rad = (import_angle + delta_deg) * pi / 180.0
         moving.setPose(axis_offset * rotz(total_rad))
+        RDK.Render()
 
     # ── Move to open ──────────────────────────────────────────────────────────
     print("[INFO] Setting gripper to open (" + str(open_angle) + " deg relative to import)...")
