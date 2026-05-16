@@ -16,6 +16,8 @@ J7_LOCKED: rail position held fixed during all IK solves.
 
 import sys
 import os
+import json
+import datetime
 import numpy as np
 
 sys.path.append("C:/RoboDK/Python")
@@ -37,6 +39,7 @@ VERBOSE_IK          = False   # True for per-iteration output
 VIZ_GROUP_NAME      = "ReachabilityCheck"  # parent frame grouping viz frames
 ROBOT_NAME          = "Fanuc R2000iC 125L"
 TOOL_NAME           = "pickup_closed"      # set to your tool name in RoboDK
+IK_SOLUTIONS_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -160,9 +163,11 @@ def main():
                 "grab_ok":      grab_ok,
                 "grab_pos_err": grab_pos_err,
                 "grab_angle":   grab_angle,
+                "grab_joints":  [float(v) for v in grab_joints],
                 "app_ok":       app_ok,
                 "app_pos_err":  app_pos_err,
                 "app_angle":    app_angle,
+                "app_joints":   [float(v) for v in app_joints],
             })
 
     finally:
@@ -193,6 +198,24 @@ def main():
     print(f"Approach reachable: {n_app}/{n}")
     print(f"\nVisualization frames added under '{VIZ_GROUP_NAME}' in the station tree.")
     print("(Red=X, Green=Y, Blue=Z arrows visible in RoboDK viewport)")
+
+    # ── Save IK solutions ─────────────────────────────────────────────────────
+    os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_path = os.path.join(IK_SOLUTIONS_DIR, f"base_cone_ik_{timestamp}.json")
+    payload = {
+        "generated":       timestamp,
+        "j7_locked":       J7_LOCKED,
+        "approach_offset_mm": APPROACH_OFFSET_MM,
+        "pos_tol_mm":      POS_TOL_MM,
+        "angle_tol_deg":   ANGLE_TOL_DEG,
+        "tool":            TOOL_NAME,
+        "robot":           ROBOT_NAME,
+        "solutions":       results,
+    }
+    with open(out_path, "w") as f:
+        json.dump(payload, f, indent=2)
+    print(f"\nIK solutions saved to: {out_path}")
 
 
 if __name__ == "__main__":

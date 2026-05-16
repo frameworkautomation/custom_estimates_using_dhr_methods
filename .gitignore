@@ -9,5 +9,6 @@ robodk_setup/__pycache__/
 robodk_code/__pycache__/
 rhino_convert.log
 rhino_convert_history.log
+ik_solutions/
 *.sh.bak
 Miniconda*.sh
