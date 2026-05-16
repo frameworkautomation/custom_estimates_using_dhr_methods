@@ -203,11 +203,18 @@ _J7_SEEDS = [0.0, 500.0, 1000.0, 1500.0, 2000.0, -500.0]
 
 
 def _solve_ik_with_j7_search(robot, pose):
-    """Try SolveIK with multiple j7 seeds; return first valid solution or empty list."""
+    """Try SolveIK with multiple j7 positions.
+
+    For a robot+rail, SolveIK solves the 6-DOF arm with j7 fixed at whatever
+    the robot's current joint state is.  joints_approx doesn't move the rail.
+    So we physically setJoints to each j7 seed, call SolveIK, and take the
+    first valid result.
+    """
     for j7 in _J7_SEEDS:
         seed = list(HOME_SEED)
         seed[6] = j7
-        joints = robot.SolveIK(pose, joints_approx=seed)
+        robot.setJoints(seed)
+        joints = robot.SolveIK(pose)
         if len(joints) >= 6:
             return list(joints)
     return []
