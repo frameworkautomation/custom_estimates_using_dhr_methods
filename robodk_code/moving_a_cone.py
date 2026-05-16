@@ -445,6 +445,15 @@ def main():
         ):
             print("[ABORT] User cancelled at base approach.")
             return
+        lims = robot.JointLimits()
+        lo = [float(lims[0][i, 0]) for i in range(7)]
+        hi = [float(lims[1][i, 0]) for i in range(7)]
+        print(f"[DEBUG] base_app_joints : {[round(v,3) for v in base_app_joints]}")
+        print(f"[DEBUG] joint lo limits : {[round(v,3) for v in lo]}")
+        print(f"[DEBUG] joint hi limits : {[round(v,3) for v in hi]}")
+        for k, (v, l, h) in enumerate(zip(base_app_joints, lo, hi)):
+            if v < l or v > h:
+                print(f"[DEBUG] *** j{k+1}={v:.4f} OUTSIDE [{l:.4f}, {h:.4f}]")
         print(f"[INFO] Moving to base approach: {base_name} ...")
         robot.MoveJ(base_app_joints)
         print("[INFO] At base approach.")
