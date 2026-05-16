@@ -199,67 +199,33 @@ def compute_all_offsets(RDK, robot, cone_targets):
     return all_results
 
 
-_J7_SEEDS = [0.0, 500.0, 1000.0, 1500.0, 2000.0, -500.0]
+def _solve_ik(robot, pose):
+    """Call robot.SolveIK and return a flat list of joints, or [] on failure.
 
-
-def _solve_ik_with_j7_search(robot, pose):
-    """Try SolveIK with multiple j7 positions.
-
-    For a robot+rail, SolveIK solves the 6-DOF arm with j7 fixed at whatever
-    the robot's current joint state is.  joints_approx doesn't move the rail.
-    So we physically setJoints to each j7 seed, call SolveIK, and take the
-    first valid result.
+    SolveIK returns a Mat (matrix object); len(Mat) gives the number of rows
+    (always 1 for a solution row), not the number of joint values.  Use
+    Mat.list() to get a flat list first.
     """
-    for j7 in _J7_SEEDS:
-        seed = list(HOME_SEED)
-        seed[6] = j7
-        robot.setJoints(seed)
-        joints = robot.SolveIK(pose)
-        if len(joints) >= 6:
-            return list(joints)
+    result = robot.SolveIK(pose)
+    try:
+        joints = result.list()          # robodk Mat → flat list
+    except AttributeError:
+        joints = list(result)           # already a plain list
+    if len(joints) >= 6:
+        return joints
     return []
-
-
-def _diagnose_dest_ik(RDK, robot, target):
-    """Print diagnostic info for one destination cone to identify SolveIK failure mode."""
-    print("\n[DIAG] ── Destination IK diagnostics ─────────────────────────────")
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    print(f"[DIAG] WorldFrame found: {world_frame.Valid()}")
-    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
-    print(f"[DIAG] Current robot frame: '{saved_frame.Name() if saved_frame.Valid() else '(invalid)'}' valid={saved_frame.Valid()}")
-
-    robot.setPoseFrame(world_frame)
-    pose = target.PoseAbs()
-    print(f"[DIAG] Target '{target.Name()}' PoseAbs:\n{pose}")
-
-    for j7 in _J7_SEEDS:
-        seed = list(HOME_SEED)
-        seed[6] = j7
-        robot.setJoints(seed)
-        result = robot.SolveIK(pose)
-        try:
-            rlist = list(result)
-        except Exception as e:
-            rlist = f"(could not convert: {e})"
-        print(f"[DIAG] j7={j7:7.1f} → SolveIK type={type(result).__name__}  len={len(result) if hasattr(result,'__len__') else '?'}  val={rlist}")
-
-    if saved_frame.Valid():
-        robot.setPoseFrame(saved_frame)
-    print("[DIAG] ────────────────────────────────────────────────────────────\n")
 
 
 def compute_dest_ik(RDK, robot, dest_cones):
     """Solve IK for destination cones using RoboDK's built-in SolveIK.
 
-    These cones are within normal arm reach. SolveIK needs:
-      - the robot's pose frame set to WorldFrame (so PoseAbs poses are interpreted correctly)
-      - a j7 seed near the actual reach position (we sweep a few candidates)
+    SolveIK handles j7 (rail) automatically — it returns a full 7-DOF solution.
+    The robot's pose frame must be WorldFrame so PoseAbs() poses are interpreted
+    in the correct coordinate system.  SolveIK returns a Mat; use .list() to
+    get a flat joint list (len(Mat) gives rows=1, not the number of joints).
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
-    if dest_cones:
-        _diagnose_dest_ik(RDK, robot, dest_cones[0])
-
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
@@ -275,9 +241,9 @@ def compute_dest_ik(RDK, robot, dest_cones):
             grab_pose = target.PoseAbs()
             app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-            grab_j = _solve_ik_with_j7_search(robot, grab_pose)
+            grab_j = _solve_ik(robot, grab_pose)
             grab_ok = len(grab_j) >= 6
-            app_j  = _solve_ik_with_j7_search(robot, app_pose)
+            app_j  = _solve_ik(robot, app_pose)
             app_ok  = len(app_j) >= 6
 
             if not grab_ok:
