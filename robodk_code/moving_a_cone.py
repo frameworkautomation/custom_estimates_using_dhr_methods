@@ -220,6 +220,33 @@ def _solve_ik_with_j7_search(robot, pose):
     return []
 
 
+def _diagnose_dest_ik(RDK, robot, target):
+    """Print diagnostic info for one destination cone to identify SolveIK failure mode."""
+    print("\n[DIAG] ── Destination IK diagnostics ─────────────────────────────")
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    print(f"[DIAG] WorldFrame found: {world_frame.Valid()}")
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    print(f"[DIAG] Current robot frame: '{saved_frame.Name() if saved_frame.Valid() else '(invalid)'}' valid={saved_frame.Valid()}")
+
+    robot.setPoseFrame(world_frame)
+    pose = target.PoseAbs()
+    print(f"[DIAG] Target '{target.Name()}' PoseAbs:\n{pose}")
+
+    raw_joints = target.getJoints()
+    print(f"[DIAG] target.getJoints() type={type(raw_joints)} value={raw_joints}")
+
+    for j7 in _J7_SEEDS:
+        seed = list(HOME_SEED)
+        seed[6] = j7
+        robot.setJoints(seed)
+        result = robot.SolveIK(pose)
+        print(f"[DIAG] j7={j7:7.1f} → SolveIK type={type(result).__name__}  raw={result}")
+
+    if saved_frame.Valid():
+        robot.setPoseFrame(saved_frame)
+    print("[DIAG] ────────────────────────────────────────────────────────────\n")
+
+
 def compute_dest_ik(RDK, robot, dest_cones):
     """Solve IK for destination cones using RoboDK's built-in SolveIK.
 
@@ -229,6 +256,9 @@ def compute_dest_ik(RDK, robot, dest_cones):
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
+    if dest_cones:
+        _diagnose_dest_ik(RDK, robot, dest_cones[0])
+
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
