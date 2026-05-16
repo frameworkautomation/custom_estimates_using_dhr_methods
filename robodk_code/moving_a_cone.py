@@ -199,46 +199,72 @@ def compute_all_offsets(RDK, robot, cone_targets):
     return all_results
 
 
-def compute_dest_ik(robot, dest_cones):
+_J7_SEEDS = [0.0, 500.0, 1000.0, 1500.0, 2000.0, -500.0]
+
+
+def _solve_ik_with_j7_search(robot, pose):
+    """Try SolveIK with multiple j7 seeds; return first valid solution or empty list."""
+    for j7 in _J7_SEEDS:
+        seed = list(HOME_SEED)
+        seed[6] = j7
+        joints = robot.SolveIK(pose, joints_approx=seed)
+        if len(joints) >= 6:
+            return list(joints)
+    return []
+
+
+def compute_dest_ik(RDK, robot, dest_cones):
     """Solve IK for destination cones using RoboDK's built-in SolveIK.
 
-    These cones are within normal arm reach so the analytic solver works.
+    These cones are within normal arm reach. SolveIK needs:
+      - the robot's pose frame set to WorldFrame (so PoseAbs poses are interpreted correctly)
+      - a j7 seed near the actual reach position (we sweep a few candidates)
+
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+
     print("\nComputing IK for destination cones (RoboDK SolveIK) ...")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
     print("  " + "-" * 52)
 
     results = {}
-    for target in dest_cones:
-        name = target.Name()
-        grab_pose = target.PoseAbs()
-        app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
+    try:
+        for target in dest_cones:
+            name = target.Name()
+            grab_pose = target.PoseAbs()
+            app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-        grab_j = robot.SolveIK(grab_pose)
-        grab_ok = len(grab_j) >= 6
-        app_j  = robot.SolveIK(app_pose)
-        app_ok  = len(app_j) >= 6
+            grab_j = _solve_ik_with_j7_search(robot, grab_pose)
+            grab_ok = len(grab_j) >= 6
+            app_j  = _solve_ik_with_j7_search(robot, app_pose)
+            app_ok  = len(app_j) >= 6
 
-        if not grab_ok:
-            grab_j = list(HOME_SEED)
-        if not app_ok:
-            app_j = list(HOME_SEED)
+            if not grab_ok:
+                grab_j = list(HOME_SEED)
+            if not app_ok:
+                app_j = list(HOME_SEED)
 
-        gs  = "SUCCESS" if grab_ok else "FAIL"
-        as_ = "SUCCESS" if app_ok  else "FAIL"
-        print(f"  {name:<28} {gs:>8}   {as_:>9}")
+            gs  = "SUCCESS" if grab_ok else "FAIL"
+            as_ = "SUCCESS" if app_ok  else "FAIL"
+            print(f"  {name:<28} {gs:>8}   {as_:>9}")
 
-        results[name] = {
-            "grab_ok":      grab_ok,
-            "grab_joints":  [float(v) for v in grab_j],
-            "grab_pos_err": 0.0,
-            "grab_angle":   0.0,
-            "app_ok":       app_ok,
-            "app_joints":   [float(v) for v in app_j],
-            "app_pos_err":  0.0,
-            "app_angle":    0.0,
-        }
+            results[name] = {
+                "grab_ok":      grab_ok,
+                "grab_joints":  [float(v) for v in grab_j],
+                "grab_pos_err": 0.0,
+                "grab_angle":   0.0,
+                "app_ok":       app_ok,
+                "app_joints":   [float(v) for v in app_j],
+                "app_pos_err":  0.0,
+                "app_angle":    0.0,
+            }
+    finally:
+        if saved_frame.Valid():
+            robot.setPoseFrame(saved_frame)
+
     return results
 
 
@@ -349,7 +375,7 @@ def main():
     for i, t in enumerate(dest_cones):
         print(f"  [{i}] {t.Name()}")
 
-    dest_ik_map = compute_dest_ik(robot, dest_cones)
+    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones)
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
