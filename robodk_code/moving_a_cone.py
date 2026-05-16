@@ -30,7 +30,7 @@ from robodk.robomath import transl, invH, rotz
 import tkinter as tk
 from tkinter import messagebox
 
-from test_reach_base_cone import custom_ik_pos_and_zaxis, pos_and_z, fmt_joints
+from test_reach_base_cone import fmt_joints
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROBOT_NAME         = "Fanuc R2000iC 125L"
@@ -38,12 +38,24 @@ TOOL_NAME          = "pickup_closed"
 APPROACH_OFFSET_MM = 200.0    # offset along grab Z-axis for approach waypoint
 J7_LOCKED          = 0.0      # rail position held fixed during all IK solves
 HOME_SEED          = [0.0] * 7
-POS_TOL_MM         = 0.5
-ANGLE_TOL_DEG      = 2.0
-MAX_ITERS          = 200
 SPEED_J_DEG_S      = 200
 SPEED_MM_S         = 200
 IK_SOLUTIONS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
+
+# OptimAxes parameters — mirrors DHR's approach.  RoboDK's Algorithm 3 (DLS)
+# handles coupled joint limits (R2000iC J2/J3 interference zone) internally.
+OPT_AXES_STATIC_J7 = {
+    "AbsJnt_7": 0,    # overridden per call with J7_LOCKED
+    "AbsOn_7":  1,
+    "AbsW_7":   100,
+    "Algorithm": 3,
+    "MaxIter":  500,
+    "Tol":      0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+}
 # ─────────────────────────────────────────────────────────────────────────────
 
 pi = 3.141592653589793
@@ -77,20 +89,31 @@ def make_approach_pose(grab_pose, offset_mm):
     return grab_pose * transl(0, 0, offset_mm)
 
 
-def solve_ik(robot, pose, seed, label):
-    """Run LM IK. Returns (joints, pos_err, angle_deg, converged)."""
-    seed = list(seed)
-    seed[6] = J7_LOCKED
-    result, pos_err, angle_deg, converged = custom_ik_pos_and_zaxis(
-        robot, pose, seed,
-        pos_tol=POS_TOL_MM,
-        angle_tol_deg=ANGLE_TOL_DEG,
-        max_iters=MAX_ITERS,
-        verbose=False,
-    )
-    tag = "SUCCESS" if converged else "FAIL   "
-    print(f"    [{tag}] {label:<35} pos={pos_err:7.3f}mm  angle={angle_deg:6.3f}deg")
-    return result, pos_err, angle_deg, converged
+def solve_ik(robot, pose, label):
+    """Solve IK via RoboDK OptimAxes (Algorithm 3 DLS) with j7 constrained.
+
+    Mirrors DHR's approach: RoboDK's numerical solver handles all joint
+    constraints including coupled J2/J3 limits internally.
+    Returns (joints, 0.0, 0.0, converged).
+    """
+    props = dict(OPT_AXES_STATIC_J7)
+    props["AbsJnt_7"] = J7_LOCKED
+    robot.setParam("OptimAxes", props)
+    robot.setJoints(HOME_SEED)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
+        try:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        robot.setJoints(HOME_SEED)
+        print(f"    [SUCCESS] {label}")
+        return joints, 0.0, 0.0, True
+    except Exception as e:
+        robot.setJoints(HOME_SEED)
+        print(f"    [FAIL   ] {label}  ({e})")
+        return [0.0] * 7, 999.0, 999.0, False
 
 
 def find_moving_part(RDK):
@@ -154,10 +177,10 @@ def find_destination_cones(RDK):
 
 
 def compute_all_offsets(RDK, robot, cone_targets):
-    """Compute and print approach offset IK for all cone targets. Returns dict of results."""
-    print("\nComputing IK for all cone targets...")
-    print(f"  {'Cone':<28} {'Grab':>8} {'pos err':>9} {'ang err':>9}   {'Approach':>9} {'pos err':>9} {'ang err':>9}")
-    print("  " + "-" * 86)
+    """Compute IK for base cone targets using RoboDK OptimAxes. Returns dict of results."""
+    print("\nComputing IK for base cone targets (RoboDK OptimAxes, j7 constrained) ...")
+    print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
+    print("  " + "-" * 52)
 
     all_results = {}
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
@@ -170,26 +193,18 @@ def compute_all_offsets(RDK, robot, cone_targets):
             grab_pose = target.PoseAbs()
             app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-            grab_j, grab_pos_err, grab_angle, grab_ok = solve_ik(
-                robot, grab_pose, HOME_SEED, f"{name} grab"
-            )
-            app_seed = grab_j if grab_ok else list(HOME_SEED)
-            app_j, app_pos_err, app_angle, app_ok = solve_ik(
-                robot, app_pose, app_seed, f"{name} approach"
-            )
+            grab_j, _, _, grab_ok = solve_ik(robot, grab_pose, f"{name} grab")
+            app_j,  _, _, app_ok  = solve_ik(robot, app_pose,  f"{name} approach")
 
             gs  = "SUCCESS" if grab_ok else "FAIL"
             as_ = "SUCCESS" if app_ok  else "FAIL"
-            print(
-                f"  {name:<28} {gs:>8} {grab_pos_err:>8.3f}mm {grab_angle:>8.3f}deg"
-                f"   {as_:>9} {app_pos_err:>8.3f}mm {app_angle:>8.3f}deg"
-            )
+            print(f"  {name:<28} {gs:>8}   {as_:>9}")
 
             all_results[name] = {
                 "grab_ok": grab_ok, "grab_joints": [float(v) for v in grab_j],
-                "grab_pos_err": grab_pos_err, "grab_angle": grab_angle,
+                "grab_pos_err": 0.0, "grab_angle": 0.0,
                 "app_ok":  app_ok,  "app_joints":  [float(v) for v in app_j],
-                "app_pos_err":  app_pos_err,  "app_angle":  app_angle,
+                "app_pos_err":  0.0, "app_angle":  0.0,
             }
     finally:
         if saved_frame.Valid():
@@ -272,23 +287,6 @@ def compute_dest_ik(RDK, robot, dest_cones):
     return results
 
 
-def safe_joints(robot, joints):
-    """Nudge any joint sitting exactly at a limit 1 unit inward.
-
-    RoboDK adds an internal safety margin so joints exactly at the reported
-    limit boundary (e.g. j7=0.0 with lo=0.0) are rejected by MoveJ.
-    """
-    lims = robot.JointLimits()
-    lo = [float(lims[0][i, 0]) for i in range(len(joints))]
-    hi = [float(lims[1][i, 0]) for i in range(len(joints))]
-    result = list(joints)
-    MARGIN = 1.0  # mm for rail, deg for arm joints
-    for k in range(len(result)):
-        if result[k] <= lo[k]:
-            result[k] = lo[k] + MARGIN
-        elif result[k] >= hi[k]:
-            result[k] = hi[k] - MARGIN
-    return result
 
 
 def save_solutions(all_results):
@@ -436,10 +434,10 @@ def main():
     if not tgt_ik["grab_ok"] or not tgt_ik["app_ok"]:
         raise RuntimeError(f"Destination cone '{tgt_name}' IK did not converge — cannot proceed.")
 
-    base_app_joints  = safe_joints(robot, base_ik["app_joints"])
-    base_grab_joints = safe_joints(robot, base_ik["grab_joints"])
-    tgt_app_joints   = safe_joints(robot, tgt_ik["app_joints"])
-    tgt_grab_joints  = safe_joints(robot, tgt_ik["grab_joints"])
+    base_app_joints  = base_ik["app_joints"]
+    base_grab_joints = base_ik["grab_joints"]
+    tgt_app_joints   = tgt_ik["app_joints"]
+    tgt_grab_joints  = tgt_ik["grab_joints"]
 
     # ── Step 4: delete destination Cone_<N> from station ─────────────────────
     # tgt_target is cone_grab_<N>; its parent is Cone_<N>; deleting the parent

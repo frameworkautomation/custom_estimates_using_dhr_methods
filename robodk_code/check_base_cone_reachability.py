@@ -18,7 +18,6 @@ import sys
 import os
 import json
 import datetime
-import numpy as np
 
 sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,32 +25,34 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME
 from robodk.robomath import eye, transl
 
-from test_reach_base_cone import custom_ik_pos_and_zaxis, pos_and_z, fmt_joints
+from test_reach_base_cone import pos_and_z, fmt_joints
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-APPROACH_OFFSET_MM  = 200.0   # 20 cm offset along grab Z-axis
-J7_LOCKED           = 0.0     # rail position locked for all solves (mm)
+APPROACH_OFFSET_MM  = 200.0   # offset from grab point along grab Z-axis
+J7_LOCKED           = 0.0     # rail position held fixed during all solves (mm)
 HOME_SEED           = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-# Multiple arm seeds to try in order.  The R2000iC has coupled J2/J3 limits
-# (interference zone): some seeds lead to configurations that pass our
-# per-joint clip but violate the coupled limit check RoboDK enforces during
-# MoveJ.  We try each seed and keep the first solution RoboDK accepts.
-ARM_SEEDS = [
-    [0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0],   # home
-    [0.0,  30.0, -90.0,   0.0, -30.0,   0.0,   0.0],   # elbow-up
-    [0.0, -30.0,  60.0,   0.0,  30.0,   0.0,   0.0],   # elbow-down alt
-    [0.0,  10.0, -60.0,   0.0, -60.0,   0.0,   0.0],   # mid-elbow-up
-    [0.0, -10.0,  30.0,   0.0,  10.0,   0.0,   0.0],   # mid-elbow-down
-]
-POS_TOL_MM          = 0.5
-ANGLE_TOL_DEG       = 2.0
-MAX_ITERS           = 200
-VERBOSE_IK          = False   # True for per-iteration output
-VIZ_GROUP_NAME      = "ReachabilityCheck"  # parent frame grouping viz frames
+VIZ_GROUP_NAME      = "ReachabilityCheck"
 ROBOT_NAME          = "Fanuc R2000iC 125L"
-TOOL_NAME           = "pickup_closed"      # set to your tool name in RoboDK
+TOOL_NAME           = "pickup_closed"
 IK_SOLUTIONS_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
+
+# OptimAxes parameters — mirrors DHR's OptimizationKinematicsModel.
+# Algorithm 3 = damped least squares (numerical).  RoboDK's solver natively
+# respects all coupled joint limits (e.g. the R2000iC J2/J3 interference zone)
+# so we don't need to handle them manually.  AbsJnt_7 + AbsOn_7 + AbsW_7
+# strongly constrain the rail to J7_LOCKED without hard-locking it.
+OPT_AXES_STATIC_J7 = {
+    "AbsJnt_7": 0,    # overridden per call with J7_LOCKED
+    "AbsOn_7":  1,    # enable absolute constraint on j7
+    "AbsW_7":   100,  # weight (matches DHR)
+    "Algorithm": 3,   # damped least squares
+    "MaxIter":  500,
+    "Tol":      0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+}
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -71,79 +72,38 @@ def make_approach_pose(grab_pose, offset_mm):
     return grab_pose * transl(0, 0, offset_mm)
 
 
-def nudge_off_limits(robot, joints):
-    """Push any joint sitting exactly at a limit boundary 1 unit inward.
+def run_ik(robot, pose, j7_locked, label):
+    """Solve IK via RoboDK OptimAxes (Algorithm 3 DLS) with j7 constrained.
 
-    RoboDK adds an internal safety margin, so a joint at exactly lo or hi
-    is rejected. Nudge by 1 deg (arm) / 1 mm (rail) to clear the boundary.
+    Mirrors DHR's OptimizationKinematicsModel: configures OptimAxes then calls
+    MoveJ with the Cartesian pose so RoboDK's numerical solver handles all joint
+    constraints (including the R2000iC J2/J3 coupled limits) internally.
+    Reads resulting joints back via robot.Joints().
+
+    Returns (joints, pos_err, angle_err, converged).
+    pos_err and angle_err are 0.0 — RoboDK doesn't expose them directly,
+    and the solve is validated by MoveJ succeeding.
     """
-    lims = robot.JointLimits()
-    lo = [float(lims[0][i, 0]) for i in range(len(joints))]
-    hi = [float(lims[1][i, 0]) for i in range(len(joints))]
-    result = list(joints)
-    for k in range(len(result)):
-        if result[k] <= lo[k]:
-            result[k] = lo[k] + 1.0
-        elif result[k] >= hi[k]:
-            result[k] = hi[k] - 1.0
-    return result
+    props = dict(OPT_AXES_STATIC_J7)
+    props["AbsJnt_7"] = j7_locked
+    robot.setParam("OptimAxes", props)
 
-
-def try_movej(robot, joints):
-    """Attempt MoveJ. Returns True if RoboDK accepts it, False if rejected."""
+    robot.setJoints(HOME_SEED)
     try:
-        robot.MoveJ(joints)
-        return True
-    except Exception:
-        return False
-
-
-def run_ik(robot, pose, j7_locked, label, priority_seed=None):
-    """Solve IK and validate each candidate via an actual MoveJ.
-
-    Tries up to len(ARM_SEEDS) + 1 configurations (priority_seed first if
-    given, then each entry in ARM_SEEDS in order).  For each candidate:
-      1. Run the LM IK solver from that seed.
-      2. Nudge joints 1 unit off any limit boundary.
-      3. Home the robot, attempt MoveJ, home again.
-    Returns the first solution RoboDK accepts, or FAIL if all are rejected.
-    """
-    seeds = []
-    if priority_seed is not None:
-        s = list(priority_seed)
-        s[6] = j7_locked
-        seeds.append(s)
-    for arm_seed in ARM_SEEDS:
-        s = list(arm_seed)
-        s[6] = j7_locked
-        seeds.append(s)
-
-    for i, seed in enumerate(seeds):
-        result, pos_err, angle_deg, converged = custom_ik_pos_and_zaxis(
-            robot, pose, seed,
-            pos_tol=POS_TOL_MM,
-            angle_tol_deg=ANGLE_TOL_DEG,
-            max_iters=MAX_ITERS,
-            verbose=VERBOSE_IK,
-        )
-        if not converged:
-            print(f"    [seed {i}] no convergence")
-            continue
-
-        result = nudge_off_limits(robot, result)
-
+        robot.MoveJ(pose)
+        raw = robot.Joints()
+        try:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
         robot.setJoints(HOME_SEED)
-        if try_movej(robot, result):
-            robot.setJoints(HOME_SEED)
-            print(f"    [SUCCESS] {label:30s}  pos_err={pos_err:7.3f} mm  angle={angle_deg:6.3f} deg  (seed {i})")
-            print(f"           joints: {fmt_joints(result)}")
-            return result, pos_err, angle_deg, True
-        else:
-            robot.setJoints(HOME_SEED)
-            print(f"    [seed {i}] converged but MoveJ rejected (coupled limits or singularity)")
-
-    print(f"    [FAIL ] {label:30s}  all {len(seeds)} seeds rejected")
-    return [0.0] * 7, 999.0, 999.0, False
+        print(f"    [SUCCESS] {label:30s}")
+        print(f"           joints: {fmt_joints(joints)}")
+        return joints, 0.0, 0.0, True
+    except Exception as e:
+        robot.setJoints(HOME_SEED)
+        print(f"    [FAIL   ] {label:30s}  ({e})")
+        return [0.0] * 7, 999.0, 999.0, False
 
 
 def add_frame(RDK, name, pose, parent):
@@ -217,10 +177,8 @@ def main():
                 robot, grab_pose, J7_LOCKED, "grab"
             )
 
-            # Use grab joints as priority seed for approach (nearby config)
             app_joints, app_pos_err, app_angle, app_ok = run_ik(
-                robot, app_pose, J7_LOCKED, f"approach (+{APPROACH_OFFSET_MM:.0f}mm)",
-                priority_seed=grab_joints if grab_ok else None,
+                robot, app_pose, J7_LOCKED, f"approach (+{APPROACH_OFFSET_MM:.0f}mm)"
             )
 
             # Add XYZ triad frames in station for visualization
