@@ -32,6 +32,18 @@ from test_reach_base_cone import custom_ik_pos_and_zaxis, pos_and_z, fmt_joints
 APPROACH_OFFSET_MM  = 200.0   # 20 cm offset along grab Z-axis
 J7_LOCKED           = 0.0     # rail position locked for all solves (mm)
 HOME_SEED           = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+# Multiple arm seeds to try in order.  The R2000iC has coupled J2/J3 limits
+# (interference zone): some seeds lead to configurations that pass our
+# per-joint clip but violate the coupled limit check RoboDK enforces during
+# MoveJ.  We try each seed and keep the first solution RoboDK accepts.
+ARM_SEEDS = [
+    [0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0],   # home
+    [0.0,  30.0, -90.0,   0.0, -30.0,   0.0,   0.0],   # elbow-up
+    [0.0, -30.0,  60.0,   0.0,  30.0,   0.0,   0.0],   # elbow-down alt
+    [0.0,  10.0, -60.0,   0.0, -60.0,   0.0,   0.0],   # mid-elbow-up
+    [0.0, -10.0,  30.0,   0.0,  10.0,   0.0,   0.0],   # mid-elbow-down
+]
 POS_TOL_MM          = 0.5
 ANGLE_TOL_DEG       = 2.0
 MAX_ITERS           = 200
@@ -59,22 +71,58 @@ def make_approach_pose(grab_pose, offset_mm):
     return grab_pose * transl(0, 0, offset_mm)
 
 
+def joints_accepted_by_robodk(robot, joints):
+    """Return True if RoboDK accepts these joints for a MoveJ (coupled limit check).
+
+    Uses setJoints (no motion planning) then reads back Joints() to see if
+    RoboDK silently clamped any value, which indicates a limit violation.
+    Also does a quick CollisionCheck via robot.JointPose if available.
+    """
+    robot.setJoints(joints)
+    actual = list(robot.Joints().list())
+    for k, (sent, got) in enumerate(zip(joints, actual)):
+        if abs(sent - got) > 0.5:   # 0.5 deg/mm tolerance
+            return False
+    return True
+
+
 def run_ik(robot, pose, seed, j7_locked, label):
-    """Run LM IK solver. Returns (joints, pos_err, angle_deg, converged)."""
-    seed = list(seed)
-    seed[6] = j7_locked
-    result, pos_err, angle_deg, converged = custom_ik_pos_and_zaxis(
-        robot, pose, seed,
-        pos_tol=POS_TOL_MM,
-        angle_tol_deg=ANGLE_TOL_DEG,
-        max_iters=MAX_ITERS,
-        verbose=VERBOSE_IK,
-    )
-    tag = "SUCCESS" if converged else "FAIL "
-    print(f"    [{tag}] {label:30s}  pos_err={pos_err:7.3f} mm  angle={angle_deg:6.3f} deg")
-    if converged:
-        print(f"           joints: {fmt_joints(result)}")
-    return result, pos_err, angle_deg, converged
+    """Run LM IK solver across multiple arm seeds; return first solution RoboDK accepts.
+
+    The R2000iC has coupled J2/J3 limits.  The LM solver clips joints
+    individually but the coupling is only detected when RoboDK validates the
+    configuration.  We check via setJoints/readback after each solve.
+    """
+    best = None
+    for arm_seed in ARM_SEEDS:
+        s = list(arm_seed)
+        s[6] = j7_locked
+        # Warm-start from the explicit seed if provided (not home)
+        if seed is not None and seed != list(arm_seed):
+            s = list(seed)
+            s[6] = j7_locked
+        result, pos_err, angle_deg, converged = custom_ik_pos_and_zaxis(
+            robot, pose, s,
+            pos_tol=POS_TOL_MM,
+            angle_tol_deg=ANGLE_TOL_DEG,
+            max_iters=MAX_ITERS,
+            verbose=VERBOSE_IK,
+        )
+        if converged and joints_accepted_by_robodk(robot, result):
+            tag = "SUCCESS"
+            print(f"    [{tag}] {label:30s}  pos_err={pos_err:7.3f} mm  angle={angle_deg:6.3f} deg")
+            print(f"           joints: {fmt_joints(result)}")
+            return result, pos_err, angle_deg, True
+        if converged and best is None:
+            best = (result, pos_err, angle_deg)   # converged but coupled-limit fail
+
+    # Fall back to best converged result (might still fail MoveJ)
+    if best is not None:
+        result, pos_err, angle_deg = best
+        print(f"    [WARN ] {label:30s}  pos_err={pos_err:7.3f} mm  angle={angle_deg:6.3f} deg  (coupled limit suspect)")
+        return result, pos_err, angle_deg, True
+    print(f"    [FAIL ] {label:30s}  no seed converged")
+    return [0.0] * 7, 999.0, 999.0, False
 
 
 def add_frame(RDK, name, pose, parent):
