@@ -6,14 +6,14 @@ target cone position. Prompts for confirmation at every step.
 
 Sequence:
   0. Close gripper (set MovingPart to closed_angle)
-  1. Compute and display IK + approach offsets for ALL cone targets in station
-  2. Prompt: base cone number, target cone number
-  3. Solve IK for: base approach, base grab, target approach, target place
-  4. Delete target cone object from station (simulates empty slot)
+  1. Find base_cone_grab_* targets; load or compute IK + approach offsets
+  2. Find cone_grab_* targets (under Cones > Cone_<N> > cone_grab_<N>); compute IK
+  3. Prompt: base cone index, destination cone index (separate lists)
+  4. Delete destination Cone_<N> from station (removes cone mesh + grab target)
   5. [Proceed?] MoveJ to base cone approach
   6. [Proceed?] MoveJ to base cone grab
-  7. [Proceed?] MoveJ to target cone approach
-  8. [Proceed?] MoveJ to target cone place
+  7. [Proceed?] MoveJ to destination cone approach
+  8. [Proceed?] MoveJ to destination cone place
   9. [Proceed?] Return to home (all joints 0)
 """
 
@@ -124,11 +124,21 @@ def set_gripper_angle(RDK, moving, import_angle, delta_deg):
     RDK.Render()
 
 
-def find_cone_targets(RDK):
-    """Return sorted list of all base_cone_grab_* targets in the station."""
+def find_base_cones(RDK):
+    """Return sorted list of all base_cone_grab_* targets (pickup sources)."""
     return sorted(
         [t for t in RDK.ItemList(ITEM_TYPE_TARGET)
          if t.Name().startswith("base_cone_grab_")],
+        key=lambda t: t.Name(),
+    )
+
+
+def find_destination_cones(RDK):
+    """Return sorted list of all cone_grab_* targets (placement destinations).
+    These live under Cones > Cone_<N> > cone_grab_<N> in the station tree."""
+    return sorted(
+        [t for t in RDK.ItemList(ITEM_TYPE_TARGET)
+         if t.Name().startswith("cone_grab_")],
         key=lambda t: t.Name(),
     )
 
@@ -243,31 +253,29 @@ def main():
         set_gripper_angle(RDK, moving, import_angle, closed_angle)
         print("[INFO] Gripper closed.")
 
-    # ── Step 1: find all cone targets, load or compute IK ────────────────────
-    cone_targets = find_cone_targets(RDK)
-    if not cone_targets:
+    # ── Step 1: find base cones, load or compute IK ──────────────────────────
+    base_cones = find_base_cones(RDK)
+    if not base_cones:
         raise RuntimeError("No base_cone_grab_* targets found in station.")
 
-    print(f"\nFound {len(cone_targets)} cone targets:")
-    for i, t in enumerate(cone_targets):
+    print(f"\nBase cones (pickup sources) — {len(base_cones)} found:")
+    for i, t in enumerate(base_cones):
         print(f"  [{i}] {t.Name()}")
 
-    all_ik = load_latest_base_cone_ik()
-    if all_ik is not None:
-        # Check all targets are covered; recompute any missing ones
-        missing = [t for t in cone_targets if t.Name() not in all_ik]
+    base_ik_map = load_latest_base_cone_ik()
+    if base_ik_map is not None:
+        missing = [t for t in base_cones if t.Name() not in base_ik_map]
         if missing:
-            print(f"[INFO] {len(missing)} target(s) not in saved solutions — recomputing missing only.")
+            print(f"[INFO] {len(missing)} base cone(s) not in saved solutions — recomputing missing only.")
             new_ik = compute_all_offsets(RDK, robot, missing)
-            all_ik.update(new_ik)
-            save_solutions(all_ik)
+            base_ik_map.update(new_ik)
+            save_solutions(base_ik_map)
         else:
-            print(f"[INFO] All {len(cone_targets)} targets found in saved solutions — skipping IK recompute.")
-            # Still print the summary from saved data
+            print(f"[INFO] All {len(base_cones)} base cones found in saved solutions — skipping IK recompute.")
             print(f"\n  {'Cone':<28} {'Grab':>8} {'pos err':>9} {'ang err':>9}   {'Approach':>9} {'pos err':>9} {'ang err':>9}")
             print("  " + "-" * 86)
-            for t in cone_targets:
-                r = all_ik[t.Name()]
+            for t in base_cones:
+                r = base_ik_map[t.Name()]
                 gs  = "SUCCESS" if r["grab_ok"] else "FAIL"
                 as_ = "SUCCESS" if r["app_ok"]  else "FAIL"
                 print(
@@ -276,59 +284,67 @@ def main():
                 )
     else:
         print("[INFO] No saved IK solutions found — computing fresh.")
-        all_ik = compute_all_offsets(RDK, robot, cone_targets)
-        save_solutions(all_ik)
+        base_ik_map = compute_all_offsets(RDK, robot, base_cones)
+        save_solutions(base_ik_map)
 
-    # ── Step 2: prompt for base and target cone numbers ───────────────────────
+    # ── Step 2: find destination cones, compute IK ───────────────────────────
+    dest_cones = find_destination_cones(RDK)
+    if not dest_cones:
+        raise RuntimeError("No cone_grab_* targets found in station (expected under Cones > Cone_<N> > cone_grab_<N>).")
+
+    print(f"\nDestination cones (placement targets) — {len(dest_cones)} found:")
+    for i, t in enumerate(dest_cones):
+        print(f"  [{i}] {t.Name()}")
+
+    print("\nComputing IK for destination cones (always fresh) ...")
+    dest_ik_map = compute_all_offsets(RDK, robot, dest_cones)
+
+    # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
     while True:
         try:
-            base_idx = int(input(f"Base cone number (0–{len(cone_targets)-1}): ").strip())
-            tgt_idx  = int(input(f"Target cone number (0–{len(cone_targets)-1}): ").strip())
-            if base_idx == tgt_idx:
-                print("[ERROR] Base and target must be different.")
+            base_idx = int(input(f"Base cone number (0–{len(base_cones)-1}): ").strip())
+            dest_idx = int(input(f"Destination cone number (0–{len(dest_cones)-1}): ").strip())
+            if not (0 <= base_idx < len(base_cones)):
+                print(f"[ERROR] Base cone index out of range (0–{len(base_cones)-1}).")
                 continue
-            if not (0 <= base_idx < len(cone_targets) and 0 <= tgt_idx < len(cone_targets)):
-                print("[ERROR] Number out of range.")
+            if not (0 <= dest_idx < len(dest_cones)):
+                print(f"[ERROR] Destination cone index out of range (0–{len(dest_cones)-1}).")
                 continue
             break
         except ValueError:
             print("[ERROR] Enter an integer.")
 
-    base_target  = cone_targets[base_idx]
-    tgt_target   = cone_targets[tgt_idx]
-    base_name    = base_target.Name()
-    tgt_name     = tgt_target.Name()
+    base_target = base_cones[base_idx]
+    tgt_target  = dest_cones[dest_idx]
+    base_name   = base_target.Name()
+    tgt_name    = tgt_target.Name()
 
-    print(f"\n[INFO] Base  : {base_name}")
-    print(f"[INFO] Target: {tgt_name}")
+    print(f"\n[INFO] Base        : {base_name}")
+    print(f"[INFO] Destination : {tgt_name}")
 
-    base_ik = all_ik[base_name]
-    tgt_ik  = all_ik[tgt_name]
+    base_ik = base_ik_map[base_name]
+    tgt_ik  = dest_ik_map[tgt_name]
 
     if not base_ik["grab_ok"] or not base_ik["app_ok"]:
         raise RuntimeError(f"Base cone '{base_name}' IK did not converge — cannot proceed.")
     if not tgt_ik["grab_ok"] or not tgt_ik["app_ok"]:
-        raise RuntimeError(f"Target cone '{tgt_name}' IK did not converge — cannot proceed.")
+        raise RuntimeError(f"Destination cone '{tgt_name}' IK did not converge — cannot proceed.")
 
     base_app_joints  = base_ik["app_joints"]
     base_grab_joints = base_ik["grab_joints"]
     tgt_app_joints   = tgt_ik["app_joints"]
     tgt_grab_joints  = tgt_ik["grab_joints"]
 
-    # ── Step 3: delete target cone object from station ────────────────────────
-    # Try to find and delete an object associated with the target cone slot.
-    # Looks for an item whose name contains the target number.
-    tgt_number = tgt_name.replace("base_cone_grab_", "")
-    deleted_any = False
-    for item in RDK.ItemList():
-        n = item.Name()
-        if tgt_number in n and item.Type() == ITEM_TYPE_OBJECT:
-            print(f"[INFO] Deleting target cone object: '{n}'")
-            item.Delete()
-            deleted_any = True
-    if not deleted_any:
-        print(f"[WARN] No object found matching target cone '{tgt_number}' — continuing without deletion.")
+    # ── Step 4: delete destination Cone_<N> from station ─────────────────────
+    # tgt_target is cone_grab_<N>; its parent is Cone_<N>; deleting the parent
+    # removes both the cone geometry and the grab target.
+    cone_parent = tgt_target.Parent()
+    if cone_parent.Valid():
+        print(f"[INFO] Deleting '{cone_parent.Name()}' (and its child '{tgt_name}') from station ...")
+        cone_parent.Delete()
+    else:
+        print(f"[WARN] Could not find parent of '{tgt_name}' — skipping deletion.")
 
     # ── Motion sequence ───────────────────────────────────────────────────────
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
