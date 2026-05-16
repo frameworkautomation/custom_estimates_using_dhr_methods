@@ -96,10 +96,17 @@ def run_ik(robot, pose, j7_locked, label):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-        robot.setJoints(HOME_SEED)
-        print(f"    [SUCCESS] {label:30s}")
+        # Compare target vs achieved TCP position
+        achieved = robot.Pose()
+        tp = [pose[0,3], pose[1,3], pose[2,3]]
+        ap = [achieved[0,3], achieved[1,3], achieved[2,3]]
+        pos_err = (sum((t-a)**2 for t,a in zip(tp,ap)))**0.5
+        print(f"    [SUCCESS] {label:30s}  pos_err={pos_err:.2f}mm")
+        print(f"           target  XYZ: ({tp[0]:.1f}, {tp[1]:.1f}, {tp[2]:.1f})")
+        print(f"           achieved XYZ: ({ap[0]:.1f}, {ap[1]:.1f}, {ap[2]:.1f})")
         print(f"           joints: {fmt_joints(joints)}")
-        return joints, 0.0, 0.0, True
+        robot.setJoints(HOME_SEED)
+        return joints, pos_err, 0.0, True
     except Exception as e:
         robot.setJoints(HOME_SEED)
         print(f"    [FAIL   ] {label:30s}  ({e})")
