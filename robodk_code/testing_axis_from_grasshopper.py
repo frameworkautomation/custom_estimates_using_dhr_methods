@@ -11,10 +11,16 @@ The actual RoboDK rotation applied is:
 where delta is open_angle or closed_angle.
 """
 
-from robodk.robolink import Robolink
+from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL
 from robodk.robomath import *
 import tkinter as tk
 from tkinter import messagebox
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+ROBOT_NAME  = "Fanuc R2000iC 125L"
+TOOL_OPEN   = "pickup_point"   # tool active when gripper is open
+TOOL_CLOSED = "pickup_closed"  # tool active when gripper is closed
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def blocking_popup(title, message):
@@ -32,6 +38,18 @@ def main():
     except Exception:
         print("[INFO] localhost failed, trying 172.23.208.1 ...")
         RDK = Robolink(robodk_ip="172.23.208.1")
+
+    robot = RDK.Item(ROBOT_NAME, ITEM_TYPE_ROBOT)
+    if not robot.Valid():
+        raise RuntimeError("Robot '" + ROBOT_NAME + "' not found.")
+
+    def set_tool(name):
+        tool = RDK.Item(name, ITEM_TYPE_TOOL)
+        if not tool.Valid():
+            print("[WARN] Tool '" + name + "' not found — skipping tool swap.")
+            return
+        robot.setTool(tool)
+        print("[INFO] Tool set to '" + name + "'")
 
     # Find MovingPart by searching for an item whose name starts with "MovingPart|"
     # Angles are encoded in the name: "MovingPart|open=0|closed=9|import=0"
@@ -86,32 +104,37 @@ def main():
     # ── Move to open ──────────────────────────────────────────────────────────
     print("[INFO] Setting gripper to open (" + str(open_angle) + " deg relative to import)...")
     set_angle(open_angle)
+    set_tool(TOOL_OPEN)
 
     blocking_popup(
         "Gripper Open",
         "Gripper is at OPEN position.\n\n"
         "import_angle : " + str(import_angle) + " deg\n"
         "open_angle   : " + str(open_angle) + " deg (relative)\n"
-        "Total angle  : " + str(import_angle + open_angle) + " deg\n\n"
+        "Total angle  : " + str(import_angle + open_angle) + " deg\n"
+        "Tool         : " + TOOL_OPEN + "\n\n"
         "Click OK to move to closed."
     )
 
     # ── Move to closed ────────────────────────────────────────────────────────
     print("[INFO] Setting gripper to closed (" + str(closed_angle) + " deg relative to import)...")
     set_angle(closed_angle)
+    set_tool(TOOL_CLOSED)
 
     blocking_popup(
         "Gripper Closed",
         "Gripper is at CLOSED position.\n\n"
         "import_angle  : " + str(import_angle) + " deg\n"
         "closed_angle  : " + str(closed_angle) + " deg (relative)\n"
-        "Total angle   : " + str(import_angle + closed_angle) + " deg\n\n"
+        "Total angle   : " + str(import_angle + closed_angle) + " deg\n"
+        "Tool          : " + TOOL_CLOSED + "\n\n"
         "Click OK to return to import (rest) position."
     )
 
     # ── Return to import (rest) position ──────────────────────────────────────
     print("[INFO] Returning to import angle (" + str(import_angle) + " deg)...")
     set_angle(0.0)   # delta=0 means exactly at import_angle
+    set_tool(TOOL_OPEN)
 
     print("[INFO] Done.")
 
