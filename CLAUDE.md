@@ -122,6 +122,48 @@ Because saving is disabled, session progress is tracked in `robo_dk_output/steps
 
 Each time the caller runs, setup_station.py reads this file and skips steps that are already done. Cone deletion is also verified live by querying the station (since the station resets to its original state each RoboDK session). To force a full re-run, delete `steps.json`.
 
+## Sub-optimal / known limitations (not blocking, but worth fixing later)
+
+### Custom IK solver — what it is and where it lives
+
+The project uses a custom damped least-squares (Levenberg-Marquardt) IK solver
+instead of RoboDK's built-in `SolveIK`. It lives in:
+
+- `robodk_code/test_reach_base_cone.py` — the solver itself (`custom_ik_pos_and_zaxis`)
+- `robodk_code/move_to_base_cone_grab_with_setable_accuracy.py` — production mover that imports and uses it
+- `robodk_code/check_base_cone_reachability.py` — batch reachability checker that also imports it
+
+**Why a custom solver?** RoboDK's analytic `SolveIK` fails at our grab targets
+because they sit at the edge of the arm's reach with j7 (linear rail) locked at
+0. Every closed-form solution it returns requires j5 outside its ±125° joint
+limit. Our solver finds an *approximate* solution (sub-0.5mm position, sub-2°
+Z-axis angle) by only minimising position + Z-axis direction, leaving rotation
+around the approach axis free (correct for cone grabbing).
+
+**Algorithm:** numerical Jacobian via finite differences on joints 0–5 (j7 hard-
+locked), weighted LM update, backtracking line search, joint limit clipping.
+Converges in 4–10 iterations from a home seed.
+
+**Key parameters (all settable at top of each script):**
+- `POS_TOL_MM = 0.5` — position convergence threshold
+- `ANGLE_TOL_DEG = 2.0` — Z-axis angle convergence threshold
+- `J7_LOCKED = 0.0` — rail position held fixed during solve
+- `APPROACH_OFFSET_MM = 200.0` — offset from grab point for approach pose
+
+**IK solutions are saved** to `ik_solutions/` (gitignored) as timestamped JSON
+files by `check_base_cone_reachability.py`. Each file contains joint configs,
+position errors, angle errors, and metadata for every cone.
+
+### `check_base_cone_reachability.py` does IK and generates offset poses in the same script
+
+The reachability checker solves IK for both the grab pose and the approach pose
+(200mm offset along the grab Z-axis) in the same script. The offset pose
+generation (approach waypoint) is coupled to the IK solve rather than being a
+separate pre-computation step. This means you can't reuse saved grab-pose IK
+solutions to cheaply compute approach poses without re-running the full solver.
+Ideally the offset pose generation would be decoupled so approach poses can be
+computed from saved solutions without needing RoboDK open.
+
 ## Known issues / future work
 
 ### Custom IK in `move_to_base_cone_grab_with_setable_accuracy.py` moves the robot visibly during the solve
