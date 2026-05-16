@@ -11,15 +11,15 @@ The actual RoboDK rotation applied is:
 where delta is open_angle or closed_angle.
 """
 
+import argparse
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL
 from robodk.robomath import *
 import tkinter as tk
 from tkinter import messagebox
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-ROBOT_NAME  = "Fanuc R2000iC 125L"
-TOOL_OPEN   = "pickup_point"   # tool active when gripper is open
-TOOL_CLOSED = "pickup_closed"  # tool active when gripper is closed
+ROBOT_NAME   = "Fanuc R2000iC 125L"
+DEFAULT_TOOL = "pickup_closed"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -32,6 +32,11 @@ def blocking_popup(title, message):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tool", default=DEFAULT_TOOL, help="RoboDK tool name (default: %(default)s)")
+    args = ap.parse_args()
+    tool_name = args.tool
+
     try:
         RDK = Robolink()
         RDK.Item("")  # probe connection
@@ -43,13 +48,12 @@ def main():
     if not robot.Valid():
         raise RuntimeError("Robot '" + ROBOT_NAME + "' not found.")
 
-    def set_tool(name):
-        tool = RDK.Item(name, ITEM_TYPE_TOOL)
-        if not tool.Valid():
-            print("[WARN] Tool '" + name + "' not found — skipping tool swap.")
-            return
+    tool = RDK.Item(tool_name, ITEM_TYPE_TOOL)
+    if not tool.Valid():
+        print("[WARN] Tool '" + tool_name + "' not found — continuing without tool set.")
+    else:
         robot.setTool(tool)
-        print("[INFO] Tool set to '" + name + "'")
+        print("[INFO] Tool set to '" + tool_name + "'")
 
     # Find MovingPart by searching for an item whose name starts with "MovingPart|"
     # Angles are encoded in the name: "MovingPart|open=0|closed=9|import=0"
@@ -104,7 +108,6 @@ def main():
     # ── Move to open ──────────────────────────────────────────────────────────
     print("[INFO] Setting gripper to open (" + str(open_angle) + " deg relative to import)...")
     set_angle(open_angle)
-    set_tool(TOOL_OPEN)
 
     blocking_popup(
         "Gripper Open",
@@ -112,14 +115,13 @@ def main():
         "import_angle : " + str(import_angle) + " deg\n"
         "open_angle   : " + str(open_angle) + " deg (relative)\n"
         "Total angle  : " + str(import_angle + open_angle) + " deg\n"
-        "Tool         : " + TOOL_OPEN + "\n\n"
+        "Tool         : " + tool_name + "\n\n"
         "Click OK to move to closed."
     )
 
     # ── Move to closed ────────────────────────────────────────────────────────
     print("[INFO] Setting gripper to closed (" + str(closed_angle) + " deg relative to import)...")
     set_angle(closed_angle)
-    set_tool(TOOL_CLOSED)
 
     blocking_popup(
         "Gripper Closed",
@@ -127,14 +129,13 @@ def main():
         "import_angle  : " + str(import_angle) + " deg\n"
         "closed_angle  : " + str(closed_angle) + " deg (relative)\n"
         "Total angle   : " + str(import_angle + closed_angle) + " deg\n"
-        "Tool          : " + TOOL_CLOSED + "\n\n"
+        "Tool          : " + tool_name + "\n\n"
         "Click OK to return to import (rest) position."
     )
 
     # ── Return to import (rest) position ──────────────────────────────────────
     print("[INFO] Returning to import angle (" + str(import_angle) + " deg)...")
     set_angle(0.0)   # delta=0 means exactly at import_angle
-    set_tool(TOOL_OPEN)
 
     print("[INFO] Done.")
 
