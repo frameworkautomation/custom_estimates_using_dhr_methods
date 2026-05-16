@@ -94,7 +94,14 @@ def solve_ik(robot, pose, seed, label):
 
 
 def find_moving_part(RDK):
-    """Find the MovingPart gripper item and parse its angles from its name."""
+    """Find the MovingPart gripper item and parse its angles from its name.
+
+    Returns (moving, open_angle, closed_angle, import_angle, axis_offset).
+    axis_offset is computed ONCE from the current pose (assumed to be at
+    import_angle at this point).  Pass it to set_gripper_angle on every
+    subsequent call so the computation is never repeated on an already-rotated
+    pose.
+    """
     moving = None
     for item in RDK.ItemList():
         if item.Name().startswith("MovingPart|"):
@@ -104,21 +111,24 @@ def find_moving_part(RDK):
         moving = RDK.Item("MovingPart")
     if not moving.Valid():
         print("[WARN] MovingPart not found — gripper animation skipped.")
-        return None, None, None, None
+        return None, None, None, None, None
 
     parts = moving.Name().split("|")
     angles = {}
     for part in parts[1:]:
         k, v = part.split("=")
         angles[k.strip()] = float(v.strip())
-    return moving, angles.get("open", 0.0), angles.get("closed", 0.0), angles.get("import", 0.0)
+
+    import_angle = angles.get("import", 0.0)
+    # Compute axis_offset once while the part is at its import pose.
+    axis_offset = moving.Pose() * invH(rotz(import_angle * pi / 180.0))
+    return moving, angles.get("open", 0.0), angles.get("closed", 0.0), import_angle, axis_offset
 
 
-def set_gripper_angle(RDK, moving, import_angle, delta_deg):
-    """Rotate MovingPart to (import_angle + delta_deg)."""
+def set_gripper_angle(RDK, moving, axis_offset, import_angle, delta_deg):
+    """Rotate MovingPart to (import_angle + delta_deg) using a pre-computed axis_offset."""
     if moving is None:
         return
-    axis_offset = moving.Pose() * invH(rotz(import_angle * pi / 180.0))
     total_rad = (import_angle + delta_deg) * pi / 180.0
     moving.setPose(axis_offset * rotz(total_rad))
     RDK.Render()
@@ -189,6 +199,49 @@ def compute_all_offsets(RDK, robot, cone_targets):
     return all_results
 
 
+def compute_dest_ik(robot, dest_cones):
+    """Solve IK for destination cones using RoboDK's built-in SolveIK.
+
+    These cones are within normal arm reach so the analytic solver works.
+    Returns a dict keyed by cone name with the same schema as compute_all_offsets.
+    """
+    print("\nComputing IK for destination cones (RoboDK SolveIK) ...")
+    print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
+    print("  " + "-" * 52)
+
+    results = {}
+    for target in dest_cones:
+        name = target.Name()
+        grab_pose = target.PoseAbs()
+        app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
+
+        grab_j = robot.SolveIK(grab_pose)
+        grab_ok = len(grab_j) >= 6
+        app_j  = robot.SolveIK(app_pose)
+        app_ok  = len(app_j) >= 6
+
+        if not grab_ok:
+            grab_j = list(HOME_SEED)
+        if not app_ok:
+            app_j = list(HOME_SEED)
+
+        gs  = "SUCCESS" if grab_ok else "FAIL"
+        as_ = "SUCCESS" if app_ok  else "FAIL"
+        print(f"  {name:<28} {gs:>8}   {as_:>9}")
+
+        results[name] = {
+            "grab_ok":      grab_ok,
+            "grab_joints":  [float(v) for v in grab_j],
+            "grab_pos_err": 0.0,
+            "grab_angle":   0.0,
+            "app_ok":       app_ok,
+            "app_joints":   [float(v) for v in app_j],
+            "app_pos_err":  0.0,
+            "app_angle":    0.0,
+        }
+    return results
+
+
 def save_solutions(all_results):
     os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -247,10 +300,10 @@ def main():
         print(f"[WARN] Tool '{TOOL_NAME}' not found. Available: {all_tools}")
 
     # ── Step 0: close gripper ─────────────────────────────────────────────────
-    moving, open_angle, closed_angle, import_angle = find_moving_part(RDK)
+    moving, open_angle, closed_angle, import_angle, axis_offset = find_moving_part(RDK)
     if moving is not None:
         print(f"[INFO] Closing gripper to closed_angle={closed_angle} deg ...")
-        set_gripper_angle(RDK, moving, import_angle, closed_angle)
+        set_gripper_angle(RDK, moving, axis_offset, import_angle, closed_angle)
         print("[INFO] Gripper closed.")
 
     # ── Step 1: find base cones, load or compute IK ──────────────────────────
@@ -296,8 +349,7 @@ def main():
     for i, t in enumerate(dest_cones):
         print(f"  [{i}] {t.Name()}")
 
-    print("\nComputing IK for destination cones (always fresh) ...")
-    dest_ik_map = compute_all_offsets(RDK, robot, dest_cones)
+    dest_ik_map = compute_dest_ik(robot, dest_cones)
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
