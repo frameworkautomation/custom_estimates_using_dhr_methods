@@ -96,7 +96,12 @@ def parse_args():
 def main():
     cfg = parse_args()
 
-    RDK = Robolink()
+    try:
+        RDK = Robolink()
+        RDK.Item("")  # probe the connection
+    except Exception:
+        print("[INFO] localhost connection failed, trying 172.23.208.1 ...")
+        RDK = Robolink(robodk_ip="172.23.208.1")
     robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
     if not robot.Valid():
         raise RuntimeError("Robot 'Fanuc R2000iC 125L' not found.")
