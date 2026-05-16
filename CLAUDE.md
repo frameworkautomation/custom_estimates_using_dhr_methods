@@ -122,54 +122,85 @@ Because saving is disabled, session progress is tracked in `robo_dk_output/steps
 
 Each time the caller runs, setup_station.py reads this file and skips steps that are already done. Cone deletion is also verified live by querying the station (since the station resets to its original state each RoboDK session). To force a full re-run, delete `steps.json`.
 
+## IK solver architecture (current state)
+
+### Base cones (`base_cone_grab_*`)
+
+`robodk_code/moving_a_cone.py` and `robodk_code/check_base_cone_reachability.py` both use
+**RoboDK OptimAxes (Algorithm 3, damped least squares)** — mirroring DHR's
+`OptimizationKinematicsModel`. The custom LM solver has been removed from these files.
+
+Config block (same in both files):
+```python
+OPT_AXES_STATIC_J7 = {
+    "AbsJnt_7": 0,  "AbsOn_7": 1, "AbsW_7": 100,   # j7 strongly constrained
+    "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+    "RelOn_1..7": 1, "RelW_1..7": 50,               # allow motion on all joints
+}
+```
+
+Pattern: `robot.setParam("OptimAxes", props)` → `robot.setJoints(HOME_SEED)` → `robot.MoveJ(pose)` → `robot.Joints()`.
+
+Robot reference frame **must be WorldFrame** before any MoveJ with a Cartesian pose
+(PoseAbs() returns world-space coords; if the robot's frame is anything else the
+target is misinterpreted). Both scripts call `robot.setPoseFrame(world_frame)` before
+the solve loop and restore it in a `finally` block.
+
+IK solutions are saved to `ik_solutions/` (gitignored) as timestamped JSON by
+`check_base_cone_reachability.py`. `moving_a_cone.py` loads the most recent
+`base_cone_ik_*.json` on startup and skips recomputing if all cones are present.
+
+### Destination cones (`cone_grab_*`, under Cones > Cone_N)
+
+`moving_a_cone.py::compute_dest_ik()` uses **RoboDK's built-in `robot.SolveIK(pose)`**.
+This works because destination cones are comfortably within 6-DOF reach. j7 is
+not constrained — the analytic solver chooses it freely. 11/14 cones solve; 3
+(cone_grab_6, 12, 13) fail and are excluded from the selectable list.
+
+`SolveIK` returns a `Mat`, not a list. Use `Mat.list()` to get a flat joint list
+(`len(Mat)` gives rows=1, not joint count — common gotcha).
+
+### Custom LM solver (`test_reach_base_cone.py::custom_ik_pos_and_zaxis`)
+
+Still exists in `robodk_code/test_reach_base_cone.py` and is imported by
+`robodk_code/move_to_base_cone_grab_with_setable_accuracy.py` (older script).
+`moving_a_cone.py` and `check_base_cone_reachability.py` no longer use it for IK
+(they still import `fmt_joints` from that file).
+
 ## Sub-optimal / known limitations (not blocking, but worth fixing later)
 
-### Custom IK solver — what it is and where it lives
-
-The project uses a custom damped least-squares (Levenberg-Marquardt) IK solver
-instead of RoboDK's built-in `SolveIK`. It lives in:
-
-- `robodk_code/test_reach_base_cone.py` — the solver itself (`custom_ik_pos_and_zaxis`)
-- `robodk_code/move_to_base_cone_grab_with_setable_accuracy.py` — production mover that imports and uses it
-- `robodk_code/check_base_cone_reachability.py` — batch reachability checker that also imports it
-
-**Why a custom solver?** RoboDK's analytic `SolveIK` fails at our grab targets
-because they sit at the edge of the arm's reach with j7 (linear rail) locked at
-0. Every closed-form solution it returns requires j5 outside its ±125° joint
-limit. Our solver finds an *approximate* solution (sub-0.5mm position, sub-2°
-Z-axis angle) by only minimising position + Z-axis direction, leaving rotation
-around the approach axis free (correct for cone grabbing).
-
-**Algorithm:** numerical Jacobian via finite differences on joints 0–5 (j7 hard-
-locked), weighted LM update, backtracking line search, joint limit clipping.
-Converges in 4–10 iterations from a home seed.
-
-**Key parameters (all settable at top of each script):**
-- `POS_TOL_MM = 0.5` — position convergence threshold
-- `ANGLE_TOL_DEG = 2.0` — Z-axis angle convergence threshold
-- `J7_LOCKED = 0.0` — rail position held fixed during solve
-- `APPROACH_OFFSET_MM = 200.0` — offset from grab point for approach pose
-
-**IK solutions are saved** to `ik_solutions/` (gitignored) as timestamped JSON
-files by `check_base_cone_reachability.py`. Each file contains joint configs,
-position errors, angle errors, and metadata for every cone.
-
-### `check_base_cone_reachability.py` does IK and generates offset poses in the same script
+### `check_base_cone_reachability.py` approach-pose coupling
 
 The reachability checker solves IK for both the grab pose and the approach pose
-(200mm offset along the grab Z-axis) in the same script. The offset pose
-generation (approach waypoint) is coupled to the IK solve rather than being a
-separate pre-computation step. This means you can't reuse saved grab-pose IK
-solutions to cheaply compute approach poses without re-running the full solver.
-Ideally the offset pose generation would be decoupled so approach poses can be
-computed from saved solutions without needing RoboDK open.
+(200mm offset along grab Z-axis) in the same script. Approach pose generation is
+coupled to the IK solve, so you can't cheaply compute approach poses from saved
+grab-pose solutions without re-running the full solver.
+
+### `move_to_base_cone_grab_with_setable_accuracy.py` moves robot visibly during solve
+
+The custom LM solver calls `robot.setJoints(...)` on every iteration, causing
+the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
+`RDK.Render(True)` to suppress this (future work).
 
 ## Known issues / future work
 
-### Custom IK in `move_to_base_cone_grab_with_setable_accuracy.py` moves the robot visibly during the solve
+### IK visible motion issue
 
-`robodk_code/test_reach_base_cone.py::custom_ik_pos_and_zaxis` runs a damped least-squares loop that calls `robot.setJoints(...)` on every Jacobian finite-difference step and every LM update. RoboDK's GUI redraws on each `setJoints`, so the robot visually "stutter-moves into place" during the IK refinement. By the time the post-solve popup appears, the robot is already at the converged position — there is no animated `MoveJ` afterwards because the goal joints equal the current joints.
+See sub-optimal note above re: `move_to_base_cone_grab_with_setable_accuracy.py`.
 
-The clean fix is to wrap the IK loop in `RDK.Render(False)` / `RDK.Render(True)` so the GUI doesn't update during iteration, and explicitly `robot.setJoints(seed)` before showing the post-solve popup. Then on OK, `MoveJ(result)` will animate the real motion from seed to grab pose.
+## ── RESUME POINT (left off 2026-05-16) ──────────────────────────────────────
 
-Until that's done, treat the IK script as a *solver* that records the joint solution; the actual choreographed motion can be done by a separate script that reads the recorded joints and calls `MoveJ` directly. Useful when you want to inspect/approve the solution before the robot actually moves.
+**Branch:** `determining_how_position_gripper`
+
+**Status:** `check_base_cone_reachability.py` and `moving_a_cone.py` have been
+rewritten to use OptimAxes (DHR approach) for base cone IK. The scripts run without
+crashing, but `robot.MoveJ(pose)` is moving the robot to the **wrong position**.
+
+**Next step:** Run `check_base_cone_reachability.py` and share the full terminal
+output. The script now prints `pos_err`, `target XYZ`, and `achieved XYZ` for each
+successful solve. This will tell us:
+- If it's a **coordinate frame mismatch** — large systematic offset in X, Y, or Z
+- If it's an **OptimAxes convergence failure** — solver lands somewhere random
+
+Once we see the numbers, fix the root cause and regenerate the `ik_solutions/` cache,
+then do an end-to-end test of `moving_a_cone.py`.
