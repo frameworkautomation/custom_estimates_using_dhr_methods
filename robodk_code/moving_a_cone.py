@@ -453,7 +453,16 @@ def main():
         try:
             robot.MoveJ(base_app_joints)
         except Exception as e:
+            lims = robot.JointLimits()
+            lo = [float(lims[0][i, 0]) for i in range(len(base_app_joints))]
+            hi = [float(lims[1][i, 0]) for i in range(len(base_app_joints))]
             print(f"[ERROR] MoveJ failed at base approach: {e}")
+            print(f"        joints : {[round(v, 4) for v in base_app_joints]}")
+            print(f"        lo lim : {[round(v, 4) for v in lo]}")
+            print(f"        hi lim : {[round(v, 4) for v in hi]}")
+            for k, (v, l, h) in enumerate(zip(base_app_joints, lo, hi)):
+                if v < l - 0.001 or v > h + 0.001:
+                    print(f"        *** j{k+1} = {v:.4f}  outside [{l:.4f}, {h:.4f}]")
             return
         print("[INFO] At base approach.")
 
