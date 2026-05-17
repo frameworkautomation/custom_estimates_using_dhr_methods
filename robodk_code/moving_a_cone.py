@@ -21,12 +21,14 @@ import sys
 import os
 import json
 import datetime
+import argparse
+import math
 
 sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT
-from robodk.robomath import transl, invH, rotz
+from robodk.robomath import transl, invH, rotz, Pose_2_TxyzRxyz
 import tkinter as tk
 from tkinter import messagebox
 
@@ -62,6 +64,16 @@ OPT_AXES_STATIC_J7 = {
 
 pi = 3.141592653589793
 
+_NO_POPUPS = False   # set True via --no-popups; makes proceed() auto-return True
+_DEBUG_LOG = None    # open file handle written to throughout the run
+
+
+def _log(msg):
+    print(msg)
+    if _DEBUG_LOG is not None:
+        _DEBUG_LOG.write(msg + "\n")
+        _DEBUG_LOG.flush()
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,13 +89,47 @@ def connect():
 
 
 def proceed(title, message):
-    """Modal OK/Cancel dialog. Returns True to continue, False to abort."""
+    """Modal OK/Cancel dialog. Returns True to continue, False to abort.
+    In --no-popups mode always returns True."""
+    if _NO_POPUPS:
+        _log(f"[AUTO ] {title}")
+        return True
     root = tk.Tk()
     root.withdraw()
     root.attributes("-topmost", True)
     result = messagebox.askokcancel(title, message, parent=root)
     root.destroy()
     return result
+
+
+def _pose_xyz(pose):
+    """Return (x, y, z) mm from a RoboDK Mat pose."""
+    xyzrpw = Pose_2_TxyzRxyz(pose)
+    return xyzrpw[0], xyzrpw[1], xyzrpw[2]
+
+
+def do_move(robot, joints, label, expected_pose=None):
+    """MoveJ to joints, log achieved position (and error vs expected_pose).
+    Returns True on success, False on MoveJ exception."""
+    try:
+        robot.MoveJ(joints)
+    except Exception as e:
+        _log(f"[ERROR] MoveJ failed — {label}: {e}")
+        _log(f"        joints: {[round(v, 3) for v in joints]}")
+        return False
+
+    achieved = robot.Pose()
+    ax, ay, az = _pose_xyz(achieved)
+    _log(f"[MOVE ] {label}")
+    _log(f"         achieved  XYZ = ({ax:.2f}, {ay:.2f}, {az:.2f}) mm")
+
+    if expected_pose is not None:
+        tx, ty, tz = _pose_xyz(expected_pose)
+        err = math.sqrt((tx - ax)**2 + (ty - ay)**2 + (tz - az)**2)
+        _log(f"         expected  XYZ = ({tx:.2f}, {ty:.2f}, {tz:.2f}) mm")
+        _log(f"         pos_err       = {err:.2f} mm")
+
+    return True
 
 
 def make_approach_pose(grab_pose, offset_mm):
@@ -396,6 +442,26 @@ def load_latest_base_cone_ik():
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    global _NO_POPUPS, _DEBUG_LOG
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--no-popups", action="store_true",
+                    help="Skip all confirmation dialogs (auto-proceed).")
+    ap.add_argument("--base", type=int, default=None, metavar="N",
+                    help="Base cone index (skips interactive prompt).")
+    ap.add_argument("--dest", type=int, default=None, metavar="N",
+                    help="Destination cone index (skips interactive prompt).")
+    args = ap.parse_args()
+
+    _NO_POPUPS = args.no_popups
+
+    os.makedirs(ROBODK_OUTPUT_DIR, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    debug_path = os.path.join(ROBODK_OUTPUT_DIR, f"move_debug_{ts}.txt")
+    _DEBUG_LOG = open(debug_path, "w")
+    _log(f"[DEBUG] Log opened: {debug_path}")
+    _log(f"[DEBUG] no_popups={_NO_POPUPS}  base={args.base}  dest={args.dest}")
+
     RDK = connect()
 
     robot = RDK.Item(ROBOT_NAME, ITEM_TYPE_ROBOT)
@@ -482,23 +548,28 @@ def main():
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
-    while True:
-        try:
-            base_idx = int(input(f"Base cone number (0–{len(cone_names)-1}): ").strip())
-            dest_idx = int(input(f"Destination cone number (0–{len(dest_cones)-1}): ").strip())
-            if not (0 <= base_idx < len(cone_names)):
-                print(f"[ERROR] Base cone index out of range (0–{len(cone_names)-1}).")
-                continue
-            if not (0 <= dest_idx < len(dest_cones)):
-                print(f"[ERROR] Destination cone index out of range (0–{len(dest_cones)-1}).")
-                continue
-            if not (dest_ik_map[dest_cones[dest_idx].Name()]["grab_ok"] and
-                    dest_ik_map[dest_cones[dest_idx].Name()]["app_ok"]):
-                print(f"[ERROR] '{dest_cones[dest_idx].Name()}' IK failed — pick a SUCCESS cone.")
-                continue
-            break
-        except ValueError:
-            print("[ERROR] Enter an integer.")
+    if args.base is not None and args.dest is not None:
+        base_idx = args.base
+        dest_idx = args.dest
+        _log(f"[AUTO ] base={base_idx}  dest={dest_idx}")
+    else:
+        while True:
+            try:
+                base_idx = int(input(f"Base cone number (0–{len(cone_names)-1}): ").strip())
+                dest_idx = int(input(f"Destination cone number (0–{len(dest_cones)-1}): ").strip())
+                if not (0 <= base_idx < len(cone_names)):
+                    print(f"[ERROR] Base cone index out of range (0–{len(cone_names)-1}).")
+                    continue
+                if not (0 <= dest_idx < len(dest_cones)):
+                    print(f"[ERROR] Destination cone index out of range (0–{len(dest_cones)-1}).")
+                    continue
+                if not (dest_ik_map[dest_cones[dest_idx].Name()]["grab_ok"] and
+                        dest_ik_map[dest_cones[dest_idx].Name()]["app_ok"]):
+                    print(f"[ERROR] '{dest_cones[dest_idx].Name()}' IK failed — pick a SUCCESS cone.")
+                    continue
+                break
+            except ValueError:
+                print("[ERROR] Enter an integer.")
 
     base_name  = cone_names[base_idx]
     tgt_target = dest_cones[dest_idx]
@@ -521,6 +592,16 @@ def main():
     base_grab_joints = base_ik["grab_joints"]
     tgt_app_joints   = tgt_ik["app_joints"]
     tgt_grab_joints  = tgt_ik["grab_joints"]
+
+    # Log what the IK says the target positions should be
+    tgt_grab_pose = tgt_target.PoseAbs()
+    tgt_app_pose  = make_approach_pose(tgt_grab_pose, APPROACH_OFFSET_MM)
+    gx, gy, gz = _pose_xyz(tgt_grab_pose)
+    ax, ay, az = _pose_xyz(tgt_app_pose)
+    _log(f"\n[DEBUG] {tgt_name} grab  target XYZ = ({gx:.2f}, {gy:.2f}, {gz:.2f}) mm")
+    _log(f"[DEBUG] {tgt_name} approach target XYZ = ({ax:.2f}, {ay:.2f}, {az:.2f}) mm")
+    _log(f"[DEBUG] tgt_grab_joints  = {[round(v,3) for v in tgt_grab_joints]}")
+    _log(f"[DEBUG] tgt_app_joints   = {[round(v,3) for v in tgt_app_joints]}")
 
     # ── Step 4: delete destination cone mesh from station ────────────────────
     # Tree: Cones → cone_<x> (frame) → cone_<x> (OBJECT mesh)   ← delete this
@@ -546,7 +627,7 @@ def main():
     robot.setSpeed(speed_linear=SPEED_MM_S, speed_joints=SPEED_J_DEG_S)
 
     try:
-        # Step 4: approach base cone
+        # Step 1/4: base cone approach
         if not proceed(
             "Step 1/4 — Move to base approach",
             f"Ready to move to APPROACH of:\n  {base_name}\n\n"
@@ -554,93 +635,66 @@ def main():
             f"Approach offset: {APPROACH_OFFSET_MM:.0f} mm along grab Z-axis\n\n"
             "Click OK to proceed, Cancel to abort."
         ):
-            print("[ABORT] User cancelled at base approach.")
+            _log("[ABORT] User cancelled at base approach.")
             return
-        print(f"[INFO] Moving to base approach: {base_name} ...")
-        try:
-            robot.MoveJ(base_app_joints)
-        except Exception as e:
-            lims = robot.JointLimits()
-            lo = [float(lims[0][i, 0]) for i in range(len(base_app_joints))]
-            hi = [float(lims[1][i, 0]) for i in range(len(base_app_joints))]
-            print(f"[ERROR] MoveJ failed at base approach: {e}")
-            print(f"        joints : {[round(v, 4) for v in base_app_joints]}")
-            print(f"        lo lim : {[round(v, 4) for v in lo]}")
-            print(f"        hi lim : {[round(v, 4) for v in hi]}")
-            for k, (v, l, h) in enumerate(zip(base_app_joints, lo, hi)):
-                if v < l - 0.001 or v > h + 0.001:
-                    print(f"        *** j{k+1} = {v:.4f}  outside [{l:.4f}, {h:.4f}]")
+        if not do_move(robot, base_app_joints, f"base approach ({base_name})"):
             return
-        print("[INFO] At base approach.")
 
-        # Step 5: base cone grab
+        # Step 2/4: base cone grab
         if not proceed(
             "Step 2/4 — Move to base grab",
             f"Ready to move to GRAB position:\n  {base_name}\n\n"
             f"Joints: {fmt_joints(base_grab_joints)}\n\n"
             "Click OK to proceed, Cancel to abort."
         ):
-            print("[ABORT] User cancelled at base grab.")
+            _log("[ABORT] User cancelled at base grab.")
             return
-        print(f"[INFO] Moving to base grab: {base_name} ...")
-        try:
-            robot.MoveJ(base_grab_joints)
-        except Exception as e:
-            print(f"[ERROR] MoveJ failed at base grab: {e}")
+        if not do_move(robot, base_grab_joints, f"base grab ({base_name})"):
             return
-        print("[INFO] At base grab.")
 
-        # Step 6: target cone approach
+        # Step 3/4: target cone approach
         if not proceed(
             "Step 3/4 — Move to target approach",
             f"Ready to move to APPROACH of target:\n  {tgt_name}\n\n"
             f"Joints: {fmt_joints(tgt_app_joints)}\n\n"
             "Click OK to proceed, Cancel to abort."
         ):
-            print("[ABORT] User cancelled at target approach.")
+            _log("[ABORT] User cancelled at target approach.")
             return
-        print(f"[INFO] Moving to target approach: {tgt_name} ...")
-        try:
-            robot.MoveJ(tgt_app_joints)
-        except Exception as e:
-            print(f"[ERROR] MoveJ failed at target approach: {e}")
+        if not do_move(robot, tgt_app_joints, f"target approach ({tgt_name})",
+                       expected_pose=tgt_app_pose):
             return
-        print("[INFO] At target approach.")
 
-        # Step 7: target cone place
+        # Step 4/4: target cone place
         if not proceed(
             "Step 4/4 — Move to target place",
             f"Ready to move to PLACE position:\n  {tgt_name}\n\n"
             f"Joints: {fmt_joints(tgt_grab_joints)}\n\n"
             "Click OK to proceed, Cancel to abort."
         ):
-            print("[ABORT] User cancelled at target place.")
+            _log("[ABORT] User cancelled at target place.")
             return
-        print(f"[INFO] Moving to target place: {tgt_name} ...")
-        try:
-            robot.MoveJ(tgt_grab_joints)
-        except Exception as e:
-            print(f"[ERROR] MoveJ failed at target place: {e}")
+        if not do_move(robot, tgt_grab_joints, f"target place ({tgt_name})",
+                       expected_pose=tgt_grab_pose):
             return
-        print("[INFO] At target place.")
 
-        # Step 8: return home
+        # Return home
         if not proceed(
             "Return to home",
             "Ready to return to HOME (all joints = 0).\n\n"
             "Click OK to proceed, Cancel to stay."
         ):
-            print("[INFO] User chose to stay at target. Done.")
+            _log("[INFO] User chose to stay at target. Done.")
             return
-        print("[INFO] Returning to home ...")
-        robot.MoveJ(HOME_SEED)
-        print("[INFO] At home.")
+        do_move(robot, HOME_SEED, "home")
 
     finally:
         if saved_frame.Valid():
             robot.setPoseFrame(saved_frame)
+        if _DEBUG_LOG is not None:
+            _DEBUG_LOG.close()
 
-    print("\n[INFO] Done.")
+    _log("\n[INFO] Done.")
 
 
 if __name__ == "__main__":
