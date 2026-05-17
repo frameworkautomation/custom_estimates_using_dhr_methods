@@ -41,6 +41,7 @@ HOME_SEED          = [0.0] * 7
 SPEED_J_DEG_S      = 200
 SPEED_MM_S         = 200
 IK_SOLUTIONS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
+GRIPPER_CACHE_PATH = os.path.join(IK_SOLUTIONS_DIR, "gripper_axis_offset.json")
 
 # OptimAxes parameters — mirrors DHR's approach.  RoboDK's Algorithm 3 (DLS)
 # handles coupled joint limits (R2000iC J2/J3 interference zone) internally.
@@ -129,11 +130,13 @@ def find_moving_part(RDK):
     """Find the MovingPart gripper item and parse its angles from its name.
 
     Returns (moving, open_angle, closed_angle, import_angle, axis_offset).
-    axis_offset is computed ONCE from the current pose (assumed to be at
-    import_angle at this point).  Pass it to set_gripper_angle on every
-    subsequent call so the computation is never repeated on an already-rotated
-    pose.
+    axis_offset is loaded from GRIPPER_CACHE_PATH if it exists (correct even
+    when the part is no longer at import_angle), or computed fresh on the very
+    first run (when the station has just loaded and the part IS at import_angle)
+    and written to the cache for all future runs.
     """
+    from robodk.robomath import Pose_2_TxyzRxyz, TxyzRxyz_2_Pose
+
     moving = None
     for item in RDK.ItemList():
         if item.Name().startswith("MovingPart|"):
@@ -152,8 +155,21 @@ def find_moving_part(RDK):
         angles[k.strip()] = float(v.strip())
 
     import_angle = angles.get("import", 0.0)
-    # Compute axis_offset once while the part is at its import pose.
-    axis_offset = moving.Pose() * invH(rotz(import_angle * pi / 180.0))
+    os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
+
+    if os.path.isfile(GRIPPER_CACHE_PATH):
+        with open(GRIPPER_CACHE_PATH) as f:
+            cache = json.load(f)
+        axis_offset = TxyzRxyz_2_Pose(cache["axis_offset_xyzrpw"])
+        print(f"[INFO] Loaded gripper axis_offset from cache.")
+    else:
+        # First run: part assumed to be at import_angle (freshly loaded station).
+        axis_offset = moving.Pose() * invH(rotz(import_angle * pi / 180.0))
+        xyzrpw = list(Pose_2_TxyzRxyz(axis_offset))
+        with open(GRIPPER_CACHE_PATH, "w") as f:
+            json.dump({"axis_offset_xyzrpw": xyzrpw, "import_angle": import_angle}, f, indent=2)
+        print(f"[INFO] Saved gripper axis_offset to cache: {GRIPPER_CACHE_PATH}")
+
     return moving, angles.get("open", 0.0), angles.get("closed", 0.0), import_angle, axis_offset
 
 
@@ -313,7 +329,17 @@ def save_solutions(all_results):
 
 
 def load_latest_base_cone_ik():
-    """Load the most recent base_cone_ik_*.json from ik_solutions/. Returns dict or None."""
+    """Load the most recent base_cone_ik_*.json from ik_solutions/.
+
+    Handles both formats:
+      - Old flat format: each entry has grab_ok, grab_joints, app_ok, app_joints
+      - New nested format: each entry has a "poses" dict with "grab" and "approach" sub-dicts
+
+    Returns a dict keyed by cone name with normalised keys:
+      grab_ok, grab_joints, grab_pos_err, grab_angle,
+      app_ok,  app_joints,  app_pos_err,  app_angle
+    Returns None if no file found.
+    """
     if not os.path.isdir(IK_SOLUTIONS_DIR):
         return None
     candidates = sorted(
@@ -325,16 +351,44 @@ def load_latest_base_cone_ik():
     path = os.path.join(IK_SOLUTIONS_DIR, candidates[0])
     with open(path) as f:
         data = json.load(f)
-    # Convert solutions list to dict keyed by name
-    solutions = data.get("solutions", [])
-    if isinstance(solutions, list):
-        result = {s["name"]: s for s in solutions}
-    else:
-        result = solutions
     print(f"[INFO] Loaded saved IK solutions from: {path}")
     print(f"       (generated {data.get('generated', '?')}, "
           f"j7={data.get('j7_locked', '?')} mm, "
           f"approach offset={data.get('approach_offset_mm', '?')} mm)")
+
+    solutions = data.get("solutions", [])
+    result = {}
+
+    for s in solutions if isinstance(solutions, list) else solutions.values():
+        name = s["name"] if isinstance(s, dict) and "name" in s else s
+
+        if "poses" in s:
+            # New nested format from refactored checker
+            grab = s["poses"].get("grab", {})
+            app  = s["poses"].get("approach", {})
+
+            grab_ok = grab.get("native_ok", False) or grab.get("swept_ok", False)
+            grab_j  = (grab.get("native_joints") if grab.get("native_ok")
+                       else grab.get("best_joints")) or [0.0] * 7
+
+            app_ok = app.get("native_ok", False) or app.get("swept_ok", False)
+            app_j  = (app.get("native_joints") if app.get("native_ok")
+                      else app.get("best_joints")) or [0.0] * 7
+
+            result[name] = {
+                "grab_ok":      grab_ok,
+                "grab_joints":  grab_j,
+                "grab_pos_err": grab.get("native_pos_err", 0.0),
+                "grab_angle":   0.0,
+                "app_ok":       app_ok,
+                "app_joints":   app_j,
+                "app_pos_err":  app.get("native_pos_err", 0.0),
+                "app_angle":    0.0,
+            }
+        else:
+            # Old flat format — use as-is
+            result[name] = s
+
     return result
 
 
@@ -364,37 +418,55 @@ def main():
 
     # ── Step 1: find base cones, load or compute IK ──────────────────────────
     base_cones = find_base_cones(RDK)
-    if not base_cones:
-        raise RuntimeError("No base_cone_grab_* targets found in station.")
 
-    print(f"\nBase cones (pickup sources) — {len(base_cones)} found:")
-    for i, t in enumerate(base_cones):
-        print(f"  [{i}] {t.Name()}")
+    if base_cones:
+        print(f"\nBase cones (pickup sources) — {len(base_cones)} found in station:")
+        for i, t in enumerate(base_cones):
+            print(f"  [{i}] {t.Name()}")
 
-    base_ik_map = load_latest_base_cone_ik()
-    if base_ik_map is not None:
-        missing = [t for t in base_cones if t.Name() not in base_ik_map]
-        if missing:
-            print(f"[INFO] {len(missing)} base cone(s) not in saved solutions — recomputing missing only.")
-            new_ik = compute_all_offsets(RDK, robot, missing)
-            base_ik_map.update(new_ik)
-            save_solutions(base_ik_map)
+        base_ik_map = load_latest_base_cone_ik()
+        if base_ik_map is not None:
+            missing = [t for t in base_cones if t.Name() not in base_ik_map]
+            if missing:
+                print(f"[INFO] {len(missing)} base cone(s) not in saved solutions — recomputing missing only.")
+                new_ik = compute_all_offsets(RDK, robot, missing)
+                base_ik_map.update(new_ik)
+                save_solutions(base_ik_map)
+            else:
+                print(f"[INFO] All {len(base_cones)} base cones found in saved solutions — skipping IK recompute.")
+                print(f"\n  {'Cone':<28} {'Grab':>8} {'pos err':>9}   {'Approach':>9} {'pos err':>9}")
+                print("  " + "-" * 70)
+                for t in base_cones:
+                    r = base_ik_map[t.Name()]
+                    gs  = "SUCCESS" if r["grab_ok"] else "FAIL"
+                    as_ = "SUCCESS" if r["app_ok"]  else "FAIL"
+                    print(
+                        f"  {t.Name():<28} {gs:>8} {r['grab_pos_err']:>8.3f}mm"
+                        f"   {as_:>9} {r['app_pos_err']:>8.3f}mm"
+                    )
         else:
-            print(f"[INFO] All {len(base_cones)} base cones found in saved solutions — skipping IK recompute.")
-            print(f"\n  {'Cone':<28} {'Grab':>8} {'pos err':>9} {'ang err':>9}   {'Approach':>9} {'pos err':>9} {'ang err':>9}")
-            print("  " + "-" * 86)
-            for t in base_cones:
-                r = base_ik_map[t.Name()]
-                gs  = "SUCCESS" if r["grab_ok"] else "FAIL"
-                as_ = "SUCCESS" if r["app_ok"]  else "FAIL"
-                print(
-                    f"  {t.Name():<28} {gs:>8} {r['grab_pos_err']:>8.3f}mm {r['grab_angle']:>8.3f}deg"
-                    f"   {as_:>9} {r['app_pos_err']:>8.3f}mm {r['app_angle']:>8.3f}deg"
-                )
+            print("[INFO] No saved IK solutions found — computing fresh.")
+            base_ik_map = compute_all_offsets(RDK, robot, base_cones)
+            save_solutions(base_ik_map)
+
+        cone_names = [t.Name() for t in base_cones]
+
     else:
-        print("[INFO] No saved IK solutions found — computing fresh.")
-        base_ik_map = compute_all_offsets(RDK, robot, base_cones)
-        save_solutions(base_ik_map)
+        print("[WARN] No base_cone_grab_* targets in station — falling back to saved IK JSON.")
+        base_ik_map = load_latest_base_cone_ik()
+        if base_ik_map is None:
+            raise RuntimeError(
+                "No base_cone_grab_* targets in station and no saved IK JSON in ik_solutions/."
+            )
+        cone_names = sorted(base_ik_map.keys())
+        print(f"\nBase cones (from saved IK) — {len(cone_names)} found:")
+        print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
+        print("  " + "-" * 52)
+        for i, name in enumerate(cone_names):
+            r = base_ik_map[name]
+            gs  = "SUCCESS" if r["grab_ok"] else "FAIL"
+            as_ = "SUCCESS" if r["app_ok"]  else "FAIL"
+            print(f"  [{i}] {name:<28} {gs:>8}   {as_:>9}")
 
     # ── Step 2: find destination cones, compute IK ───────────────────────────
     dest_cones = find_destination_cones(RDK)
@@ -411,10 +483,10 @@ def main():
     print()
     while True:
         try:
-            base_idx = int(input(f"Base cone number (0–{len(base_cones)-1}): ").strip())
+            base_idx = int(input(f"Base cone number (0–{len(cone_names)-1}): ").strip())
             dest_idx = int(input(f"Destination cone number (0–{len(dest_cones)-1}): ").strip())
-            if not (0 <= base_idx < len(base_cones)):
-                print(f"[ERROR] Base cone index out of range (0–{len(base_cones)-1}).")
+            if not (0 <= base_idx < len(cone_names)):
+                print(f"[ERROR] Base cone index out of range (0–{len(cone_names)-1}).")
                 continue
             if not (0 <= dest_idx < len(dest_cones)):
                 print(f"[ERROR] Destination cone index out of range (0–{len(dest_cones)-1}).")
@@ -427,15 +499,16 @@ def main():
         except ValueError:
             print("[ERROR] Enter an integer.")
 
-    base_target = base_cones[base_idx]
-    tgt_target  = dest_cones[dest_idx]
-    base_name   = base_target.Name()
-    tgt_name    = tgt_target.Name()
+    base_name  = cone_names[base_idx]
+    tgt_target = dest_cones[dest_idx]
+    tgt_name   = tgt_target.Name()
 
     print(f"\n[INFO] Base        : {base_name}")
     print(f"[INFO] Destination : {tgt_name}")
 
-    base_ik = base_ik_map[base_name]
+    base_ik = base_ik_map.get(base_name)
+    if base_ik is None:
+        raise RuntimeError(f"No IK solution found for base cone '{base_name}'.")
     tgt_ik  = dest_ik_map[tgt_name]
 
     if not base_ik["grab_ok"] or not base_ik["app_ok"]:
