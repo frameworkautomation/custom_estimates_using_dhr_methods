@@ -41,7 +41,8 @@ HOME_SEED          = [0.0] * 7
 SPEED_J_DEG_S      = 200
 SPEED_MM_S         = 200
 IK_SOLUTIONS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
-GRIPPER_CACHE_PATH = os.path.join(IK_SOLUTIONS_DIR, "gripper_axis_offset.json")
+ROBODK_OUTPUT_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "robo_dk_output")
+GRIPPER_CACHE_PATH = os.path.join(ROBODK_OUTPUT_DIR, "gripper_axis_offset.json")
 
 # OptimAxes parameters — mirrors DHR's approach.  RoboDK's Algorithm 3 (DLS)
 # handles coupled joint limits (R2000iC J2/J3 interference zone) internally.
@@ -155,7 +156,7 @@ def find_moving_part(RDK):
         angles[k.strip()] = float(v.strip())
 
     import_angle = angles.get("import", 0.0)
-    os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
+    os.makedirs(ROBODK_OUTPUT_DIR, exist_ok=True)
 
     if os.path.isfile(GRIPPER_CACHE_PATH):
         with open(GRIPPER_CACHE_PATH) as f:
