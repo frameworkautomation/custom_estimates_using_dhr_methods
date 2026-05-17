@@ -771,10 +771,10 @@ def main():
         if cone_mesh is not None:
             _attach_to = tool if tool.Valid() else robot
             cone_mesh.setParent(_attach_to)
-            # Place cone at tool origin (= TCP); local pose relative to tool ≈ identity
-            cone_mesh.setPose(invH(_attach_to.PoseAbs()) * robot.Pose())
+            cone_mesh.setPose(eye(4))   # cone sits exactly at tool origin (= TCP)
             RDK.Render(True)
-            _log(f"[INFO] Cone mesh '{cone_mesh.Name()}' attached to tool — following TCP.")
+            _log(f"[DEBUG] After attach: cone parent='{cone_mesh.Parent().Name()}'")
+            _log(f"[INFO] Cone mesh attached to tool — following TCP.")
 
         # Step 3/4: target cone approach
         if not proceed(
@@ -808,13 +808,14 @@ def main():
                        expected_pose=tgt_grab_pose):
             return
 
-        # Release cone: reparent to world frame and snap to destination
+        # Release cone: reparent to station root and snap to destination
         if cone_mesh is not None:
-            cone_mesh.setParent(world_frame)
-            cone_mesh.setPose(tgt_grab_pose)   # world_frame at origin → local = world
+            station = RDK.ActiveStation()
+            cone_mesh.setParent(station)   # station root is at world origin → local = world
+            cone_mesh.setPose(tgt_grab_pose)
             RDK.Render(True)
             px, py, pz = _pose_xyz(cone_mesh.PoseAbs())
-            _log(f"[INFO] Cone placed at ({px:.1f}, {py:.1f}, {pz:.1f}) under '{cone_mesh.Parent().Name()}'.")
+            _log(f"[DEBUG] After release: cone parent='{cone_mesh.Parent().Name()}' pos=({px:.1f},{py:.1f},{pz:.1f})")
 
         # Return home
         if not proceed(
