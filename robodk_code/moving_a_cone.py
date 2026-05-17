@@ -304,12 +304,10 @@ def _solve_ik(robot, pose):
 
 
 def compute_dest_ik(RDK, robot, dest_cones):
-    """Solve IK for destination cones using RoboDK's built-in SolveIK.
+    """Solve IK for destination cones using OptimAxes with j7 constrained to J7_LOCKED.
 
-    SolveIK handles j7 (rail) automatically — it returns a full 7-DOF solution.
-    The robot's pose frame must be WorldFrame so PoseAbs() poses are interpreted
-    in the correct coordinate system.  SolveIK returns a Mat; use .list() to
-    get a flat joint list (len(Mat) gives rows=1, not the number of joints).
+    Same solver as base cones — SolveIK was discarded because it returned j7
+    values far from 0 (e.g. 393mm), causing the robot to move to the wrong place.
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
@@ -317,7 +315,7 @@ def compute_dest_ik(RDK, robot, dest_cones):
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
 
-    print("\nComputing IK for destination cones (RoboDK SolveIK) ...")
+    print("\nComputing IK for destination cones (OptimAxes, j7 constrained) ...")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
     print("  " + "-" * 52)
 
@@ -328,15 +326,8 @@ def compute_dest_ik(RDK, robot, dest_cones):
             grab_pose = target.PoseAbs()
             app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-            grab_j = _solve_ik(robot, grab_pose)
-            grab_ok = len(grab_j) >= 6
-            app_j  = _solve_ik(robot, app_pose)
-            app_ok  = len(app_j) >= 6
-
-            if not grab_ok:
-                grab_j = list(HOME_SEED)
-            if not app_ok:
-                app_j = list(HOME_SEED)
+            grab_j, _, _, grab_ok = solve_ik(robot, grab_pose, f"{name} grab")
+            app_j,  _, _, app_ok  = solve_ik(robot, app_pose,  f"{name} approach")
 
             gs  = "SUCCESS" if grab_ok else "FAIL"
             as_ = "SUCCESS" if app_ok  else "FAIL"
@@ -687,14 +678,13 @@ def main():
             _log("[INFO] User chose to stay at target. Done.")
             return
         do_move(robot, HOME_SEED, "home")
+        _log("\n[INFO] Done.")
 
     finally:
         if saved_frame.Valid():
             robot.setPoseFrame(saved_frame)
         if _DEBUG_LOG is not None:
             _DEBUG_LOG.close()
-
-    _log("\n[INFO] Done.")
 
 
 if __name__ == "__main__":
