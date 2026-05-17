@@ -23,9 +23,11 @@ sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME
-from robodk.robomath import eye, transl
+from robodk.robomath import eye, transl, rotz
 
 from test_reach_base_cone import pos_and_z, fmt_joints
+
+pi = 3.141592653589793
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 APPROACH_OFFSET_MM  = 200.0   # offset from grab point along grab Z-axis
@@ -35,6 +37,7 @@ VIZ_GROUP_NAME      = "ReachabilityCheck"
 ROBOT_NAME          = "Fanuc R2000iC 125L"
 TOOL_NAME           = "pickup_closed"
 IK_SOLUTIONS_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
+ORIENT_SWEEP_STEPS  = 12      # orientations to test when approach fails (360/12 = 30° each)
 
 # OptimAxes parameters — mirrors DHR's OptimizationKinematicsModel.
 # Algorithm 3 = damped least squares (numerical).  RoboDK's solver natively
@@ -72,23 +75,28 @@ def make_approach_pose(grab_pose, offset_mm):
     return grab_pose * transl(0, 0, offset_mm)
 
 
+J7_TOL_MM = 10.0  # j7 must stay within this of j7_locked to count as SUCCESS
+
+
 def run_ik(robot, pose, j7_locked, label):
     """Solve IK via RoboDK OptimAxes (Algorithm 3 DLS) with j7 constrained.
 
-    Mirrors DHR's OptimizationKinematicsModel: configures OptimAxes then calls
-    MoveJ with the Cartesian pose so RoboDK's numerical solver handles all joint
-    constraints (including the R2000iC J2/J3 coupled limits) internally.
-    Reads resulting joints back via robot.Joints().
+    Reports FAIL if:
+      - MoveJ throws (unreachable / joint limit)
+      - j7 drifts more than J7_TOL_MM from j7_locked (OptimAxes found a valid
+        solution on a different branch that requires moving the rail)
+
+    The j7 drift check is critical for reachability assessment: a "solution"
+    that requires j7=1756mm when J7_LOCKED=0 means the pose is NOT reachable
+    with the rail fixed, even if the Cartesian position is hit.
 
     Returns (joints, pos_err, angle_err, converged).
-    pos_err and angle_err are 0.0 — RoboDK doesn't expose them directly,
-    and the solve is validated by MoveJ succeeding.
     """
     props = dict(OPT_AXES_STATIC_J7)
     props["AbsJnt_7"] = j7_locked
     robot.setParam("OptimAxes", props)
-
     robot.setJoints(HOME_SEED)
+
     try:
         robot.MoveJ(pose)
         raw = robot.Joints()
@@ -96,12 +104,20 @@ def run_ik(robot, pose, j7_locked, label):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
+
+        j7_actual = joints[6]
+        j7_err = abs(j7_actual - j7_locked)
+        if j7_err > J7_TOL_MM:
+            robot.setJoints(HOME_SEED)
+            print(f"    [FAIL   ] {label:30s}  (j7 drifted to {j7_actual:.1f}mm, required {j7_locked:.1f}mm — pose unreachable with rail fixed)")
+            return [0.0] * 7, 999.0, 999.0, False
+
         # Compare target vs achieved TCP position
         achieved = robot.Pose()
         tp = [pose[0,3], pose[1,3], pose[2,3]]
         ap = [achieved[0,3], achieved[1,3], achieved[2,3]]
         pos_err = (sum((t-a)**2 for t,a in zip(tp,ap)))**0.5
-        print(f"    [SUCCESS] {label:30s}  pos_err={pos_err:.2f}mm")
+        print(f"    [SUCCESS] {label:30s}  pos_err={pos_err:.2f}mm  j7={j7_actual:.1f}mm")
         print(f"           target  XYZ: ({tp[0]:.1f}, {tp[1]:.1f}, {tp[2]:.1f})")
         print(f"           achieved XYZ: ({ap[0]:.1f}, {ap[1]:.1f}, {ap[2]:.1f})")
         print(f"           joints: {fmt_joints(joints)}")
@@ -111,6 +127,59 @@ def run_ik(robot, pose, j7_locked, label):
         robot.setJoints(HOME_SEED)
         print(f"    [FAIL   ] {label:30s}  ({e})")
         return [0.0] * 7, 999.0, 999.0, False
+
+
+def sweep_approach_orientations(robot, app_pose, j7_locked, n_steps):
+    """Rotate the approach pose around its local Z-axis in n_steps equal increments
+    and test each orientation with OptimAxes + j7 drift check.
+
+    Rotating around the LOCAL Z-axis of the approach pose (= grab Z-axis) covers
+    all TCP roll angles around the approach direction.  This tells us whether the
+    approach position is reachable at j7_locked under any wrist orientation, and
+    which orientations work — directly informing tool design.
+
+    Returns:
+      sweep: list of (angle_deg, ok, detail_str, joints_or_None)
+      best_joints: joints from the first successful orientation, or None
+    """
+    step_deg = 360.0 / n_steps
+    props = dict(OPT_AXES_STATIC_J7)
+    props["AbsJnt_7"] = j7_locked
+
+    sweep = []
+    best_joints = None
+
+    for i in range(n_steps):
+        angle_deg = i * step_deg
+        rotated_pose = app_pose * rotz(angle_deg * pi / 180.0)
+
+        robot.setParam("OptimAxes", props)
+        robot.setJoints(HOME_SEED)
+        try:
+            robot.MoveJ(rotated_pose)
+            raw = robot.Joints()
+            try:
+                joints = raw.list()
+            except AttributeError:
+                joints = list(raw)
+
+            j7_actual = joints[6]
+            if abs(j7_actual - j7_locked) > J7_TOL_MM:
+                sweep.append((angle_deg, False, f"j7={j7_actual:.0f}mm (drifted)", None))
+            else:
+                achieved = robot.Pose()
+                tp = [app_pose[0,3], app_pose[1,3], app_pose[2,3]]
+                ap_xyz = [achieved[0,3], achieved[1,3], achieved[2,3]]
+                pos_err = (sum((t-a)**2 for t,a in zip(tp, ap_xyz)))**0.5
+                sweep.append((angle_deg, True, f"j7={j7_actual:.1f}mm  pos_err={pos_err:.2f}mm", joints))
+                if best_joints is None:
+                    best_joints = joints
+        except Exception as e:
+            sweep.append((angle_deg, False, f"exception ({e})", None))
+
+        robot.setJoints(HOME_SEED)
+
+    return sweep, best_joints
 
 
 def add_frame(RDK, name, pose, parent):
@@ -185,23 +254,46 @@ def main():
             )
 
             app_joints, app_pos_err, app_angle, app_ok = run_ik(
-                robot, app_pose, J7_LOCKED, f"approach (+{APPROACH_OFFSET_MM:.0f}mm)"
+                robot, app_pose, J7_LOCKED, f"approach (+{APPROACH_OFFSET_MM:.0f}mm)",
             )
+
+            # If approach fails at native orientation, sweep around grab Z-axis
+            sweep_data = []
+            app_swept_ok = False
+            reachable_angles = []
+            if not app_ok:
+                step_deg = int(360 / ORIENT_SWEEP_STEPS)
+                print(f"    Sweeping {ORIENT_SWEEP_STEPS} orientations ({step_deg}° steps) around grab Z-axis ...")
+                sweep_data, swept_joints = sweep_approach_orientations(
+                    robot, app_pose, J7_LOCKED, ORIENT_SWEEP_STEPS
+                )
+                for angle_deg, ok, detail, _ in sweep_data:
+                    status = "SUCCESS" if ok else "  FAIL "
+                    print(f"      [{status}] {angle_deg:5.1f}°  {detail}")
+                reachable_angles = [a for a, ok, _, _ in sweep_data if ok]
+                if swept_joints is not None:
+                    app_swept_ok = True
+                    app_joints   = swept_joints   # save best joints for this approach
+                    print(f"    => {len(reachable_angles)}/{ORIENT_SWEEP_STEPS} orientations reachable: {reachable_angles}")
+                else:
+                    print(f"    => Approach position unreachable at j7={J7_LOCKED}mm at any orientation")
 
             # Add XYZ triad frames in station for visualization
             add_frame(RDK, f"viz_grab_{name}",     grab_pose, group)
             add_frame(RDK, f"viz_approach_{name}", app_pose,  group)
 
             results.append({
-                "name":         name,
-                "grab_ok":      grab_ok,
-                "grab_pos_err": grab_pos_err,
-                "grab_angle":   grab_angle,
-                "grab_joints":  [float(v) for v in grab_joints],
-                "app_ok":       app_ok,
-                "app_pos_err":  app_pos_err,
-                "app_angle":    app_angle,
-                "app_joints":   [float(v) for v in app_joints],
+                "name":              name,
+                "grab_ok":           grab_ok,
+                "grab_pos_err":      grab_pos_err,
+                "grab_angle":        grab_angle,
+                "grab_joints":       [float(v) for v in grab_joints],
+                "app_ok":            app_ok,
+                "app_swept_ok":      app_swept_ok,
+                "reachable_angles":  reachable_angles,
+                "app_pos_err":       app_pos_err,
+                "app_angle":         app_angle,
+                "app_joints":        [float(v) for v in app_joints],
             })
 
     finally:
@@ -211,25 +303,28 @@ def main():
         robot.setJoints(HOME_SEED)
 
     # ── Summary table ────────────────────────────────────────────────────────
-    print("\n" + "=" * 90)
-    print("SUCCESSABILITY SUMMARY")
-    print(f"  j7 locked={J7_LOCKED} mm   approach offset={APPROACH_OFFSET_MM} mm")
-    print(f"  {'Cone':<25} {'Grab':>7} {'pos err':>9} {'ang err':>9}   {'Approach':>9} {'pos err':>9} {'ang err':>9}")
-    print("-" * 90)
+    print("\n" + "=" * 100)
+    print("REACHABILITY SUMMARY")
+    print(f"  j7 locked={J7_LOCKED} mm   approach offset={APPROACH_OFFSET_MM} mm   orientation sweep={ORIENT_SWEEP_STEPS} steps")
+    print(f"  {'Cone':<25} {'Grab':>7}   {'Approach (native)':>17}   {'Approach (any orient.)':>22}   Reachable angles")
+    print("-" * 100)
     for r in results:
-        gs  = "SUCCESS" if r["grab_ok"] else "FAIL"
-        as_ = "SUCCESS" if r["app_ok"]  else "FAIL"
-        print(
-            f"  {r['name']:<25} {gs:>7} {r['grab_pos_err']:>8.3f}mm {r['grab_angle']:>8.3f}deg"
-            f"   {as_:>9} {r['app_pos_err']:>8.3f}mm {r['app_angle']:>8.3f}deg"
-        )
-    print("=" * 90)
+        gs   = "SUCCESS" if r["grab_ok"]     else "FAIL"
+        as_  = "SUCCESS" if r["app_ok"]      else "FAIL"
+        sw   = f"{len(r['reachable_angles'])}/{ORIENT_SWEEP_STEPS} ok" if not r["app_ok"] else "n/a"
+        angs = str(r["reachable_angles"]) if r["reachable_angles"] else ("—" if not r["app_ok"] else "native ok")
+        print(f"  {r['name']:<25} {gs:>7}   {as_:>17}   {sw:>22}   {angs}")
+    print("=" * 100)
 
-    n       = len(results)
-    n_grab  = sum(1 for r in results if r["grab_ok"])
-    n_app   = sum(1 for r in results if r["app_ok"])
-    print(f"Grab reachable    : {n_grab}/{n}")
-    print(f"Approach reachable: {n_app}/{n}")
+    n        = len(results)
+    n_grab   = sum(1 for r in results if r["grab_ok"])
+    n_app    = sum(1 for r in results if r["app_ok"])
+    n_swept  = sum(1 for r in results if not r["app_ok"] and r["app_swept_ok"])
+    n_none   = sum(1 for r in results if not r["app_ok"] and not r["app_swept_ok"])
+    print(f"Grab reachable              : {n_grab}/{n}")
+    print(f"Approach reachable (native) : {n_app}/{n}")
+    print(f"Approach reachable (swept)  : {n_swept}/{n}  (needed orientation change)")
+    print(f"Approach unreachable        : {n_none}/{n}  (no orientation works at j7={J7_LOCKED}mm)")
     print(f"\nVisualization frames added under '{VIZ_GROUP_NAME}' in the station tree.")
     print("(Red=X, Green=Y, Blue=Z arrows visible in RoboDK viewport)")
 

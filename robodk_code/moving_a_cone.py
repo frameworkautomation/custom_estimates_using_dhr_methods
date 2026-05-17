@@ -89,11 +89,15 @@ def make_approach_pose(grab_pose, offset_mm):
     return grab_pose * transl(0, 0, offset_mm)
 
 
+J7_TOL_MM = 10.0  # j7 must stay within this of J7_LOCKED to count as SUCCESS
+
+
 def solve_ik(robot, pose, label):
     """Solve IK via RoboDK OptimAxes (Algorithm 3 DLS) with j7 constrained.
 
-    Mirrors DHR's approach: RoboDK's numerical solver handles all joint
-    constraints including coupled J2/J3 limits internally.
+    Reports FAIL if MoveJ throws or if j7 drifts more than J7_TOL_MM from
+    J7_LOCKED — the latter means the pose is unreachable with the rail fixed.
+
     Returns (joints, 0.0, 0.0, converged).
     """
     props = dict(OPT_AXES_STATIC_J7)
@@ -107,8 +111,13 @@ def solve_ik(robot, pose, label):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
+        j7_actual = joints[6]
+        if abs(j7_actual - J7_LOCKED) > J7_TOL_MM:
+            robot.setJoints(HOME_SEED)
+            print(f"    [FAIL   ] {label}  (j7 drifted to {j7_actual:.1f}mm — unreachable with rail fixed)")
+            return [0.0] * 7, 999.0, 999.0, False
         robot.setJoints(HOME_SEED)
-        print(f"    [SUCCESS] {label}")
+        print(f"    [SUCCESS] {label}  j7={j7_actual:.1f}mm")
         return joints, 0.0, 0.0, True
     except Exception as e:
         robot.setJoints(HOME_SEED)
