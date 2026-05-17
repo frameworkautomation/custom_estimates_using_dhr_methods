@@ -100,31 +100,22 @@ def connect():
 
 
 def proceed(title, message):
-    """Modal OK/Cancel dialog. Returns True to continue, False to abort.
-    In ai mode always returns True. Falls back to a terminal y/n prompt if
-    tkinter has no display (e.g. WSL without a GUI server)."""
+    """Block until user confirms or cancels in the terminal.
+    In ai mode always returns True immediately."""
     if _NO_POPUPS:
         _log(f"[AUTO ] {title}")
         return True
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        result = messagebox.askokcancel(title, message, parent=root)
-        root.destroy()
-        return result
-    except Exception:
-        # No display — fall back to terminal prompt
-        print(f"\n{'─' * 60}")
-        print(f"  {title}")
-        print(f"{'─' * 60}")
-        print(message)
-        while True:
-            ans = input("\n  Proceed? [y/n]: ").strip().lower()
-            if ans in ("y", "yes", ""):
-                return True
-            if ans in ("n", "no"):
-                return False
+    print(f"\n{'─' * 60}")
+    print(f"  {title}")
+    print(f"{'─' * 60}")
+    print(message)
+    while True:
+        ans = input("\n  Proceed? [y/n]: ").strip().lower()
+        if ans in ("y", "yes"):
+            return True
+        if ans in ("n", "no"):
+            return False
+        print("  Please enter y or n.")
 
 
 def _pose_xyz(pose):
