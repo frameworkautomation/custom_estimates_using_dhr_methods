@@ -522,20 +522,22 @@ def main():
     tgt_app_joints   = tgt_ik["app_joints"]
     tgt_grab_joints  = tgt_ik["grab_joints"]
 
-    # ── Step 4: delete destination Cone_<N> from station ─────────────────────
-    # Only delete the parent if it looks like a per-cone container (e.g. "Cone_0").
-    # If the parent is a shared frame (e.g. "Cones") deleting it would wipe all cones.
-    import re as _re
-    cone_parent = tgt_target.Parent()
-    if cone_parent.Valid() and _re.fullmatch(r"Cone_\d+", cone_parent.Name()):
-        print(f"[INFO] Deleting '{cone_parent.Name()}' (and its child '{tgt_name}') from station ...")
-        cone_parent.Delete()
+    # ── Step 4: delete destination cone mesh from station ────────────────────
+    # Tree: Cones → cone_<x> (frame) → cone_<x> (OBJECT mesh)   ← delete this
+    #                                 → cone_grab_<x> (TARGET)   ← keep this
+    cone_frame = tgt_target.Parent()
+    if cone_frame.Valid():
+        mesh = next(
+            (c for c in cone_frame.Childs() if c.Type() == ITEM_TYPE_OBJECT),
+            None,
+        )
+        if mesh is not None and mesh.Valid():
+            print(f"[INFO] Deleting cone mesh '{mesh.Name()}' from station ...")
+            mesh.Delete()
+        else:
+            print(f"[WARN] No mesh object found under '{cone_frame.Name()}' — nothing deleted.")
     else:
-        # Parent is shared — just delete the grab target itself and warn.
-        parent_name = cone_parent.Name() if cone_parent.Valid() else "<none>"
-        print(f"[WARN] Parent of '{tgt_name}' is '{parent_name}' — not a per-cone container.")
-        print(f"[WARN] Deleting grab target only. Remove the cone mesh manually if needed.")
-        tgt_target.Delete()
+        print(f"[WARN] Could not find parent frame of '{tgt_name}' — skipping deletion.")
 
     # ── Motion sequence ───────────────────────────────────────────────────────
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
