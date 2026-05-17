@@ -767,14 +767,16 @@ def main():
         if not do_move(robot, base_grab_joints, f"base grab ({base_name})"):
             return
 
-        # Attach cone to tool so it follows the robot to the destination
+        # Move cone to TCP then attach to tool so it follows the robot
         if cone_mesh is not None:
+            tcp_pose = robot.Pose()
+            # Compute local pose: TCP world → local in cone's current parent frame
+            parent_abs = cone_mesh_orig_parent.PoseAbs() if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else eye(4)
+            cone_mesh.setPose(invH(parent_abs) * tcp_pose)
             _attach_to = tool if tool.Valid() else robot
-            cone_mesh.setParent(_attach_to)
-            cone_mesh.setPose(eye(4))   # cone sits exactly at tool origin (= TCP)
+            cone_mesh.setParentStatic(_attach_to)
             RDK.Render(True)
-            _log(f"[DEBUG] After attach: cone parent='{cone_mesh.Parent().Name()}'")
-            _log(f"[INFO] Cone mesh attached to tool — following TCP.")
+            _log(f"[INFO] Cone mesh '{cone_mesh.Name()}' attached to '{_attach_to.Name()}' — following TCP.")
 
         # Step 3/4: target cone approach
         if not proceed(
@@ -784,8 +786,7 @@ def main():
             "Click OK to proceed, Cancel to abort."
         ):
             if cone_mesh is not None:
-                _rp = cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame
-                cone_mesh.setParent(_rp)
+                cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
             _log("[ABORT] User cancelled at target approach.")
             return
         if not do_move(robot, tgt_app_joints, f"target approach ({tgt_name})",
@@ -800,22 +801,19 @@ def main():
             "Click OK to proceed, Cancel to abort."
         ):
             if cone_mesh is not None:
-                _rp = cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame
-                cone_mesh.setParent(_rp)
+                cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
             _log("[ABORT] User cancelled at target place.")
             return
         if not do_move(robot, tgt_grab_joints, f"target place ({tgt_name})",
                        expected_pose=tgt_grab_pose):
             return
 
-        # Release cone: reparent to station root and snap to destination
+        # Detach cone to world frame and snap to exact destination
         if cone_mesh is not None:
-            station = RDK.ActiveStation()
-            cone_mesh.setParent(station)   # station root is at world origin → local = world
-            cone_mesh.setPose(tgt_grab_pose)
+            cone_mesh.setParentStatic(world_frame)
+            cone_mesh.setPose(tgt_grab_pose)   # world_frame is at origin, so local = world
             RDK.Render(True)
-            px, py, pz = _pose_xyz(cone_mesh.PoseAbs())
-            _log(f"[DEBUG] After release: cone parent='{cone_mesh.Parent().Name()}' pos=({px:.1f},{py:.1f},{pz:.1f})")
+            _log("[INFO] Cone mesh placed at destination.")
 
         # Return home
         if not proceed(

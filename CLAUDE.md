@@ -188,19 +188,35 @@ the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 
 See sub-optimal note above re: `move_to_base_cone_grab_with_setable_accuracy.py`.
 
-## ── RESUME POINT (left off 2026-05-16) ──────────────────────────────────────
+## ── RESUME POINT (left off 2026-05-17) ──────────────────────────────────────
 
 **Branch:** `determining_how_position_gripper`
 
-**Status:** `check_base_cone_reachability.py` and `moving_a_cone.py` have been
-rewritten to use OptimAxes (DHR approach) for base cone IK. The scripts run without
-crashing, but `robot.MoveJ(pose)` is moving the robot to the **wrong position**.
+**Status:** `moving_a_cone.py` full pick-and-place motion works end-to-end (0mm
+pos_err on all waypoints). Reverted to commit `1a2d15c`.
 
-**Next step:** Run `check_base_cone_reachability.py` and share the full terminal
-output. The script now prints `pos_err`, `target XYZ`, and `achieved XYZ` for each
-successful solve. This will tell us:
-- If it's a **coordinate frame mismatch** — large systematic offset in X, Y, or Z
-- If it's an **OptimAxes convergence failure** — solver lands somewhere random
+### Pick-and-place animation — partially working
 
-Once we see the numbers, fix the root cause and regenerate the `ik_solutions/` cache,
-then do an end-to-end test of `moving_a_cone.py`.
+**What works:**
+- Base cone mesh found via `RDK.Item(f"base_cone_{N}")` (under `BaseCones → BaseCone_N`)
+- Mesh moved to TCP with `setPose(invH(parent_abs) * tcp_pose)` then attached with
+  `setParentStatic(tool)` — cone follows the gripper during transit
+- Moving part (gripper) set to `closed_angle` at startup
+
+**What doesn't work:**
+- **Cone does not persist at destination.** After `setParentStatic(world_frame)` +
+  `setPose(tgt_grab_pose)`, the cone reverts to its original base position when the
+  robot returns home. Root cause unclear — `setParentStatic` may not work reliably
+  on FRAME-type items via the external API, or `world_frame` is not the right parent.
+
+**Attempts tried (all failed to fix persistence):**
+1. `setParentStatic(world_frame)` + `setPose(tgt_grab_pose)` — cone reverts
+2. `setParent(world_frame)` + `setPose(tgt_grab_pose)` — broke movement too
+3. `setParent(tool)` + `setPose(eye(4))` for attach, `setParent(ActiveStation)` for
+   release — broke movement and still didn't persist
+
+**Next step:** Diagnose the persistence issue. The key question is: after
+`setParentStatic(world_frame)`, what does `cone_mesh.Parent().Name()` return?
+If it's NOT "WorldFrame", the reparent is failing. Check the `[DEBUG] After release`
+log line from `robo_dk_output/move_debug_*.txt` for a failed attempt to see what
+parent the cone ends up under.
