@@ -45,6 +45,9 @@ SPEED_MM_S         = 200
 IK_SOLUTIONS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
 ROBODK_OUTPUT_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "robo_dk_output")
 GRIPPER_CACHE_PATH = os.path.join(ROBODK_OUTPUT_DIR, "gripper_axis_offset.json")
+# Dest cone IK cache — keyed by tool name so it auto-invalidates on tool change.
+# Delete or use --recompute-dest to force regeneration.
+DEST_IK_CACHE_PATH = os.path.join(ROBODK_OUTPUT_DIR, f"dest_cone_ik_{TOOL_NAME}.json")
 
 # OptimAxes parameters — mirrors DHR's approach.  RoboDK's Algorithm 3 (DLS)
 # handles coupled joint limits (R2000iC J2/J3 interference zone) internally.
@@ -345,21 +348,60 @@ def _solve_ik(robot, pose):
     return []
 
 
-def compute_dest_ik(RDK, robot, dest_cones):
+def load_dest_ik_cache(approach_offset):
+    """Load cached dest cone IK. Returns dict or None if missing/stale."""
+    if not os.path.isfile(DEST_IK_CACHE_PATH):
+        return None
+    with open(DEST_IK_CACHE_PATH) as f:
+        data = json.load(f)
+    if (data.get("tool") != TOOL_NAME or
+            abs(data.get("approach_offset_mm", -1) - approach_offset) > 0.01):
+        print(f"[INFO] Dest IK cache is stale (tool or offset changed) — recomputing.")
+        return None
+    print(f"[INFO] Loaded dest cone IK from cache: {DEST_IK_CACHE_PATH}")
+    return data["solutions"]
+
+
+def save_dest_ik_cache(results, approach_offset):
+    os.makedirs(ROBODK_OUTPUT_DIR, exist_ok=True)
+    with open(DEST_IK_CACHE_PATH, "w") as f:
+        json.dump({
+            "tool": TOOL_NAME,
+            "approach_offset_mm": approach_offset,
+            "generated": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "solutions": results,
+        }, f, indent=2)
+    print(f"[INFO] Dest cone IK saved to cache: {DEST_IK_CACHE_PATH}")
+
+
+def compute_dest_ik(RDK, robot, dest_cones, recompute=False):
     """Solve IK for destination cones using OptimAxes (Algorithm 3 DLS), j7 free.
 
-    The rail moves to whatever position is needed to reach each destination.
-    SolveIK was replaced because it returned out-of-limits branches (e.g. j3=200°)
-    that caused MoveJ to silently clamp and land at the wrong position.
+    Loads from robo_dk_output/dest_cone_ik_<tool>.json if available and not stale.
+    Pass recompute=True (or delete the cache file / use --recompute-dest) to force
+    a fresh solve. The rail moves to whatever position is needed to reach each target.
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
+    if not recompute:
+        cached = load_dest_ik_cache(APPROACH_OFFSET_MM)
+        if cached is not None:
+            print(f"\nDestination cone IK loaded from cache ({len(cached)} cones).")
+            print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
+            print("  " + "-" * 52)
+            for name, r in sorted(cached.items()):
+                gs  = "SUCCESS" if r["grab_ok"] else "FAIL"
+                as_ = "SUCCESS" if r["app_ok"]  else "FAIL"
+                print(f"  {name:<28} {gs:>8}   {as_:>9}")
+            return cached
+
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
     RDK.Render(False)
 
     print("\nComputing IK for destination cones (OptimAxes, j7 free) ...")
+    print("  (robot will move internally — screen updates suppressed)")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
     print("  " + "-" * 52)
 
@@ -390,8 +432,10 @@ def compute_dest_ik(RDK, robot, dest_cones):
     finally:
         if saved_frame.Valid():
             robot.setPoseFrame(saved_frame)
+        robot.setJoints(HOME_SEED)
         RDK.Render(True)
 
+    save_dest_ik_cache(results, APPROACH_OFFSET_MM)
     return results
 
 
@@ -488,6 +532,9 @@ def main():
                     help="Base cone index. Required in ai mode; prompts in human mode.")
     ap.add_argument("--dest", type=int, default=None, metavar="N",
                     help="Destination cone index. Required in ai mode; prompts in human mode.")
+    ap.add_argument("--recompute-dest", action="store_true",
+                    help="Ignore cached dest cone IK and recompute from scratch "
+                         "(needed after changing tool parameters).")
     args = ap.parse_args()
 
     if args.mode == "ai":
@@ -586,7 +633,7 @@ def main():
     for i, t in enumerate(dest_cones):
         print(f"  [{i}] {t.Name()}")
 
-    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones)
+    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, recompute=args.recompute_dest)
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
