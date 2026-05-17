@@ -325,6 +325,37 @@ def main():
     print(f"Approach reachable (native) : {n_app}/{n}")
     print(f"Approach reachable (swept)  : {n_swept}/{n}  (needed orientation change)")
     print(f"Approach unreachable        : {n_none}/{n}  (no orientation works at j7={J7_LOCKED}mm)")
+
+    # ── Orientation sweep grid ────────────────────────────────────────────────
+    any_swept = any(not r["app_ok"] for r in results)
+    if any_swept:
+        step_deg  = 360.0 / ORIENT_SWEEP_STEPS
+        angles    = [i * step_deg for i in range(ORIENT_SWEEP_STEPS)]
+        col_w     = 5   # width per angle column
+        name_w    = max(len(r["name"]) for r in results)
+
+        print(f"\nORIENTATION SWEEP GRID  (approach +{APPROACH_OFFSET_MM:.0f}mm, j7={J7_LOCKED}mm)")
+        print(f"  OK = reachable at j7={J7_LOCKED}mm   .  = not reachable   * = native orientation")
+
+        # Header row
+        header = " " * (name_w + 4)
+        for a in angles:
+            header += f"{int(a):>{col_w}}°"
+        print(header)
+        print("  " + "-" * (name_w + 2 + len(angles) * (col_w + 1)))
+
+        for r in results:
+            row = f"  {r['name']:<{name_w}}  "
+            for a in angles:
+                if r["app_ok"]:
+                    # Native succeeded — no sweep was run
+                    cell = " OK*"
+                elif a in r["reachable_angles"]:
+                    cell = "  OK"
+                else:
+                    cell = "   ."
+                row += f"{cell:>{col_w}} "
+            print(row)
     print(f"\nVisualization frames added under '{VIZ_GROUP_NAME}' in the station tree.")
     print("(Red=X, Green=Y, Blue=Z arrows visible in RoboDK viewport)")
 
