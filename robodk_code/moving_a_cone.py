@@ -348,33 +348,46 @@ def _solve_ik(robot, pose):
     return []
 
 
-def load_dest_ik_cache(approach_offset):
+def _tool_pose_key(tool):
+    """Serialise the tool TCP pose to a rounded list for cache comparison."""
+    if not tool.Valid():
+        return None
+    return [round(v, 3) for v in Pose_2_TxyzRxyz(tool.Pose())]
+
+
+def load_dest_ik_cache(approach_offset, tool_pose_key):
     """Load cached dest cone IK. Returns dict or None if missing/stale."""
     if not os.path.isfile(DEST_IK_CACHE_PATH):
         return None
     with open(DEST_IK_CACHE_PATH) as f:
         data = json.load(f)
-    if (data.get("tool") != TOOL_NAME or
-            abs(data.get("approach_offset_mm", -1) - approach_offset) > 0.01):
-        print(f"[INFO] Dest IK cache is stale (tool or offset changed) — recomputing.")
+    if data.get("tool") != TOOL_NAME:
+        print(f"[INFO] Dest IK cache stale (tool name changed) — recomputing.")
+        return None
+    if abs(data.get("approach_offset_mm", -1) - approach_offset) > 0.01:
+        print(f"[INFO] Dest IK cache stale (approach offset changed) — recomputing.")
+        return None
+    if tool_pose_key is not None and data.get("tool_pose") != tool_pose_key:
+        print(f"[INFO] Dest IK cache stale (tool pose/geometry changed) — recomputing.")
         return None
     print(f"[INFO] Loaded dest cone IK from cache: {DEST_IK_CACHE_PATH}")
     return data["solutions"]
 
 
-def save_dest_ik_cache(results, approach_offset):
+def save_dest_ik_cache(results, approach_offset, tool_pose_key):
     os.makedirs(ROBODK_OUTPUT_DIR, exist_ok=True)
     with open(DEST_IK_CACHE_PATH, "w") as f:
         json.dump({
             "tool": TOOL_NAME,
             "approach_offset_mm": approach_offset,
+            "tool_pose": tool_pose_key,
             "generated": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
             "solutions": results,
         }, f, indent=2)
     print(f"[INFO] Dest cone IK saved to cache: {DEST_IK_CACHE_PATH}")
 
 
-def compute_dest_ik(RDK, robot, dest_cones, recompute=False):
+def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
     """Solve IK for destination cones using OptimAxes (Algorithm 3 DLS), j7 free.
 
     Loads from robo_dk_output/dest_cone_ik_<tool>.json if available and not stale.
@@ -383,8 +396,9 @@ def compute_dest_ik(RDK, robot, dest_cones, recompute=False):
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
+    tpk = _tool_pose_key(tool)
     if not recompute:
-        cached = load_dest_ik_cache(APPROACH_OFFSET_MM)
+        cached = load_dest_ik_cache(APPROACH_OFFSET_MM, tpk)
         if cached is not None:
             print(f"\nDestination cone IK loaded from cache ({len(cached)} cones).")
             print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
@@ -435,7 +449,7 @@ def compute_dest_ik(RDK, robot, dest_cones, recompute=False):
         robot.setJoints(HOME_SEED)
         RDK.Render(True)
 
-    save_dest_ik_cache(results, APPROACH_OFFSET_MM)
+    save_dest_ik_cache(results, APPROACH_OFFSET_MM, tpk)
     return results
 
 
@@ -534,8 +548,21 @@ def main():
                     help="Destination cone index. Required in ai mode; prompts in human mode.")
     ap.add_argument("--recompute-dest", action="store_true",
                     help="Ignore cached dest cone IK and recompute from scratch "
-                         "(needed after changing tool parameters).")
+                         "(tool pose change is detected automatically; this flag "
+                         "forces recompute regardless).")
+    ap.add_argument("--reset-gripper", action="store_true",
+                    help="Delete the gripper axis_offset cache. Use this when the "
+                         "gripper has been manually returned to its rest/import position "
+                         "so the cache is recomputed from the current pose.")
     args = ap.parse_args()
+
+    if args.reset_gripper:
+        if os.path.isfile(GRIPPER_CACHE_PATH):
+            os.remove(GRIPPER_CACHE_PATH)
+            print(f"[INFO] Gripper cache cleared — axis_offset will be recomputed from "
+                  f"the gripper's current pose (assumed to be at rest/import position).")
+        else:
+            print(f"[INFO] No gripper cache found — nothing to reset.")
 
     if args.mode == "ai":
         _NO_POPUPS = True
@@ -633,7 +660,7 @@ def main():
     for i, t in enumerate(dest_cones):
         print(f"  [{i}] {t.Name()}")
 
-    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, recompute=args.recompute_dest)
+    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, tool, recompute=args.recompute_dest)
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
