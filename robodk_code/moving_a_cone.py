@@ -472,15 +472,21 @@ def main():
     global _NO_POPUPS, _DEBUG_LOG
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--no-popups", action="store_true",
-                    help="Skip all confirmation dialogs (auto-proceed).")
+    ap.add_argument("--mode", choices=["human", "ai"], default="human",
+                    help="human (default): prompts + confirmation dialogs. "
+                         "ai: no prompts, uses --base/--dest, auto-proceeds all moves.")
     ap.add_argument("--base", type=int, default=None, metavar="N",
-                    help="Base cone index (skips interactive prompt).")
+                    help="Base cone index. Required in ai mode; prompts in human mode.")
     ap.add_argument("--dest", type=int, default=None, metavar="N",
-                    help="Destination cone index (skips interactive prompt).")
+                    help="Destination cone index. Required in ai mode; prompts in human mode.")
     args = ap.parse_args()
 
-    _NO_POPUPS = args.no_popups
+    if args.mode == "ai":
+        _NO_POPUPS = True
+        if args.base is None:
+            args.base = 0
+        if args.dest is None:
+            args.dest = 0
 
     os.makedirs(ROBODK_OUTPUT_DIR, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
