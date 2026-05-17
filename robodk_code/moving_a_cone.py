@@ -362,13 +362,15 @@ def load_dest_ik_cache(approach_offset, tool_pose_key):
     with open(DEST_IK_CACHE_PATH) as f:
         data = json.load(f)
     if data.get("tool") != TOOL_NAME:
-        print(f"[INFO] Dest IK cache stale (tool name changed) — recomputing.")
+        print(f"[INFO] Dest IK cache stale (tool name changed) — recomputing once, will cache result.")
         return None
     if abs(data.get("approach_offset_mm", -1) - approach_offset) > 0.01:
-        print(f"[INFO] Dest IK cache stale (approach offset changed) — recomputing.")
+        print(f"[INFO] Dest IK cache stale (approach offset changed) — recomputing once, will cache result.")
         return None
     if tool_pose_key is not None and data.get("tool_pose") != tool_pose_key:
-        print(f"[INFO] Dest IK cache stale (tool pose/geometry changed) — recomputing.")
+        print(f"[INFO] Dest IK cache stale (tool TCP pose changed) — recomputing once, will cache result.")
+        print(f"       cached  TCP: {data.get('tool_pose')}")
+        print(f"       current TCP: {tool_pose_key}")
         return None
     print(f"[INFO] Loaded dest cone IK from cache: {DEST_IK_CACHE_PATH}")
     return data["solutions"]
