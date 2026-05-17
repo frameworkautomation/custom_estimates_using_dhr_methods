@@ -5,15 +5,14 @@ Simulates picking a cone from a base cone grab point and placing it at a
 target cone position. Prompts for confirmation at every step.
 
 Sequence:
-  0. Close gripper (set MovingPart to closed_angle)
   1. Find base_cone_grab_* targets; load or compute IK + approach offsets
   2. Find cone_grab_* targets (under Cones > Cone_<N> > cone_grab_<N>); compute IK
   3. Prompt: base cone index, destination cone index (separate lists)
-  4. Delete destination Cone_<N> from station (removes cone mesh + grab target)
+  4. Find destination cone mesh (for pick-and-place animation)
   5. [Proceed?] MoveJ to base cone approach
-  6. [Proceed?] MoveJ to base cone grab
-  7. [Proceed?] MoveJ to destination cone approach
-  8. [Proceed?] MoveJ to destination cone place
+  6. [Proceed?] MoveJ to base cone grab → snap cone mesh to TCP
+  7. [Proceed?] MoveJ to destination cone approach → update cone mesh to TCP
+  8. [Proceed?] MoveJ to destination cone place → place cone mesh at destination
   9. [Proceed?] Return to home (all joints 0)
 """
 
@@ -28,7 +27,7 @@ sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT
-from robodk.robomath import transl, invH, rotz, Pose_2_TxyzRxyz
+from robodk.robomath import transl, invH, rotz, Pose_2_TxyzRxyz, eye
 import tkinter as tk
 from tkinter import messagebox
 
@@ -594,12 +593,11 @@ def main():
         all_tools = [i.Name() for i in RDK.ItemList(ITEM_TYPE_TOOL)]
         print(f"[WARN] Tool '{TOOL_NAME}' not found. Available: {all_tools}")
 
-    # ── Step 0: close gripper ─────────────────────────────────────────────────
+    # ── Step 0: set moving part to closed position ────────────────────────────
     moving, open_angle, closed_angle, import_angle, axis_offset = find_moving_part(RDK)
     if moving is not None:
-        print(f"[INFO] Closing gripper to closed_angle={closed_angle} deg ...")
         set_gripper_angle(RDK, moving, axis_offset, import_angle, closed_angle)
-        print("[INFO] Gripper closed.")
+        print(f"[INFO] Moving part set to closed_angle={closed_angle} deg.")
 
     # ── Step 1: find base cones, load or compute IK ──────────────────────────
     base_cones = find_base_cones(RDK)
@@ -721,22 +719,21 @@ def main():
     _log(f"[DEBUG] tgt_grab_joints  = {[round(v,3) for v in tgt_grab_joints]}")
     _log(f"[DEBUG] tgt_app_joints   = {[round(v,3) for v in tgt_app_joints]}")
 
-    # ── Step 4: delete destination cone mesh from station ────────────────────
-    # Tree: Cones → cone_<x> (frame) → cone_<x> (OBJECT mesh)   ← delete this
-    #                                 → cone_grab_<x> (TARGET)   ← keep this
-    cone_frame = tgt_target.Parent()
-    if cone_frame.Valid():
-        mesh = next(
-            (c for c in cone_frame.Childs() if c.Type() == ITEM_TYPE_OBJECT),
-            None,
-        )
-        if mesh is not None and mesh.Valid():
-            print(f"[INFO] Deleting cone mesh '{mesh.Name()}' from station ...")
-            mesh.Delete()
-        else:
-            print(f"[WARN] No mesh object found under '{cone_frame.Name()}' — nothing deleted.")
+    # ── Step 4: find base cone mesh for pick-and-place animation ─────────────
+    # Tree: BaseCones → BaseCone_<x> (frame) → base_cone_<x>   ← this travels
+    #                                         → base_cone_grab_<x> (TARGET)
+    # Derive mesh name from base name: "base_cone_grab_0" → "base_cone_0"
+    cone_mesh = None
+    cone_mesh_orig_parent = None
+    _base_num = base_name.replace("base_cone_grab_", "")
+    _mesh_name = f"base_cone_{_base_num}"
+    _cm = RDK.Item(_mesh_name)
+    if _cm.Valid():
+        cone_mesh = _cm
+        cone_mesh_orig_parent = cone_mesh.Parent()
+        print(f"[INFO] Found base cone mesh '{cone_mesh.Name()}' (type {cone_mesh.Type()}) — will carry it during transit.")
     else:
-        print(f"[WARN] Could not find parent frame of '{tgt_name}' — skipping deletion.")
+        print(f"[WARN] Base cone mesh '{_mesh_name}' not found in station — pick-and-place animation skipped.")
 
     # ── Motion sequence ───────────────────────────────────────────────────────
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
@@ -770,6 +767,17 @@ def main():
         if not do_move(robot, base_grab_joints, f"base grab ({base_name})"):
             return
 
+        # Move cone to TCP then attach to tool so it follows the robot
+        if cone_mesh is not None:
+            tcp_pose = robot.Pose()
+            # Compute local pose: TCP world → local in cone's current parent frame
+            parent_abs = cone_mesh_orig_parent.PoseAbs() if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else eye(4)
+            cone_mesh.setPose(invH(parent_abs) * tcp_pose)
+            _attach_to = tool if tool.Valid() else robot
+            cone_mesh.setParentStatic(_attach_to)
+            RDK.Render(True)
+            _log(f"[INFO] Cone mesh '{cone_mesh.Name()}' attached to '{_attach_to.Name()}' — following TCP.")
+
         # Step 3/4: target cone approach
         if not proceed(
             "Step 3/4 — Move to target approach",
@@ -777,6 +785,8 @@ def main():
             f"Joints: {fmt_joints(tgt_app_joints)}\n\n"
             "Click OK to proceed, Cancel to abort."
         ):
+            if cone_mesh is not None:
+                cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
             _log("[ABORT] User cancelled at target approach.")
             return
         if not do_move(robot, tgt_app_joints, f"target approach ({tgt_name})",
@@ -790,11 +800,20 @@ def main():
             f"Joints: {fmt_joints(tgt_grab_joints)}\n\n"
             "Click OK to proceed, Cancel to abort."
         ):
+            if cone_mesh is not None:
+                cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
             _log("[ABORT] User cancelled at target place.")
             return
         if not do_move(robot, tgt_grab_joints, f"target place ({tgt_name})",
                        expected_pose=tgt_grab_pose):
             return
+
+        # Detach cone to world frame and snap to exact destination
+        if cone_mesh is not None:
+            cone_mesh.setParentStatic(world_frame)
+            cone_mesh.setPose(tgt_grab_pose)   # world_frame is at origin, so local = world
+            RDK.Render(True)
+            _log("[INFO] Cone mesh placed at destination.")
 
         # Return home
         if not proceed(
