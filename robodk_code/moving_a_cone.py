@@ -523,14 +523,19 @@ def main():
     tgt_grab_joints  = tgt_ik["grab_joints"]
 
     # ── Step 4: delete destination Cone_<N> from station ─────────────────────
-    # tgt_target is cone_grab_<N>; its parent is Cone_<N>; deleting the parent
-    # removes both the cone geometry and the grab target.
+    # Only delete the parent if it looks like a per-cone container (e.g. "Cone_0").
+    # If the parent is a shared frame (e.g. "Cones") deleting it would wipe all cones.
+    import re as _re
     cone_parent = tgt_target.Parent()
-    if cone_parent.Valid():
+    if cone_parent.Valid() and _re.fullmatch(r"Cone_\d+", cone_parent.Name()):
         print(f"[INFO] Deleting '{cone_parent.Name()}' (and its child '{tgt_name}') from station ...")
         cone_parent.Delete()
     else:
-        print(f"[WARN] Could not find parent of '{tgt_name}' — skipping deletion.")
+        # Parent is shared — just delete the grab target itself and warn.
+        parent_name = cone_parent.Name() if cone_parent.Valid() else "<none>"
+        print(f"[WARN] Parent of '{tgt_name}' is '{parent_name}' — not a per-cone container.")
+        print(f"[WARN] Deleting grab target only. Remove the cone mesh manually if needed.")
+        tgt_target.Delete()
 
     # ── Motion sequence ───────────────────────────────────────────────────────
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
