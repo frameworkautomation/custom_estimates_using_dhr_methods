@@ -298,6 +298,7 @@ def compute_all_offsets(RDK, robot, cone_targets):
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
+    RDK.Render(False)
 
     try:
         for target in cone_targets:
@@ -322,6 +323,7 @@ def compute_all_offsets(RDK, robot, cone_targets):
         if saved_frame.Valid():
             robot.setPoseFrame(saved_frame)
         robot.setJoints(HOME_SEED)
+        RDK.Render(True)
 
     return all_results
 
@@ -355,6 +357,7 @@ def compute_dest_ik(RDK, robot, dest_cones):
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
+    RDK.Render(False)
 
     print("\nComputing IK for destination cones (OptimAxes, j7 free) ...")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
@@ -387,6 +390,7 @@ def compute_dest_ik(RDK, robot, dest_cones):
     finally:
         if saved_frame.Valid():
             robot.setPoseFrame(saved_frame)
+        RDK.Render(True)
 
     return results
 
