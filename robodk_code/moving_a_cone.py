@@ -48,6 +48,17 @@ GRIPPER_CACHE_PATH = os.path.join(ROBODK_OUTPUT_DIR, "gripper_axis_offset.json")
 
 # OptimAxes parameters — mirrors DHR's approach.  RoboDK's Algorithm 3 (DLS)
 # handles coupled joint limits (R2000iC J2/J3 interference zone) internally.
+# OptimAxes for destination cones — j7 free to move to wherever the target needs it.
+OPT_AXES_FREE_J7 = {
+    "Algorithm": 3,
+    "MaxIter":  500,
+    "Tol":      0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+}
+
 OPT_AXES_STATIC_J7 = {
     "AbsJnt_7": 0,    # overridden per call with J7_LOCKED
     "AbsOn_7":  1,
@@ -171,6 +182,30 @@ def solve_ik(robot, pose, label):
         robot.setJoints(HOME_SEED)
         print(f"    [FAIL   ] {label}  ({e})")
         return [0.0] * 7, 999.0, 999.0, False
+
+
+def solve_ik_free_j7(robot, pose, label):
+    """Solve IK via OptimAxes (Algorithm 3 DLS) with j7 free to move as needed.
+
+    Used for destination cones where the rail moves to optimally reach the target.
+    Returns (joints, converged).
+    """
+    robot.setParam("OptimAxes", OPT_AXES_FREE_J7)
+    robot.setJoints(HOME_SEED)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
+        try:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        robot.setJoints(HOME_SEED)
+        print(f"    [SUCCESS] {label}  j7={joints[6]:.1f}mm")
+        return joints, True
+    except Exception as e:
+        robot.setJoints(HOME_SEED)
+        print(f"    [FAIL   ] {label}  ({e})")
+        return [0.0] * 7, False
 
 
 def find_moving_part(RDK):
@@ -304,10 +339,11 @@ def _solve_ik(robot, pose):
 
 
 def compute_dest_ik(RDK, robot, dest_cones):
-    """Solve IK for destination cones using OptimAxes with j7 constrained to J7_LOCKED.
+    """Solve IK for destination cones using OptimAxes (Algorithm 3 DLS), j7 free.
 
-    Same solver as base cones — SolveIK was discarded because it returned j7
-    values far from 0 (e.g. 393mm), causing the robot to move to the wrong place.
+    The rail moves to whatever position is needed to reach each destination.
+    SolveIK was replaced because it returned out-of-limits branches (e.g. j3=200°)
+    that caused MoveJ to silently clamp and land at the wrong position.
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
@@ -315,7 +351,7 @@ def compute_dest_ik(RDK, robot, dest_cones):
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
 
-    print("\nComputing IK for destination cones (OptimAxes, j7 constrained) ...")
+    print("\nComputing IK for destination cones (OptimAxes, j7 free) ...")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
     print("  " + "-" * 52)
 
@@ -326,8 +362,8 @@ def compute_dest_ik(RDK, robot, dest_cones):
             grab_pose = target.PoseAbs()
             app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-            grab_j, _, _, grab_ok = solve_ik(robot, grab_pose, f"{name} grab")
-            app_j,  _, _, app_ok  = solve_ik(robot, app_pose,  f"{name} approach")
+            grab_j, grab_ok = solve_ik_free_j7(robot, grab_pose, f"{name} grab")
+            app_j,  app_ok  = solve_ik_free_j7(robot, app_pose,  f"{name} approach")
 
             gs  = "SUCCESS" if grab_ok else "FAIL"
             as_ = "SUCCESS" if app_ok  else "FAIL"
