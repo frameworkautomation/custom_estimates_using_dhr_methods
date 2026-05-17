@@ -204,19 +204,25 @@ pos_err on all waypoints). Reverted to commit `1a2d15c`.
 - Moving part (gripper) set to `closed_angle` at startup
 
 **What doesn't work:**
-- **Cone does not persist at destination.** After `setParentStatic(world_frame)` +
-  `setPose(tgt_grab_pose)`, the cone reverts to its original base position when the
-  robot returns home. Root cause unclear — `setParentStatic` may not work reliably
-  on FRAME-type items via the external API, or `world_frame` is not the right parent.
+- **Cone persists but in the wrong position.** The cone does stay permanently after
+  the script finishes (it does NOT revert to its original base position), but it ends
+  up in the wrong place — not at the destination grab pose. The reparent likely works;
+  the issue is the position calculation being wrong.
 
-**Attempts tried (all failed to fix persistence):**
-1. `setParentStatic(world_frame)` + `setPose(tgt_grab_pose)` — cone reverts
-2. `setParent(world_frame)` + `setPose(tgt_grab_pose)` — broke movement too
-3. `setParent(tool)` + `setPose(eye(4))` for attach, `setParent(ActiveStation)` for
-   release — broke movement and still didn't persist
+**Attempts tried:**
+1. `setParentStatic(world_frame)` + `setPose(tgt_grab_pose)` — cone persists but
+   wrong position
+2. `setParent(world_frame)` + `setPose(tgt_grab_pose)` — broke transit movement AND
+   wrong final position
+3. `setParent(tool)` + `setPose(eye(4))` for attach; `setParent(ActiveStation)` +
+   `setPose(tgt_grab_pose)` for release — broke transit movement AND wrong position
 
-**Next step:** Diagnose the persistence issue. The key question is: after
-`setParentStatic(world_frame)`, what does `cone_mesh.Parent().Name()` return?
-If it's NOT "WorldFrame", the reparent is failing. Check the `[DEBUG] After release`
-log line from `robo_dk_output/move_debug_*.txt` for a failed attempt to see what
-parent the cone ends up under.
+**Root cause hypothesis:** `tgt_grab_pose` comes from `tgt_target.PoseAbs()` which
+is the world pose of the destination grab TARGET. But `world_frame` (or station root)
+may not be at world origin — its own `PoseAbs()` may have a non-identity transform.
+If so, `setPose(tgt_grab_pose)` on a child of `world_frame` gives wrong world position.
+
+**Next step:** After release, log `world_frame.PoseAbs()` (or `ActiveStation().PoseAbs()`)
+to check if it's truly identity. If not, the local pose should be
+`invH(world_frame.PoseAbs()) * tgt_grab_pose`. Also log `cone_mesh.PoseAbs()` after
+`setPose` to see where it actually ends up vs where it should be.
