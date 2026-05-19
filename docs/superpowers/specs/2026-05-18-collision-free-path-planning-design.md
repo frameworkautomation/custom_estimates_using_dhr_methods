@@ -86,10 +86,15 @@ Nodes:
 
 Edges:
 - Every directed pair of nodes is tested with `MoveJ_Test`
-- Cone mesh is attached to tool before all tests (worst-case geometry)
+- Cone mesh is attached to tool before all tests (worst-case geometry — if clear with
+  cone, clear without)
 - Tool is set per-waypoint if a `tool` override is specified, otherwise `default_tool`
+- Approach ↔ grab edges are tested in **both directions** as separate edges, since the
+  cone is attached on the retract leg (grab → approach) but not on the entry leg
+  (approach → grab). Both must be collision-free for a cone to be usable.
 - If `MoveJ_Test` returns 0: edge is collision-free
-- If non-zero: edge blocked; RoboDK has already tested every interpolated intermediate configuration
+- If non-zero: edge blocked; RoboDK has tested every interpolated intermediate
+  configuration along the full joint-space arc
 
 ### Gateway Discovery
 
@@ -210,12 +215,19 @@ home
 → base_gateway_waypoint(s)    (from path_plan.yaml base_cones[N].gateways)
 → base_approach               (pre-computed joints)
 → base_grab                   (pre-computed joints; attach cone mesh)
+→ base_approach               (retract — same pose, cone now attached)
+→ base_gateway_waypoint(s)    (reverse back out through base gateways)
 → dest_gateway_waypoint(s)    (from path_plan.yaml destination_groups[group].gateways)
 → dest_approach               (pre-computed joints)
 → dest_grab                   (pre-computed joints; detach cone mesh, fix position)
-→ dest_gateway_waypoint(s)    (reverse back out)
+→ dest_approach               (retract — same pose, cone now detached)
+→ dest_gateway_waypoint(s)    (reverse back out through dest gateways)
 → home
 ```
+
+Note: `approach → grab` and `grab → approach` are tested as separate directed edges.
+The cone mesh is attached during the retract from base grab, so the `grab → approach`
+edge is tested with cone attached (worst-case geometry).
 
 All joints come from `path_plan.yaml`. No IK at execution time. No collision testing at execution time.
 
