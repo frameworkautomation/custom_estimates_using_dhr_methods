@@ -242,7 +242,7 @@ All joints come from `path_plan.yaml`. No IK at execution time. No collision tes
 
 ## 6. Ambiguity Resolutions
 
-**Multiple gateways for a group:** If a destination group has more than one valid gateway, `moving_a_cone.py` picks the one that shares a tested edge with the base cone's gateway (minimising total hops). If none share an edge, pick the first listed gateway.
+**Multiple gateways for a group:** If a destination group has more than one valid gateway, `moving_a_cone.py` picks the one that shares a tested, collision-free edge with the base cone's gateway (minimising total hops). If no such edge exists in the cache, `moving_a_cone.py` errors out with a clear message indicating which edge is missing and instructs the user to re-run `check_collision_free_paths.py` with additional waypoints. There are no fallbacks — every edge in the complete sequence must be tested and collision-free before execution proceeds.
 
 **Stale config hash:** If `path_plan.yaml` config hash does not match the current `path_config.yaml`, warn and continue — the plan may still be valid for cones that haven't changed. Abort only if the plan file is missing entirely.
 
