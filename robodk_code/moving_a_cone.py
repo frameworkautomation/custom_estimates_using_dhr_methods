@@ -810,9 +810,22 @@ def main():
 
         # Detach cone to world frame and snap to exact destination
         if cone_mesh is not None:
+            wf_abs = world_frame.PoseAbs()
+            wf_xyz = _pose_xyz(wf_abs)
+            _log(f"[DEBUG] world_frame.PoseAbs() XYZ = ({wf_xyz[0]:.3f}, {wf_xyz[1]:.3f}, {wf_xyz[2]:.3f})")
+
+            local_pose = invH(wf_abs) * tgt_grab_pose
             cone_mesh.setParentStatic(world_frame)
-            cone_mesh.setPose(tgt_grab_pose)   # world_frame is at origin, so local = world
+            cone_mesh.setPose(local_pose)
             RDK.Render(True)
+
+            actual_abs = cone_mesh.PoseAbs()
+            ax, ay, az = _pose_xyz(actual_abs)
+            tx, ty, tz = _pose_xyz(tgt_grab_pose)
+            err = math.sqrt((tx-ax)**2 + (ty-ay)**2 + (tz-az)**2)
+            _log(f"[DEBUG] cone target  XYZ = ({tx:.3f}, {ty:.3f}, {tz:.3f})")
+            _log(f"[DEBUG] cone actual  XYZ = ({ax:.3f}, {ay:.3f}, {az:.3f})")
+            _log(f"[DEBUG] placement error   = {err:.3f} mm")
             _log("[INFO] Cone mesh placed at destination.")
 
         # Return home
