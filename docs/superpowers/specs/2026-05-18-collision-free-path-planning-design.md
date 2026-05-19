@@ -244,6 +244,20 @@ All joints come from `path_plan.yaml`. No IK at execution time. No collision tes
 
 **Multiple gateways for a group:** If a destination group has more than one valid gateway, `moving_a_cone.py` picks the one that shares a tested, collision-free edge with the base cone's gateway (minimising total hops). If no such edge exists in the cache, `moving_a_cone.py` errors out with a clear message indicating which edge is missing and instructs the user to re-run `check_collision_free_paths.py` with additional waypoints. There are no fallbacks — every edge in the complete sequence must be tested and collision-free before execution proceeds.
 
-**Stale config hash:** If `path_plan.yaml` config hash does not match the current `path_config.yaml`, warn and continue — the plan may still be valid for cones that haven't changed. Abort only if the plan file is missing entirely.
+**Stale config hash:** Two separate hashes are stored in `path_plan.yaml`:
+
+```yaml
+config_hashes:
+  collision_critical: "abc123"   # hash of: collision_enable, collision_disable, cone_mesh_template
+  structural: "def456"           # hash of: waypoints (names + joints), routing_candidates
+```
+
+Behaviour on mismatch:
+- `collision_critical` mismatch → **abort**. Message: "Collision configuration has changed — all cached paths are invalid. Re-run check_collision_free_paths.py." Cached results were tested against a different collision environment and cannot be trusted.
+- `structural` mismatch → **abort**. Message: "Waypoint definitions have changed — cached edges may reference wrong joint values. Re-run check_collision_free_paths.py." A changed joint value in a waypoint means every edge touching that waypoint was tested against now-incorrect geometry.
+- Only additive changes (new waypoints added, group membership changed) → **warn and continue**. Message: "path_config.yaml has changed but existing cached paths are unaffected. New waypoints are untested and will not appear as gateway options." Existing cached edges remain valid.
+- Plan file missing entirely → **abort**.
+
+The execution-time edge validation remains the final safety net — `moving_a_cone.py` errors on any edge not present in the cache or marked not collision-free — but these hash checks catch obvious invalidation cases early with actionable messages.
 
 **Finding a cone's group:** `moving_a_cone.py` looks up which destination group a selected cone belongs to by searching `destination_groups` in `path_plan.yaml` by cone name. If not found, treat as untested and exclude.
