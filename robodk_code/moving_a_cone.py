@@ -32,6 +32,13 @@ import tkinter as tk
 from tkinter import messagebox
 
 from test_reach_base_cone import fmt_joints
+from path_plan_utils import (
+    load_path_plan,
+    filter_tested_cones,
+    find_cone_group,
+    validate_sequence,
+    build_sequence_names,
+)
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROBOT_NAME         = "Fanuc R2000iC 125L"
