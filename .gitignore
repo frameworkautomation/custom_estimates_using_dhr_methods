@@ -13,3 +13,4 @@ rhino_convert_history.log
 ik_solutions/
 *.sh.bak
 Miniconda*.sh
+tests/__pycache__/
