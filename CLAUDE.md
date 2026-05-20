@@ -188,21 +188,71 @@ the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 
 See sub-optimal note above re: `move_to_base_cone_grab_with_setable_accuracy.py`.
 
-## ── RESUME POINT (left off 2026-05-19) ──────────────────────────────────────
+## ── FUTURE: Automated obstacle avoidance ─────────────────────────────────────
+
+**Current approach (manual waypoints):** A human places intermediate frames in RoboDK
+(e.g. curtain-safe poses per machine zone). `check_collision_free_paths.py` validates
+edges between them. If an edge collides, the human adds more waypoints and re-runs.
+This is how DHR's knitwear-cell works too.
+
+**Why automated is hard:** A path-planning algorithm (RRT, PRM, OMPL) requires:
+- A configuration-space obstacle model (not just mesh collision — RoboDK's `MoveJ_Test`
+  only checks a straight interpolation)
+- A sampler that understands the 7-DOF joint space including the rail
+- RoboDK does not expose an internal planner. ROS MoveIt could do this but requires
+  a full ROS integration and a robot driver — significant work.
+
+**What "automated" could look like in this project:**
+
+Option A — **Dense-graph search over pre-sampled configs:**
+Pre-sample N random collision-free configurations per machine zone (offline, using
+`MoveJ_Test`). Build a full Dijkstra/PRM graph. At execution time, query the graph
+for a path. No human waypoint placement needed. Downside: N must be large enough
+to guarantee connectivity; pre-sampling is slow.
+
+Option B — **Guided RRT in joint space using RoboDK collision checking:**
+Implement an RRT in Python. Steer between random samples, check each extension
+with `MoveJ_Test`. Works within the existing RoboDK setup. Slow per-query but
+no pre-computation. Could be cached in `path_plan.yaml` the same way edges are now.
+
+Option C — **Optimisation-frame style (DHR approach, extended):**
+Define one `OptimizationApproachMachine_N` frame per machine zone. Use
+`OptimizationKinematicsModel` (`robot.setParam("OptimAxes", ...)`) to bias j7
+to the machine X-position while solving arm IK for the curtain-safe frame. This
+doesn't avoid obstacles automatically — it still needs human-placed curtain-safe
+frames — but it removes the need to manually specify j7 per waypoint.
+
+**Recommendation when ready:** Option B (guided RRT) is the most self-contained path
+forward. It reuses `MoveJ_Test` as the collision oracle and requires no external
+libraries. Implement as a standalone `plan_rrt.py` that writes edges to `path_plan.yaml`
+in the same format as the manual planner. Start with a fixed step size of ~5 degrees
+per joint per step.
+
+**Not doing this now.** The current manual approach is sufficient for the static cell
+and 1-2 machine validation scope.
+
+## ── RESUME POINT (left off 2026-05-20) ──────────────────────────────────────
 
 **Branch:** `collision_free_path_planning` (branched from `determining_how_position_gripper`)
 
-**Status:** Collision-free path planner implemented. Bug fix (cone placement coordinate
-frame) implemented and committed on `determining_how_position_gripper`.
+**Status:** All code complete and pushed (32/32 tests passing). Pending: populating
+`path_config.yaml` with real waypoints and running the pipeline.
 
 **What works:**
 - `determining_how_position_gripper`: cone placement fix — `cone_mesh.setPose(invH(world_frame.PoseAbs()) * tgt_grab_pose)` with diagnostic logging
-- `robot_controller.py`: `MoveJTestModel` + `MoveJModel` mixin pipeline, edge cache
+- `robot_controller.py`: `PathEvaluationModel` + `MoveJModel` mixin pipeline, edge cache
 - `check_collision_free_paths.py`: config loading, hash computation, Dijkstra pathfinding, gateway discovery, node construction, edge testing, plan writer, `main()`
 - `path_plan_utils.py`: pure-Python plan loading, cone filtering, sequence building, edge validation — no RoboDK dependency, fully unit-tested
-- `moving_a_cone.py`: imports all `path_plan_utils` functions; Task 8 (wiring into `main()`) is the remaining step
+- `moving_a_cone.py`: plan-driven motion sequence using `path_plan_utils`
 - `robo_dk_output/path_config.yaml`: human-editable template committed (gitignore exception added)
+- `robodk_code/extract_waypoint_frames.py`: dumps named frames from RoboDK as 6D poses (JSON + CSV) for Rhino import
 - Conda environment: `cone_planner` — activate with `conda activate cone_planner`; run tests with `pytest tests/`
+
+**j7 testing shortcut (agreed 2026-05-20):**
+For the initial sim validation use a small number of j7 routing candidates (3-4) to
+keep the edge count manageable. When moving to production, add the full set of j7
+positions and re-run `check_collision_free_paths.py` to test all combinations. The
+hash system invalidates and retests everything when routing_candidates changes.
 
 **Next steps:**
 1. Populate `robo_dk_output/path_config.yaml` with actual machine zones, gateway waypoints, and multi-j7 routing candidates (see design note below)
