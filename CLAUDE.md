@@ -225,29 +225,60 @@ unnecessary round-trips for destinations that would be cheaper to reach at a dif
 ```yaml
 waypoints:
   home:
-    joints: [0, 0, 0, 0, 0, 0, 0]          # j7=0
+    joints: [0, 0, 0, 0, 0, 0, 0]
   transport_j7_0:
-    joints: [0, -55, 30, 0, -30, -90, 0]   # rail at 0
+    joints: [0, -55, 30, 0, -30, -90, 0]
   transport_j7_500:
-    joints: [0, -55, 30, 0, -30, -90, 500] # rail at 500mm
-  transport_j7_1000:
-    joints: [0, -55, 30, 0, -30, -90, 1000]
+    joints: [0, -55, 30, 0, -30, -90, 500]
 
 routing_candidates:
   - home
   - transport_j7_0
   - transport_j7_500
-  - transport_j7_1000
 ```
 
-Dijkstra then picks the cheapest collision-free route through whichever rail position
-works for each base→destination pair. No code changes needed — the graph handles it.
+Dijkstra picks the cheapest collision-free route through whichever rail position works
+for each base→destination pair. No code changes needed — the graph handles it.
 
-**Key insight:** base cone approach/grab nodes always have j7=0 (robot-relative targets).
-Destination cone approach/grab nodes will have whatever j7 value the IK solver chose.
-The routing candidate graph bridges between them. Adding more j7 variants = finer-grained
-routing. You define these waypoints via Grasshopper or by hand in `path_config.yaml`.
+**Initial scope:** Start with 3-4 j7 positions and 1-2 machines to validate the approach
+before scaling. ~28 machines over 20m → zone-based waypoints make more sense than
+uniform 20cm spacing (only 2x node reduction but much simpler config).
 
 **Structural hash note:** Adding new j7 variants to `waypoints` without adding them to
-`routing_candidates` is an additive change (warn, continue). Adding them to
-`routing_candidates` changes the structural hash → re-run `check_collision_free_paths.py`.
+`routing_candidates` is additive (warn, continue). Adding them to `routing_candidates`
+changes the structural hash → re-run `check_collision_free_paths.py`.
+
+### grab_family — functionally equivalent base grabs at different j7
+
+Base cones are robot-relative, so the same cone slot is reachable at any j7 position
+(arm pose is identical, only rail position differs). In `path_plan.yaml`, separate entries
+exist per j7 position but share a `grab_family` field:
+
+```yaml
+base_cones:
+  base_cone_grab_0_j7_0:
+    grab_family: base_slot_0      # same physical cone, rail at 0
+    tested: true
+    approach_joints: [0, -55, 30, 0, -30, -90, 0]
+    grab_joints: [...]
+    gateways: [transport_j7_0]
+  base_cone_grab_0_j7_500:
+    grab_family: base_slot_0      # same cone slot, rail at 500
+    tested: true
+    approach_joints: [0, -55, 30, 0, -30, -90, 500]
+    grab_joints: [...]
+    gateways: [transport_j7_500]
+```
+
+At execution time `moving_a_cone.py` selects whichever family member has a tested
+collision-free path from the robot's current rail position — avoids unnecessary rail
+travel back to j7=0 if already near another family member.
+
+**Not yet implemented** — document the field in path_plan.yaml when building this out.
+
+### pose_family — future work
+
+Routing candidates with identical arm joints (j1-j6) but different j7 share a
+`pose_family`. Checker can skip redundant arm-collision tests between same-family members
+(only test adjacent j7 steps for rail clearance). Leave for later — not needed at 3-4
+j7 nodes.
