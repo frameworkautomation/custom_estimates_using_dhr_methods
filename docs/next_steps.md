@@ -99,6 +99,8 @@ Nothing blocking — all code is complete. Future work when you're ready:
 | Grasshopper waypoint export | GhPython component: define waypoints visually as Rhino planes, solve IK, write to path_config.yaml |
 | `grab_family` in moving_a_cone.py | At runtime, pick the base cone family member nearest the robot's current j7 — avoids unnecessary rail travel |
 | `pose_family` chain checker | When a set of adjacent j7 nodes all have the same arm pose AND a tested collision-free chain between them, mark them as a family to skip redundant arm tests |
+| Investigate runtime collision guard | DHR runs `MoveJ_Test` live before each move (Redis-cached). We pre-compute offline. Investigate: (1) does DHR's `collision_checking: false` disable this in production? (2) should we add a runtime guard in `moving_a_cone.py` as a safety net for environment changes? See CLAUDE.md for the full safety argument. |
+| Automated obstacle avoidance (long-term) | Options: dense PRM pre-sample, guided RRT using `MoveJ_Test` as oracle, or DHR-style `OptimizationApproachMachine_N` frames. See CLAUDE.md future section for detail. Not needed yet. |
 
 ---
 

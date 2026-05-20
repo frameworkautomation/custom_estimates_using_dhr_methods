@@ -231,6 +231,40 @@ per joint per step.
 **Not doing this now.** The current manual approach is sufficient for the static cell
 and 1-2 machine validation scope.
 
+## ── INVESTIGATE: Runtime collision checking vs offline pre-computation ─────────
+
+**Our approach:** Edges are tested offline in bulk by `check_collision_free_paths.py`,
+results baked into `path_plan.yaml`. At runtime `moving_a_cone.py` trusts the yaml
+and never calls `MoveJ_Test`.
+
+**DHR approach:** `MoveJTestModel` runs `MoveJ_Test` live at execution time, with Redis
+caching to skip re-testing identical transitions in the same session.
+
+**Safety question to investigate:** Is DHR's approach strictly safer?
+
+Arguments FOR DHR being safer:
+- If something physically changes in the cell at runtime (fixture moved, person in the
+  way), live `MoveJ_Test` would detect a new collision that our pre-computed plan misses.
+- Our plan assumes the environment is identical to when `check_collision_free_paths.py`
+  ran. Any physical change silently invalidates the plan.
+
+Arguments AGAINST (or for our approach being equivalent):
+- DHR's `configuration.yaml` has `collision_checking: false` — their live collision
+  checking is **disabled in production** (this is the value in their committed config).
+  If that flag gates `MoveJTestModel`, they're not actually checking at runtime either.
+  Investigate: how does `collision_checking` control `MoveJTestModel` execution?
+- For a fully static, guarded cell with no human access during operation, offline
+  pre-computation is sufficient and has zero runtime overhead.
+- Live `MoveJ_Test` is slow (must run a simulated trajectory in RoboDK) — DHR speeds
+  up simulation to 500x and restores it after. This adds latency to every move.
+
+**What to check before going to production:**
+1. Confirm whether DHR's `collision_checking: false` actually disables `MoveJTestModel`
+   — read `collision_item_presenter_service.py` and check how the flag is propagated.
+2. Decide: for our cell, do we want to add a runtime `MoveJ_Test` guard in
+   `moving_a_cone.py` as a safety net, even if the pre-computed plan should be valid?
+   Cost: latency. Benefit: catches environment changes and configuration bugs.
+
 ## ── RESUME POINT (left off 2026-05-20) ──────────────────────────────────────
 
 **Branch:** `collision_free_path_planning` (branched from `determining_how_position_gripper`)
