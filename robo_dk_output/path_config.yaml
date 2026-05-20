@@ -49,3 +49,44 @@ destination_groups:
 # Format: [item_name_a, item_name_b]
 collision_enable: []
 collision_disable: []
+
+# ── DHR-style states blocks ────────────────────────────────────────────────────
+# Each RoboDK frame or target that needs custom motion behaviour gets a `states:`
+# array.  yaml_to_state_class.xq reads this (via JSON) and generates Python State
+# subclasses in robodk_code/generated_states.py.
+#
+# Run the generator (from the project root, with Java + Saxon HE in PATH):
+#   python -c "import yaml,json; open('/tmp/path_config.json','w').write(json.dumps(yaml.safe_load(open('robo_dk_output/path_config.yaml'))))"
+#   java -cp clones/knitwear-cell/libs/saxon-he-12.8.jar:clones/knitwear-cell/libs/xmlresolver-4.5.0.jar \
+#        net.sf.saxon.Query \
+#        -q:clones/knitwear-cell/src/main/xquery/yaml_to_state_class.xq \
+#        json=/tmp/path_config.json \
+#        -o:robodk_code/generated_states.py
+#
+# State entry fields:
+#   move: J | L              -- MoveJ or MoveL
+#   optimization: true       -- use OptimizationKinematicsModel (j7 constrained to frame X)
+#   tool_name: "tool_name"   -- override default tool for this move
+#   optimization_frame: "FrameName"  -- optional: use a different frame to determine j7 pos
+#   optimization_axis: "X"   -- axis the rail runs on (default X)
+#   test: true               -- add MoveJTestModel / MoveLTestModel before the move
+#
+# Example -- a curtain-safe frame for machine 1:
+# frames:
+#   - name: CurtainSafeMachine1
+#     states:
+#       - move: J
+#         optimization: true
+#         tool_name: pickup_closed
+#         optimization_axis: X
+#
+# The XQuery generates:
+#   class CurtainSafeMachine1State1(State):
+#       frame: str = "CurtainSafeMachine1"
+#       tool_name: str = "pickup_closed"
+#       optimization_axis: str = "X"
+#       robot_controller: Robot = Field(
+#           default_factory=lambda: Robot(OptimizationKinematicsModel, MoveJModel))
+#
+# Uncomment and populate `frames:` below once you have curtain-safe frames in RoboDK:
+# frames: []

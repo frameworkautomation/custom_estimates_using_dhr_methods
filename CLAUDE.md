@@ -277,9 +277,10 @@ Requires: Java, Saxon HE 12.8 JAR. YAML→JSON step uses `yq` (preferred) or Pyt
    when `move: J`, `MoveLModel` when `move: L`.
 3. Output is `generated_states.py` — imported at runtime, no YAML parsing at all.
 
-**Our equivalent plan:** Python generator script reading `path_config.yaml` (same
-`states:` schema) and writing `robo_dk_output/motion_config.json`. No Java/XQuery
-needed — the mapping logic is simple enough for 30 lines of Python.
+**Our setup (2026-05-20):** We use DHR's XQuery as-is. The header now imports from
+our modules (`from dhr_robot import *`, `from state import State`). We have ported
+`state.py`, `dhr_robot.py`, and `state_machine.py` into `robodk_code/`. See the
+`## ── DHR runtime port` section above for how to generate and use state classes.
 
 ## ── INVESTIGATE: Runtime collision checking vs offline pre-computation ─────────
 
@@ -314,6 +315,60 @@ Arguments AGAINST (or for our approach being equivalent):
 2. Decide: for our cell, do we want to add a runtime `MoveJ_Test` guard in
    `moving_a_cone.py` as a safety net, even if the pre-computed plan should be valid?
    Cost: latency. Benefit: catches environment changes and configuration bugs.
+
+## ── DHR runtime port (2026-05-20) ────────────────────────────────────────────
+
+Three new files in `robodk_code/`:
+
+| File | Purpose |
+|------|---------|
+| `state.py` | Stripped `State` Pydantic base class (no @autowired / Redis / gRPC) |
+| `dhr_robot.py` | `Robot` mixin pipeline + all kinematics/movement models; `setup(rdk, robot_item)` wires in live RoboDK refs |
+| `state_machine.py` | `StateMachine` — getattr-dispatch on a states container |
+
+XQuery header updated: `clones/knitwear-cell/src/main/xquery/yaml_to_state_class.xq`
+now emits `from dhr_robot import *` and `from state import State` (was DHR src.main paths).
+
+**Generate state classes from path_config.yaml:**
+```bash
+# 1. YAML → JSON
+python -c "import yaml,json; open('/tmp/pc.json','w').write(json.dumps(yaml.safe_load(open('robo_dk_output/path_config.yaml'))))"
+
+# 2. Run XQuery (Java + Saxon HE required)
+java -cp clones/knitwear-cell/libs/saxon-he-12.8.jar:clones/knitwear-cell/libs/xmlresolver-4.5.0.jar \
+     net.sf.saxon.Query \
+     -q:clones/knitwear-cell/src/main/xquery/yaml_to_state_class.xq \
+     json=/tmp/pc.json \
+     -o:robodk_code/generated_states.py
+```
+
+Output: `robodk_code/generated_states.py` with a `StatesContainer` Pydantic model.
+
+**Add frames to path_config.yaml** (bottom of that file has a commented example):
+```yaml
+frames:
+  - name: CurtainSafeMachine1
+    states:
+      - move: J
+        optimization: true
+        tool_name: pickup_closed
+        optimization_axis: X
+```
+
+**Use StateMachine at runtime:**
+```python
+import dhr_robot
+from state_machine import StateMachine
+from generated_states import StatesContainer
+
+dhr_robot.setup(rdk, robot_item)
+sm = StateMachine(StatesContainer())
+sm.set_state("curtain_safe_machine_1_1")  # snake_case frame name + _N index
+ok = sm.handle()
+```
+
+Field name convention (XQuery): PascalCase frame → snake_case + `_N` index.
+`CurtainSafeMachine1` with 1 state → attribute `curtain_safe_machine_1_1`.
 
 ## ── RESUME POINT (left off 2026-05-20) ──────────────────────────────────────
 
