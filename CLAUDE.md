@@ -231,22 +231,55 @@ per joint per step.
 **Not doing this now.** The current manual approach is sufficient for the static cell
 and 1-2 machine validation scope.
 
-## ── OUTSTANDING: Get DHR's XQuery generator ──────────────────────────────────
+## ── DHR's code generation pipeline (we have it) ──────────────────────────────
 
-DHR auto-generates `generated_states.py` from `robodk.yaml` using an XQuery script
-called `yaml_to_state_class.xq`. This file was NOT included in the code they shared —
-the shallow clone only contains the output (`generated_states.py`), not the generator.
+All generator code IS in the cloned repo. Full pipeline:
 
-**Ask DHR for `yaml_to_state_class.xq`** (and any supporting XQuery modules).
+```
+robodk.yaml  →  generate_states.sh  →  generated_states.py
+```
 
-Why we want it:
-- We are building the same pattern: `path_config.yaml` → generator → motion config
-- Their generator already solves the frame→state-class mapping problem we need
-- Porting the XQuery logic to Python is much easier with the source than reverse-engineering
-  from the 33,000-line output
+**Files:**
+- `clones/knitwear-cell/src/main/xquery/yaml_to_state_class.xq` — the XQuery generator
+- `clones/knitwear-cell/generate_states.sh` — shell runner
+- `clones/knitwear-cell/libs/saxon-he-12.8.jar` — Saxon HE XQuery processor (Java)
+- `clones/knitwear-cell/libs/xmlresolver-4.5.0.jar` — dependency
 
-If they won't share the XQuery, write a Python equivalent from first principles — the
-output (`generated_states.py`) is fully readable and the mapping rules are clear.
+**Run it:**
+```bash
+cd clones/knitwear-cell
+sh generate_states.sh                         # uses defaults
+sh generate_states.sh src/main/config/robodk.yaml src/main/robot/generated_states.py
+```
+
+Requires: Java, Saxon HE 12.8 JAR. YAML→JSON step uses `yq` (preferred) or Python PyYAML.
+
+**Inverse — export RoboDK station back to yaml:**
+- `clones/knitwear-cell/src/main/utils/generate_yaml.py`
+- `clones/knitwear-cell/generate_yaml.sh`
+- `clones/knitwear-cell/src/main/robodk/station_yaml_generator.py`
+
+**How the generator works:**
+1. `robodk.yaml` defines every frame with a `states:` block:
+   ```yaml
+   - name: ApproachBuffer
+     type: ITEM_TYPE_FRAME
+     pose: {x: 0.0, y: 200.0, z: 870.0, ...}
+     states:
+       - move: J
+         optimization: true
+         tool_name: GrabbingGripper
+         optimization_frame: RobotPedestal
+         optimization_axis: X
+   ```
+2. XQuery reads each frame's `states:` entries and emits one Python class per entry,
+   selecting `OptimizationKinematicsModel` when `optimization: true`, `MoveJModel`
+   when `move: J`, `MoveLModel` when `move: L`.
+3. Output is `generated_states.py` — imported at runtime, no YAML parsing at all.
+
+**Our equivalent plan:** Python generator script reading `path_config.yaml` (same
+`states:` schema) and writing `robo_dk_output/motion_config.json`. No Java/XQuery
+needed — the mapping logic is simple enough for 30 lines of Python.
 
 ## ── INVESTIGATE: Runtime collision checking vs offline pre-computation ─────────
 
