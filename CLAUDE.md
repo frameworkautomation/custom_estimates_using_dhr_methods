@@ -244,9 +244,9 @@ for each base→destination pair. No code changes needed — the graph handles i
 before scaling. ~28 machines over 20m → zone-based waypoints make more sense than
 uniform 20cm spacing (only 2x node reduction but much simpler config).
 
-**Structural hash note:** Adding new j7 variants to `waypoints` without adding them to
-`routing_candidates` is additive (warn, continue). Adding them to `routing_candidates`
-changes the structural hash → re-run `check_collision_free_paths.py`.
+**Adding new waypoints:** always requires re-running `check_collision_free_paths.py` to
+test the new edges. The hash system treats any change to `routing_candidates` as a full
+invalidation — there is no partial re-run.
 
 ### grab_family — functionally equivalent base grabs at different j7
 
@@ -278,7 +278,14 @@ travel back to j7=0 if already near another family member.
 
 ### pose_family — future work
 
-Routing candidates with identical arm joints (j1-j6) but different j7 share a
-`pose_family`. Checker can skip redundant arm-collision tests between same-family members
-(only test adjacent j7 steps for rail clearance). Leave for later — not needed at 3-4
-j7 nodes.
+Two routing candidates qualify for the same `pose_family` if:
+1. They have identical arm joints (j1-j6)
+2. There is a tested, collision-free **chain of adjacent j7 steps** connecting them at
+   that arm pose — i.e. the rail can slide between them without hitting anything
+
+Both conditions must hold. Identical arm joints alone is not sufficient — an obstacle
+may block the rail at an intermediate j7. The chain must be explicitly tested.
+
+Once a chain is confirmed, the checker can treat the family as a 1D rail corridor and
+skip re-testing arm collisions between members (arm doesn't move, environment was
+already checked step by step). Leave for later — not needed at 3-4 j7 nodes.
