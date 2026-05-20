@@ -188,41 +188,25 @@ the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 
 See sub-optimal note above re: `move_to_base_cone_grab_with_setable_accuracy.py`.
 
-## ── RESUME POINT (left off 2026-05-17) ──────────────────────────────────────
+## ── RESUME POINT (left off 2026-05-19) ──────────────────────────────────────
 
-**Branch:** `determining_how_position_gripper`
+**Branch:** `collision_free_path_planning` (branched from `determining_how_position_gripper`)
 
-**Status:** `moving_a_cone.py` full pick-and-place motion works end-to-end (0mm
-pos_err on all waypoints). Reverted to commit `1a2d15c`.
-
-### Pick-and-place animation — partially working
+**Status:** Collision-free path planner implemented. Bug fix (cone placement coordinate
+frame) implemented and committed on `determining_how_position_gripper`.
 
 **What works:**
-- Base cone mesh found via `RDK.Item(f"base_cone_{N}")` (under `BaseCones → BaseCone_N`)
-- Mesh moved to TCP with `setPose(invH(parent_abs) * tcp_pose)` then attached with
-  `setParentStatic(tool)` — cone follows the gripper during transit
-- Moving part (gripper) set to `closed_angle` at startup
+- `determining_how_position_gripper`: cone placement fix — `cone_mesh.setPose(invH(world_frame.PoseAbs()) * tgt_grab_pose)` with diagnostic logging
+- `robot_controller.py`: `MoveJTestModel` + `MoveJModel` mixin pipeline, edge cache
+- `check_collision_free_paths.py`: config loading, hash computation, Dijkstra pathfinding, gateway discovery, node construction, edge testing, plan writer, `main()`
+- `path_plan_utils.py`: pure-Python plan loading, cone filtering, sequence building, edge validation — no RoboDK dependency, fully unit-tested
+- `moving_a_cone.py`: imports all `path_plan_utils` functions; Task 8 (wiring into `main()`) is the remaining step
+- `robo_dk_output/path_config.yaml`: human-editable template committed (gitignore exception added)
+- Conda environment: `cone_planner` — activate with `conda activate cone_planner`; run tests with `pytest tests/`
 
-**What doesn't work:**
-- **Cone persists but in the wrong position.** The cone does stay permanently after
-  the script finishes (it does NOT revert to its original base position), but it ends
-  up in the wrong place — not at the destination grab pose. The reparent likely works;
-  the issue is the position calculation being wrong.
-
-**Attempts tried:**
-1. `setParentStatic(world_frame)` + `setPose(tgt_grab_pose)` — cone persists but
-   wrong position
-2. `setParent(world_frame)` + `setPose(tgt_grab_pose)` — broke transit movement AND
-   wrong final position
-3. `setParent(tool)` + `setPose(eye(4))` for attach; `setParent(ActiveStation)` +
-   `setPose(tgt_grab_pose)` for release — broke transit movement AND wrong position
-
-**Root cause hypothesis:** `tgt_grab_pose` comes from `tgt_target.PoseAbs()` which
-is the world pose of the destination grab TARGET. But `world_frame` (or station root)
-may not be at world origin — its own `PoseAbs()` may have a non-identity transform.
-If so, `setPose(tgt_grab_pose)` on a child of `world_frame` gives wrong world position.
-
-**Next step:** After release, log `world_frame.PoseAbs()` (or `ActiveStation().PoseAbs()`)
-to check if it's truly identity. If not, the local pose should be
-`invH(world_frame.PoseAbs()) * tgt_grab_pose`. Also log `cone_mesh.PoseAbs()` after
-`setPose` to see where it actually ends up vs where it should be.
+**Next steps:**
+1. Wire `path_plan_utils` into `moving_a_cone.py` `main()` (Task 8 of plan) — requires RoboDK open to verify
+2. Populate `robo_dk_output/path_config.yaml` with actual machine zones and gateway waypoints from Grasshopper
+3. Run `python robodk_code/check_collision_free_paths.py` to generate `path_plan.yaml`
+4. Test end-to-end: `python robodk_code/moving_a_cone.py --mode ai --base 0 --dest 0`
+5. Merge `determining_how_position_gripper` into `collision_free_path_planning`
