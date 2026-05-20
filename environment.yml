@@ -1,0 +1,9 @@
+name: cone_planner
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - pytest
+    - pyyaml
