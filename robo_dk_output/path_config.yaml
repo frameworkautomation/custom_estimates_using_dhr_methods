@@ -1,0 +1,51 @@
+# path_config.yaml
+# Human-editable configuration for the collision-free path planner.
+# Edit this file, then re-run check_collision_free_paths.py to update path_plan.yaml.
+
+# Tool mounted on robot during all collision checks.
+default_tool: "pickup_closed"
+
+# Any valid base cone mesh name. Attached to tool during ALL checks (worst-case geometry).
+# If a path is clear with the cone attached, it is clear without it too.
+cone_mesh_template: "base_cone_0"
+
+# Named waypoints. Each must specify either:
+#   joints: [j1, j2, j3, j4, j5, j6, j7]   — explicit joint values
+#   target: "RoboDKTargetName"               — resolved to joints by the checker at plan-creation time
+# Optional per-waypoint tool override:
+#   tool: "tool_name"                        — overrides default_tool at this waypoint
+waypoints:
+  home:
+    joints: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  transport:
+    joints: [0.0, -55.0, 30.0, 0.0, -30.0, -90.0, 0.0]
+  # Example target-based waypoint (uncomment and fill in):
+  # curtain_safe_machine_1:
+  #   target: "approach_machine_1_curtain_safe"
+  #   tool: "pickup_open"
+
+# Waypoints the pathfinder may route through.
+# Must be a subset of the keys in `waypoints` above.
+routing_candidates:
+  - home
+  - transport
+
+# Destination cone groups. Human-defined by machine/zone.
+# cones: list of RoboDK target names (cone_grab_* items in station)
+# gateway_candidates (optional): restrict which routing_candidates are tested as
+#   direct gateways for this group. If omitted, all routing_candidates are tried.
+destination_groups:
+  machine_1:
+    # gateway_candidates: [transport]   # uncomment to restrict
+    cones:
+      - cone_grab_1
+      - cone_grab_2
+      - cone_grab_3
+  # machine_2:
+  #   cones:
+  #     - cone_grab_4
+
+# Collision pairs to enable/disable beyond RoboDK station defaults.
+# Format: [item_name_a, item_name_b]
+collision_enable: []
+collision_disable: []
