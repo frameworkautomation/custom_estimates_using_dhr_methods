@@ -205,8 +205,49 @@ frame) implemented and committed on `determining_how_position_gripper`.
 - Conda environment: `cone_planner` — activate with `conda activate cone_planner`; run tests with `pytest tests/`
 
 **Next steps:**
-1. Wire `path_plan_utils` into `moving_a_cone.py` `main()` (Task 8 of plan) — requires RoboDK open to verify
-2. Populate `robo_dk_output/path_config.yaml` with actual machine zones and gateway waypoints from Grasshopper
-3. Run `python robodk_code/check_collision_free_paths.py` to generate `path_plan.yaml`
+1. Populate `robo_dk_output/path_config.yaml` with actual machine zones, gateway waypoints, and multi-j7 routing candidates (see design note below)
+2. Run `python robodk_code/check_collision_free_paths.py` to generate `path_plan.yaml`
+3. Run `python robodk_code/load_path_plan_to_robodk.py` to visualise all planned positions in RoboDK
 4. Test end-to-end: `python robodk_code/moving_a_cone.py --mode ai --base 0 --dest 0`
 5. Merge `determining_how_position_gripper` into `collision_free_path_planning`
+
+## ── DESIGN: Multi-j7 routing candidates ──────────────────────────────────────
+
+**Decision (2026-05-19):** The 7th axis is a linear rail. Base cone targets are defined
+relative to the robot base frame, so the robot picks them up at j7=0 (rail home). Destination
+cones are in world space and may require various rail positions.
+
+**Problem:** A single `transport` waypoint fixes j7 at one value, forcing the rail to make
+unnecessary round-trips for destinations that would be cheaper to reach at a different j7.
+
+**Solution:** Define routing candidates at multiple j7 positions:
+
+```yaml
+waypoints:
+  home:
+    joints: [0, 0, 0, 0, 0, 0, 0]          # j7=0
+  transport_j7_0:
+    joints: [0, -55, 30, 0, -30, -90, 0]   # rail at 0
+  transport_j7_500:
+    joints: [0, -55, 30, 0, -30, -90, 500] # rail at 500mm
+  transport_j7_1000:
+    joints: [0, -55, 30, 0, -30, -90, 1000]
+
+routing_candidates:
+  - home
+  - transport_j7_0
+  - transport_j7_500
+  - transport_j7_1000
+```
+
+Dijkstra then picks the cheapest collision-free route through whichever rail position
+works for each base→destination pair. No code changes needed — the graph handles it.
+
+**Key insight:** base cone approach/grab nodes always have j7=0 (robot-relative targets).
+Destination cone approach/grab nodes will have whatever j7 value the IK solver chose.
+The routing candidate graph bridges between them. Adding more j7 variants = finer-grained
+routing. You define these waypoints via Grasshopper or by hand in `path_config.yaml`.
+
+**Structural hash note:** Adding new j7 variants to `waypoints` without adding them to
+`routing_candidates` is an additive change (warn, continue). Adding them to
+`routing_candidates` changes the structural hash → re-run `check_collision_free_paths.py`.
