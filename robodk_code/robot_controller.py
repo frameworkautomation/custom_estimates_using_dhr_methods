@@ -2,11 +2,11 @@
 robot_controller.py
 
 Mixin pipeline modelled on knitwear-cell robot.py.
-Used by check_collision_free_paths.py (MoveJTestModel) and
+Used by check_collision_free_paths.py (PathEvaluationModel) and
 moving_a_cone.py (MoveJModel).
 
 Usage:
-    checker = Robot(MoveJTestModel)
+    checker = Robot(PathEvaluationModel)
     state = {"robot": robot_item, "from_joints": [...], "to_joints": [...]}
     checker.execute(state)
     # state["collision_free"] is now set; checker.edge_cache is populated
@@ -40,12 +40,12 @@ class RobotControllerMixin(ABC):
           - from_joints (list[float]): start configuration
           - to_joints (list[float]): target configuration (for test)
           - target_joints (list[float]): target configuration (for move)
-          - collision_free (bool): set by MoveJTestModel, read by MoveJModel
+          - collision_free (bool): set by PathEvaluationModel, read by MoveJModel
           - robot: RoboDK Item (robot)
         """
 
 
-class MoveJTestModel(RobotControllerMixin):
+class PathEvaluationModel(RobotControllerMixin):
     """
     Test a joint move for collisions using robot.MoveJ_Test().
     Caches results on the parent Robot by edge key (from_joints|to_joints).
@@ -94,7 +94,7 @@ class Robot:
     Holds the edge_cache dict shared across all execute() calls.
 
     Example:
-        checker = Robot(MoveJTestModel)
+        checker = Robot(PathEvaluationModel)
         mover = Robot(MoveJModel)
     """
 

@@ -588,6 +588,24 @@ def main():
 
     RDK = connect()
 
+    # ── Load path plan ────────────────────────────────────────────────────────
+    _plan_path   = os.path.join(ROBODK_OUTPUT_DIR, "path_plan.yaml")
+    _config_path = os.path.join(ROBODK_OUTPUT_DIR, "path_config.yaml")
+
+    if os.path.isfile(_config_path):
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from check_collision_free_paths import load_config as _load_config, compute_config_hashes as _compute_hashes
+        _current_hashes = _compute_hashes(_load_config(_config_path))
+        _routing_candidates = _load_config(_config_path).get("routing_candidates", ["home"])
+    else:
+        _current_hashes = None
+        _routing_candidates = ["home"]
+        _log("[WARN] path_config.yaml not found — hash validation skipped.")
+
+    path_plan = load_path_plan(_plan_path, expected_hashes=_current_hashes)
+    _log(f"[INFO] Path plan loaded (generated {path_plan.get('generated', '?')})")
+
     robot = RDK.Item(ROBOT_NAME, ITEM_TYPE_ROBOT)
     if not robot.Valid():
         raise RuntimeError(f"Robot '{ROBOT_NAME}' not found.")
@@ -639,7 +657,11 @@ def main():
             base_ik_map = compute_all_offsets(RDK, robot, base_cones)
             save_solutions(base_ik_map)
 
-        cone_names = [t.Name() for t in base_cones]
+        all_cone_names = [t.Name() for t in base_cones]
+        cone_names = filter_tested_cones(all_cone_names, path_plan["base_cones"])
+        excluded = set(all_cone_names) - set(cone_names)
+        if excluded:
+            _log(f"[INFO] Excluded {len(excluded)} base cone(s) with no tested path: {sorted(excluded)}")
 
     else:
         print("[WARN] No base_cone_grab_* targets in station — falling back to saved IK JSON.")
@@ -668,6 +690,16 @@ def main():
         print(f"  [{i}] {t.Name()}")
 
     dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, tool, recompute=args.recompute_dest)
+
+    # Filter dest cones to plan-tested only (flatten all groups)
+    _all_dest_plan = {}
+    for _group in path_plan["destination_groups"].values():
+        _all_dest_plan.update(_group.get("cones", {}))
+    dest_cones = [t for t in dest_cones if _all_dest_plan.get(t.Name(), {}).get("tested") is True]
+
+    print(f"\nDestination cones (tested, collision-free) — {len(dest_cones)} available:")
+    for i, t in enumerate(dest_cones):
+        print(f"  [{i}] {t.Name()}")
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
@@ -749,89 +781,104 @@ def main():
     robot.setSpeed(speed_linear=SPEED_MM_S, speed_joints=SPEED_J_DEG_S)
 
     try:
-        # Step 1/4: base cone approach
-        if not proceed(
-            "Step 1/4 — Move to base approach",
-            f"Ready to move to APPROACH of:\n  {base_name}\n\n"
-            f"Joints: {fmt_joints(base_app_joints)}\n\n"
-            f"Approach offset: {APPROACH_OFFSET_MM:.0f} mm along grab Z-axis\n\n"
-            "Click OK to proceed, Cancel to abort."
-        ):
-            _log("[ABORT] User cancelled at base approach.")
-            return
-        if not do_move(robot, base_app_joints, f"base approach ({base_name})"):
-            return
+        # Build and validate the full sequence before any motion
+        seq_names = build_sequence_names(
+            base_cone_name=base_name,
+            dest_cone_name=tgt_name,
+            plan=path_plan,
+            routing_candidates=_routing_candidates,
+        )
+        problems = validate_sequence(seq_names, path_plan["edge_cache"])
+        if problems:
+            _log("[ERROR] Sequence validation failed — refusing to move:")
+            for p in problems:
+                _log(f"         {p}")
+            raise RuntimeError("Untested or colliding edges in planned sequence. Re-run check_collision_free_paths.py.")
 
-        # Step 2/4: base cone grab
-        if not proceed(
-            "Step 2/4 — Move to base grab",
-            f"Ready to move to GRAB position:\n  {base_name}\n\n"
-            f"Joints: {fmt_joints(base_grab_joints)}\n\n"
-            "Click OK to proceed, Cancel to abort."
-        ):
-            _log("[ABORT] User cancelled at base grab.")
-            return
-        if not do_move(robot, base_grab_joints, f"base grab ({base_name})"):
-            return
+        _log(f"\n[INFO] Sequence validated ({len(seq_names)} waypoints, all edges tested and clear):")
+        for i, n in enumerate(seq_names):
+            _log(f"  [{i:02d}] {n}")
 
-        # Move cone to TCP then attach to tool so it follows the robot
-        if cone_mesh is not None:
-            tcp_pose = robot.Pose()
-            # Compute local pose: TCP world → local in cone's current parent frame
-            parent_abs = cone_mesh_orig_parent.PoseAbs() if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else eye(4)
-            cone_mesh.setPose(invH(parent_abs) * tcp_pose)
-            _attach_to = tool if tool.Valid() else robot
-            cone_mesh.setParentStatic(_attach_to)
-            RDK.Render(True)
-            _log(f"[INFO] Cone mesh '{cone_mesh.Name()}' attached to '{_attach_to.Name()}' — following TCP.")
+        # Resolve a node name to joint values from the plan
+        def _joints_for(node_name: str) -> list:
+            if node_name.endswith("_approach"):
+                base = node_name[:-len("_approach")]
+                if base in path_plan["base_cones"] and path_plan["base_cones"][base].get("tested"):
+                    return path_plan["base_cones"][base]["approach_joints"]
+                for group in path_plan["destination_groups"].values():
+                    if base in group.get("cones", {}):
+                        return group["cones"][base]["approach_joints"]
+            if node_name.endswith("_grab"):
+                base = node_name[:-len("_grab")]
+                if base in path_plan["base_cones"] and path_plan["base_cones"][base].get("tested"):
+                    return path_plan["base_cones"][base]["grab_joints"]
+                for group in path_plan["destination_groups"].values():
+                    if base in group.get("cones", {}):
+                        return group["cones"][base]["grab_joints"]
+            # Routing candidate: read from_joints of any edge starting at this node
+            for key, entry in path_plan["edge_cache"].items():
+                if key.startswith(f"{node_name}|"):
+                    return entry["from_joints"]
+            raise RuntimeError(f"Cannot resolve joints for node '{node_name}'")
 
-        # Step 3/4: target cone approach
-        if not proceed(
-            "Step 3/4 — Move to target approach",
-            f"Ready to move to APPROACH of target:\n  {tgt_name}\n\n"
-            f"Joints: {fmt_joints(tgt_app_joints)}\n\n"
-            "Click OK to proceed, Cancel to abort."
-        ):
-            if cone_mesh is not None:
-                cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
-            _log("[ABORT] User cancelled at target approach.")
-            return
-        if not do_move(robot, tgt_app_joints, f"target approach ({tgt_name})",
-                       expected_pose=tgt_app_pose):
-            return
+        base_grab_idx = seq_names.index(f"{base_name}_grab")
+        dest_grab_idx = seq_names.index(f"{tgt_name}_grab")
+        cone_attached = False
 
-        # Step 4/4: target cone place
-        if not proceed(
-            "Step 4/4 — Move to target place",
-            f"Ready to move to PLACE position:\n  {tgt_name}\n\n"
-            f"Joints: {fmt_joints(tgt_grab_joints)}\n\n"
-            "Click OK to proceed, Cancel to abort."
-        ):
-            if cone_mesh is not None:
-                cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
-            _log("[ABORT] User cancelled at target place.")
-            return
-        if not do_move(robot, tgt_grab_joints, f"target place ({tgt_name})",
-                       expected_pose=tgt_grab_pose):
-            return
+        for i, node_name in enumerate(seq_names[:-1]):
+            next_name = seq_names[i + 1]
+            joints = _joints_for(next_name)
+            label = f"[{i:02d}→{i+1:02d}] {node_name} → {next_name}"
 
-        # Detach cone to world frame and snap to exact destination
-        if cone_mesh is not None:
-            cone_mesh.setParentStatic(world_frame)
-            cone_mesh.setPose(tgt_grab_pose)   # world_frame is at origin, so local = world
-            RDK.Render(True)
-            _log("[INFO] Cone mesh placed at destination.")
+            # Attach cone mesh after base grab (on the retract step)
+            if i == base_grab_idx and not cone_attached and cone_mesh is not None:
+                tcp_pose = robot.Pose()
+                parent_abs = cone_mesh_orig_parent.PoseAbs() if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else eye(4)
+                cone_mesh.setPose(invH(parent_abs) * tcp_pose)
+                _attach_to = tool if tool.Valid() else robot
+                cone_mesh.setParentStatic(_attach_to)
+                RDK.Render(True)
+                cone_attached = True
+                _log(f"[INFO] Cone mesh '{cone_mesh.Name()}' attached to '{_attach_to.Name()}' — following TCP.")
 
-        # Return home
-        if not proceed(
-            "Return to home",
-            "Ready to return to HOME (all joints = 0).\n\n"
-            "Click OK to proceed, Cancel to stay."
-        ):
-            _log("[INFO] User chose to stay at target. Done.")
-            return
-        do_move(robot, HOME_SEED, "home")
-        _log("\n[INFO] Done.")
+            # Detach cone mesh and place at destination after dest grab
+            if i == dest_grab_idx and cone_attached and cone_mesh is not None:
+                wf_abs = world_frame.PoseAbs()
+                wf_xyz = _pose_xyz(wf_abs)
+                _log(f"[DEBUG] world_frame.PoseAbs() XYZ = ({wf_xyz[0]:.3f}, {wf_xyz[1]:.3f}, {wf_xyz[2]:.3f})")
+                local_pose = invH(wf_abs) * tgt_grab_pose
+                cone_mesh.setParentStatic(world_frame)
+                cone_mesh.setPose(local_pose)
+                RDK.Render(True)
+                cone_attached = False
+                actual_abs = cone_mesh.PoseAbs()
+                ax, ay, az = _pose_xyz(actual_abs)
+                tx, ty, tz = _pose_xyz(tgt_grab_pose)
+                err = math.sqrt((tx-ax)**2 + (ty-ay)**2 + (tz-az)**2)
+                _log(f"[DEBUG] cone target  XYZ = ({tx:.3f}, {ty:.3f}, {tz:.3f})")
+                _log(f"[DEBUG] cone actual  XYZ = ({ax:.3f}, {ay:.3f}, {az:.3f})")
+                _log(f"[DEBUG] placement error   = {err:.3f} mm")
+                _log("[INFO] Cone mesh placed at destination.")
+
+            expected = None
+            if next_name == f"{tgt_name}_approach":
+                expected = tgt_app_pose
+            elif next_name == f"{tgt_name}_grab":
+                expected = tgt_grab_pose
+
+            if not proceed(
+                f"Step {i+1}/{len(seq_names)-1} — {next_name}",
+                f"Moving to: {next_name}\nJoints: {fmt_joints(joints)}"
+            ):
+                _log(f"[ABORT] User cancelled at step {i+1}: {next_name}")
+                if cone_attached and cone_mesh is not None:
+                    cone_mesh.setParentStatic(cone_mesh_orig_parent if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else world_frame)
+                return
+
+            if not do_move(robot, joints, label, expected_pose=expected):
+                return
+
+        _log("\n[INFO] Pick-and-place complete.")
 
     finally:
         if saved_frame.Valid():

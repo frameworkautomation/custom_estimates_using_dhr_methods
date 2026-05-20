@@ -291,7 +291,7 @@ def test_all_edges(rdk, robot, tool, cone_mesh, nodes: dict, config: dict) -> di
     collision_enable/disable pairs from config are applied before testing.
     """
     from robodk.robolink import COLLISION_ON, COLLISION_OFF, ITEM_TYPE_FRAME
-    from robot_controller import Robot, MoveJTestModel
+    from robot_controller import Robot, PathEvaluationModel
 
     # Apply collision pair configuration
     for pair in config.get("collision_enable", []):
@@ -315,7 +315,7 @@ def test_all_edges(rdk, robot, tool, cone_mesh, nodes: dict, config: dict) -> di
     robot.setTool(tool)
     rdk.Render(False)
 
-    checker = Robot(MoveJTestModel)
+    checker = Robot(PathEvaluationModel)
     node_names = sorted(nodes.keys())
     total = len(node_names) * (len(node_names) - 1)
     tested = 0
