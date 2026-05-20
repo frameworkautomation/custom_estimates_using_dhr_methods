@@ -231,6 +231,23 @@ per joint per step.
 **Not doing this now.** The current manual approach is sufficient for the static cell
 and 1-2 machine validation scope.
 
+## ── OUTSTANDING: Get DHR's XQuery generator ──────────────────────────────────
+
+DHR auto-generates `generated_states.py` from `robodk.yaml` using an XQuery script
+called `yaml_to_state_class.xq`. This file was NOT included in the code they shared —
+the shallow clone only contains the output (`generated_states.py`), not the generator.
+
+**Ask DHR for `yaml_to_state_class.xq`** (and any supporting XQuery modules).
+
+Why we want it:
+- We are building the same pattern: `path_config.yaml` → generator → motion config
+- Their generator already solves the frame→state-class mapping problem we need
+- Porting the XQuery logic to Python is much easier with the source than reverse-engineering
+  from the 33,000-line output
+
+If they won't share the XQuery, write a Python equivalent from first principles — the
+output (`generated_states.py`) is fully readable and the mapping rules are clear.
+
 ## ── INVESTIGATE: Runtime collision checking vs offline pre-computation ─────────
 
 **Our approach:** Edges are tested offline in bulk by `check_collision_free_paths.py`,

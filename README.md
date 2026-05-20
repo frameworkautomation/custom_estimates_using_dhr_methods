@@ -40,6 +40,17 @@ Files that already have a corresponding `.step` output are skipped on re-runs.
 
 `steps_from_SolidWorks/` is git-ignored (derived files).
 
+## Outstanding: get DHR's XQuery generator
+
+DHR auto-generates `generated_states.py` from `robodk.yaml` using a script called
+`yaml_to_state_class.xq`. It was not included in the code they shared.
+
+**Ask DHR for `yaml_to_state_class.xq`** — we need it (or a Python port of it) to
+implement our own `path_config.yaml` → motion config generator. See CLAUDE.md for
+the full context.
+
+---
+
 ### Notes
 
 - Assemblies that reference parts from other repos may open partially if those parts are missing. The geometry that does load will still export.
