@@ -487,9 +487,31 @@ paths may collide differently.
 - OR: keep existing path_plan system but feed it from the waypoints YAML
 
 ### Current status
-- Phase 1A: NOT STARTED (need to see existing GH script first)
-- Phase 1B: NOT STARTED
-- Phase 2–6: NOT STARTED
+- Phase 1A: DONE — `ai_generated_grasshopper_python/export_base_cone_waypoints.py`
+  - Inputs: grab_points, approach_points, string_grab_points, string_approach_points (Planes from GH),
+    base_origin (Point), cones/bins (geometry for STL), cone_color/string_color/bin_color, trigger
+  - Writes `robo_dk_output/base_cone_waypoints.yaml` + STLs to C:/temp/base_cones/ + imports STLs into RoboDK
+  - **TODO: review output in Grasshopper and RoboDK — check plane orientations, YAML values, colors**
+
+- Phase 1B: DONE — `robodk_code/export_machine_cone_waypoints.py` (CLI, reads RoboDK live)
+  - **TODO: run with RoboDK open, review machine_cone_waypoints.yaml output**
+  - **NOTE: may need to be rewritten as GhPython if machine cone positions come from Grasshopper**
+
+- Phase 2: DONE — `ai_generated_grasshopper_python/visualize_waypoints.py`
+  - Input: base_origin (optional, defaults to world origin)
+  - Outputs: planes, names, move_types, edge_lines, edge_names, edge_statuses
+  - Reads base_cone_waypoints.yaml directly (path hardcoded)
+  - **TODO: paste into GH component, verify planes appear at correct positions,
+    verify edge lines connect approach↔grab correctly, colour by move_type and edge_statuses**
+
+- Phase 3 (RoboDK import): DONE — `robodk_code/import_waypoints_to_robodk.py`
+  - Run: `python robodk_code/import_waypoints_to_robodk.py`
+  - Creates one RoboDK Target per waypoint under "WaypointTargets" parent frame
+  - Blue = MoveJ (approach), Green = MoveL (grab/place)
+  - **TODO: run with RoboDK open, verify targets appear at correct world positions,
+    check that robot_local frame offset (base_origin) is applied correctly**
+
+- Phases 4–6: NOT STARTED
 
 ## ── PRIORITY #1 (as of 2026-05-21) ──────────────────────────────────────────
 
