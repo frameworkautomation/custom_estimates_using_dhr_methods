@@ -14,12 +14,27 @@
 #   names    -- list of str, frame names in the same order
 
 import json
-import rhinoscriptsyntax as rs
 import Rhino.Geometry as rg
 
+# ── defaults (used if inputs are not wired in GhPython component) ─────────────
+try:
+    json_path
+except NameError:
+    json_path = None
+
+try:
+    group
+except NameError:
+    group = None
+
+try:
+    scale
+except NameError:
+    scale = None
+
 # ── read the JSON ─────────────────────────────────────────────────────────────
-if json_path is None or json_path == "":
-    raise ValueError("json_path input is empty — connect a path string to this component")
+if not json_path:
+    json_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\scraped_frames.json"
 
 with open(json_path, "r") as f:
     data = json.load(f)
