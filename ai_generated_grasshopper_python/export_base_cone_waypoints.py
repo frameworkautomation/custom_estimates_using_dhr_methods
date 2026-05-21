@@ -267,10 +267,6 @@ str_approach_planes = []
 stl_paths           = []
 yaml_out            = ""
 
-if trigger and sc.sticky.get("last_bc_stl_path", "") != "":
-    sc.sticky["last_bc_stl_path"] = ""
-    print("Trigger activated, forcing re-run")
-
 print("=== INPUT DIAGNOSTICS ===")
 diagnose_tree("cones",                   cones)
 diagnose_tree("grab_points",             grab_points)
@@ -314,14 +310,13 @@ print(f"num_cones={num_cones}  cone_grabs={len(cone_grab_planes_raw)}  cone_appr
 print(f"str_grabs={len(str_grab_planes_raw)}  str_approaches={len(str_approach_planes_raw)}")
 print(f"base_origin: {base_orig}")
 
-if not trigger and sc.sticky.get("last_bc_stl_path", "") != "":
-    # Not triggered — still populate output planes from what we have
-    grab_planes         = [p for p in cone_grab_planes_raw     if p is not None]
-    approach_planes     = [p for p in cone_approach_planes_raw if p is not None]
-    str_planes          = [p for p in str_grab_planes_raw      if p is not None]
-    str_approach_planes = [p for p in str_approach_planes_raw  if p is not None]
-    print("Trigger not set. Set trigger=True to write STLs + YAML and import into RoboDK.")
-else:
+# Always populate output planes from inputs
+grab_planes         = [p for p in cone_grab_planes_raw     if p is not None]
+approach_planes     = [p for p in cone_approach_planes_raw if p is not None]
+str_planes          = [p for p in str_grab_planes_raw      if p is not None]
+str_approach_planes = [p for p in str_approach_planes_raw  if p is not None]
+
+if trigger:
     print("Rebuilding STLs and YAML...")
 
     os.makedirs("C:/temp/base_cones", exist_ok=True)
@@ -355,9 +350,6 @@ else:
             print(f"  WARNING: cone_grab_{i} approach plane is None — skipping")
             continue
 
-        grab_planes.append(pl)
-        approach_planes.append(ap)
-
         grab_name     = f"base_cone_grab_{i}"
         approach_name = f"base_cone_grab_{i}_approach"
 
@@ -384,9 +376,6 @@ else:
         if ap is None:
             print(f"  WARNING: str_grab_{i} approach plane is None — skipping")
             continue
-
-        str_planes.append(pl)
-        str_approach_planes.append(ap)
 
         grab_name     = f"base_str_grab_{i}"
         approach_name = f"base_str_grab_{i}_approach"
@@ -425,24 +414,23 @@ else:
             if item.Name().startswith("base_cone_") or item.Name().startswith("bin_"):
                 item.Delete()
 
-        for path in stl_paths:
+        def _import_stl(path, rgba):
             item = RDK.AddFile(path)
-            if item.Valid():
-                item.setColor(_cone_rgba)
-                print(f"  RoboDK: imported {os.path.basename(path)}")
-            else:
+            if not item.Valid():
                 print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
+                return
+            try:
+                item.setColor(rgba)
+                print(f"  RoboDK: imported {os.path.basename(path)} color={rgba}")
+            except Exception as ce:
+                print(f"  RoboDK: imported {os.path.basename(path)} but setColor failed: {ce}")
+
+        for path in stl_paths:
+            _import_stl(path, _cone_rgba)
 
         for path in bin_stl_paths:
-            item = RDK.AddFile(path)
-            if item.Valid():
-                item.setColor(_bin_rgba)
-                print(f"  RoboDK: imported {os.path.basename(path)}")
-            else:
-                print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
+            _import_stl(path, _bin_rgba)
 
         print("[OK] STLs imported into RoboDK")
     except Exception as e:
         print(f"[WARN] RoboDK import skipped: {e}")
-
-    sc.sticky["last_bc_stl_path"] = stl_paths[0] if stl_paths else ""
