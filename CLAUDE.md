@@ -206,6 +206,56 @@ Should be grey. Change default to `[0.5, 0.5, 0.5, 1.0]` when there's nothing el
 
 See sub-optimal note above re: `move_to_base_cone_grab_with_setable_accuracy.py`.
 
+## ── COLLISION PLANNING: WITH OR WITHOUT CONE ATTACHED ───────────────────────
+
+**Recommendation: plan with a cone attached at all times (worst-case geometry).**
+
+### How RoboDK MoveJ_Test handles attached objects
+
+`robot.MoveJ_Test(from_joints, to_joints)` includes all objects that are children
+of the robot or its tool in collision checking. In `check_collision_free_paths.py`,
+`cone_mesh.setParentStatic(tool)` is called before the test loop so the cone is
+part of the swept volume for every `MoveJ_Test` call, then detached after. This is
+already correctly implemented.
+
+### When is the cone held?
+
+| Phase | Cone held? |
+|---|---|
+| home → base_approach → base_grab | No |
+| base_grab → dest_grab (outbound) | Yes |
+| dest_grab → home (return) | No |
+
+### One edge set or two?
+
+**One set (with cone) is sufficient.** An edge that is collision-free with the cone
+is guaranteed to be collision-free without it. The only risk is unnecessary detours
+on the return path (empty gripper) due to conservative edge exclusions — monitor in
+practice but don't pre-optimise.
+
+### Approach moves (entering base tray — cone "attached" during testing)
+
+The cone geometry is present during the tray approach test. Risk of false-positive
+collision with adjacent filled slots. If this happens, add `collision_disable` pairs
+in `path_config.yaml`:
+```yaml
+collision_disable:
+  - ["base_cone_0", "BaseTray"]
+```
+
+### Largest cone = worst case
+
+Set `cone_mesh_template` in `path_config.yaml` to the geometrically largest cone
+(widest / tallest). If the template item is missing from the station,
+`check_collision_free_paths.py` warns and falls back to no-cone testing — not safe
+for production.
+
+### Dynamic attach vs. baking into tool geometry
+
+Keep the current dynamic attach approach (`setParentStatic` before/after test loop).
+Baking the cone permanently into the tool geometry pollutes the visual model and
+removes flexibility for multiple cone sizes.
+
 ## ── FUTURE: Automated obstacle avoidance ─────────────────────────────────────
 
 **Current approach (manual waypoints):** A human places intermediate frames in RoboDK
