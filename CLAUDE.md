@@ -184,6 +184,20 @@ the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 
 ## Known issues / future work
 
+### [BLOCKING] Cones and bins do not move with the robot in RoboDK after GH import
+
+After `export_base_cone_waypoints.py` imports STLs via `RDK.AddFile()`, the objects
+land at world level with no parent. In the original station they were parented to a
+frame that moves with the rail, so they visually tracked the robot.
+Need to determine: which frame should base_cone_N and bin_N be parented to after import?
+Check the original station tree structure — likely BaseCones frame under the robot base.
+Fix: after `RDK.AddFile()`, call `item.setParent(parent_frame)` with the correct frame.
+
+### [BLOCKING] export_base_cone_waypoints.py GH script not running correctly
+
+Still misbehaving after recent fixes. Needs further investigation when user reports
+specific error output from the GH print console.
+
 ### [EXTREMELY LOW PRIORITY] Bins imported into RoboDK are blue instead of grey
 Default bin_color in `export_base_cone_waypoints.py` is blue `[0.2, 0.4, 1.0, 1.0]`.
 Should be grey. Change default to `[0.5, 0.5, 0.5, 1.0]` when there's nothing else to do.
@@ -489,6 +503,8 @@ paths may collide differently.
 - moving_a_cone.py reads waypoints YAML directly, uses tested edges for
   Dijkstra routing
 - OR: keep existing path_plan system but feed it from the waypoints YAML
+- Add bin movement: moving bins from one side of the cell to the other
+  (same pick-and-place pattern as cones but for bins)
 
 ### Phase 7 — Full cell test with ceiling STL
 
