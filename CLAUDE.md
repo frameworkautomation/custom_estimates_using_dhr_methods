@@ -398,6 +398,34 @@ the same move as B→A. Our `path_plan.yaml` should reflect this:
 
 **move_task.py full path:** `clones/knitwear-cell/src/main/action/move_task.py`
 
+## ── PRIORITY #1 (as of 2026-05-21) ──────────────────────────────────────────
+
+**Goal:** Validate our Dijkstra path planning cycle for our end effector.
+
+**Our cycle (not DHR's):**
+1. Define waypoints in `path_config.yaml` (routing candidates + destination groups)
+2. Run `check_collision_free_paths.py` — tests edges offline with RoboDK collision checking
+3. Result baked into `path_plan.yaml`
+4. `moving_a_cone.py` trusts the plan and executes without live collision checking
+
+**What we are doing right now:**
+Extract DHR's proven intermediate waypoints from `robodk.yaml` (the CurtainSafe frames,
+transport/buffer poses, OptimizationApproach frames) and feed them into our
+`path_config.yaml` as routing candidates. Then run our collision checker with OUR
+robot + OUR end effector (cone/pickup tool) to see if those DHR-proven paths are
+also valid for our setup. This tests whether our Dijkstra approach is viable.
+
+**We are NOT adopting DHR's movement logic** (their move_task.py sequencing, their
+State class pipeline, their Redis caching, their live MoveJTestModel). We are using
+their YAML data (frame positions) as input to our own tools.
+
+**Steps:**
+1. Pull CurtainSafe frames + transport/buffer poses from robodk.yaml into path_config.yaml
+2. Run `check_collision_free_paths.py` with RoboDK open
+3. Inspect `path_plan.yaml` — which edges are clear for our end effector?
+4. If viable: proceed to full cone-move test end-to-end
+5. If not viable: identify which edges fail and add intermediate waypoints
+
 ## ── RESUME POINT (left off 2026-05-21) ──────────────────────────────────────
 
 **Branch:** `collision_free_path_planning` (branched from `determining_how_position_gripper`)
