@@ -1,79 +1,98 @@
-"""
-GhPython component — Rhino 8 CPython
-Reads base_cone_waypoints.yaml and outputs waypoints as Planes and edges as Lines.
+# GhPython component (Rhino 8 / CPython 3)
+#
+# Reads base_cone_waypoints.yaml and displays every waypoint as a Plane and
+# every edge (connection between waypoints) as a Line in Grasshopper.
+#
+# ── What is a waypoint? ───────────────────────────────────────────────────────
+# A waypoint is a named robot pose (position + orientation) stored in the YAML.
+# Each waypoint has:
+#   - A name  (e.g. "base_cone_grab_0", "base_cone_grab_0_approach")
+#   - XYZ position in mm, expressed in robot-local coordinates (relative to the
+#     robot base frame at j7=0).  Add base_origin to convert to Rhino world space.
+#   - RX/RY/RZ orientation in degrees (ZYX Euler: rotate X first, then Y, then Z).
+#   - move_type: how the robot moves to this pose.
+#       MoveJ  — joint-space move (fast, curved path, used for approach waypoints)
+#       MoveL  — linear Cartesian move (straight line, used for final grab/place)
+#
+# ── What is an edge? ─────────────────────────────────────────────────────────
+# An edge is a directed connection between two waypoints that the robot may
+# traverse.  Edges are bidirectional in storage (A→B and B→A are separate entries)
+# because the robot configuration when entering a zone differs from when exiting.
+# Each edge has a `tested` field:
+#   null  — not yet tested for collisions in RoboDK
+#   true  — tested and collision-free (safe to traverse)
+#   false — tested and collides (must not traverse)
+#
+# ── GH Inputs ────────────────────────────────────────────────────────────────
+#   base_origin (Point3d, optional)
+#       The robot base origin expressed in Rhino world space (mm).
+#       Waypoint XYZ coordinates are robot-local, so they are offset by this
+#       point to place them correctly in the Rhino model.
+#       Default: world origin (0, 0, 0) — use this if your Rhino robot model
+#       sits at the world origin.
+#
+# ── GH Outputs ───────────────────────────────────────────────────────────────
+#   planes        — list of Plane, one per waypoint.
+#                   Origin = waypoint XYZ (offset by base_origin).
+#                   XAxis/YAxis = orientation from ZYX Euler angles.
+#                   Use these to preview approach directions.
+#
+#   names         — list of str, parallel to `planes`.
+#                   Waypoint name, e.g. "base_cone_grab_0_approach".
+#
+#   move_types    — list of str, parallel to `planes`.
+#                   "MoveJ" or "MoveL" — use this to colour-code the planes.
+#
+#   edge_lines    — list of Line, one per edge in the YAML.
+#                   Draws from the origin of the `from` waypoint to the origin
+#                   of the `to` waypoint.  Visualise as curves in GH.
+#
+#   edge_names    — list of str, parallel to `edge_lines`.
+#                   "from_name -> to_name" label for each edge.
+#
+#   edge_statuses — list of str, parallel to `edge_lines`.
+#                   "null" / "true" / "false" — use this to colour edges:
+#                   grey = untested, green = clear, red = collision.
 
-GH Inputs:
-    yaml_path   (str, optional)    — path to YAML file
-    base_origin (Point3d, optional)— robot base origin; if set, coords are robot-local
-    scale       (float, optional)  — unit scale multiplier, default 1.0
-
-GH Outputs:
-    planes        — list of Rhino.Geometry.Plane, one per waypoint
-    origins       — list of Rhino.Geometry.Point3d, one per waypoint
-    names         — list of str, waypoint names
-    move_types    — list of str, move_type per waypoint
-    edge_lines    — list of Rhino.Geometry.Line, one per edge
-    edge_names    — list of str, "from -> to" per edge
-    edge_statuses — list of str, tested field ("null", "true", "false")
-"""
-
-import sys
 import re
 import math
+import Rhino.Geometry as rg
 
-# ---------------------------------------------------------------------------
-# Initialise all outputs so GH never sees an unbound name
-# ---------------------------------------------------------------------------
+# ── YAML path (no input needed — always reads from the repo output folder) ────
+_YAML_PATH = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
+
+# ── Initialise all outputs so GH never sees an unbound name ──────────────────
 planes        = []
-origins       = []
 names         = []
 move_types    = []
 edge_lines    = []
 edge_names    = []
 edge_statuses = []
 
-# ---------------------------------------------------------------------------
-# Handle GH input defaults (NameError means the input socket is unconnected)
-# ---------------------------------------------------------------------------
-try:
-    _yaml_path = yaml_path  # noqa: F821
-except NameError:
-    _yaml_path = None
-
-if not _yaml_path:
-    _yaml_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
-
+# ── Optional GH input: base_origin ───────────────────────────────────────────
 try:
     _base_origin = base_origin  # noqa: F821
 except NameError:
     _base_origin = None
 
-try:
-    _scale = float(scale)  # noqa: F821
-except NameError:
-    _scale = 1.0
-except (TypeError, ValueError):
-    _scale = 1.0
+_base_x = _base_origin.X if _base_origin is not None else 0.0
+_base_y = _base_origin.Y if _base_origin is not None else 0.0
+_base_z = _base_origin.Z if _base_origin is not None else 0.0
 
-# ---------------------------------------------------------------------------
-# Imports
-# ---------------------------------------------------------------------------
+# ── PyYAML import ─────────────────────────────────────────────────────────────
 try:
     import yaml
 except ImportError:
     raise ImportError(
-        "PyYAML not found. Install it into Rhino 8 Python:\n"
+        "PyYAML not found. Install it into Rhino 8 Python from an external terminal:\n"
         r'  C:\Users\samst\.rhinocode\py39-rh8\python.exe -m pip install pyyaml'
     )
 
-import Rhino.Geometry as rg  # noqa: E402  (available in GhPython)
-
-# ---------------------------------------------------------------------------
-# Helper: parse a 'x: V  y: V  z: V' style line with regex
-#   PyYAML treats 'x: 0.0  y: 1.0  z: 2.0' as a string value for key 'x',
-#   so we handle it ourselves via regex scanning of the raw text.
-# ---------------------------------------------------------------------------
-_XYZ_RE  = re.compile(
+# ── Inline-key parsing ────────────────────────────────────────────────────────
+# The YAML writes x/y/z on one line: "    x: 0.0  y: 0.0  z: 500.0"
+# PyYAML parses that as a single string value for key 'x', not three keys.
+# We extract numbers with regex instead.
+_XYZ_RE = re.compile(
     r'x\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
     r'[,\s]+'
     r'y\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
@@ -87,175 +106,105 @@ _RXRYRZ_RE = re.compile(
     r'[,\s]+'
     r'rz\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
 )
-
-# Individual key patterns used when keys are on separate lines
 _KEY_RE = re.compile(
     r'^\s*(x|y|z|rx|ry|rz)\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*$'
 )
 
 
-def _extract_floats_from_text(text_block, keys):
-    """
-    Extract named float values from a block of text lines.
-    Handles both 'key: val  key2: val2' on one line and one-key-per-line.
-    Returns a dict {key: float} for the keys found.
+def _extract_floats(block, keys):
+    """Pull named float values out of a raw text block.
+
+    Handles both "x: 1.0  y: 2.0  z: 3.0" on one line and one key per line.
+    Returns {key: float} for whichever keys are found.
     """
     result = {}
-
-    # First pass: try combined-line regex for xyz and rxryrz
-    xyz_m = _XYZ_RE.search(text_block)
-    if xyz_m and 'x' in keys and 'y' in keys and 'z' in keys:
-        result['x'] = float(xyz_m.group(1))
-        result['y'] = float(xyz_m.group(2))
-        result['z'] = float(xyz_m.group(3))
-
-    rxryrz_m = _RXRYRZ_RE.search(text_block)
-    if rxryrz_m and 'rx' in keys and 'ry' in keys and 'rz' in keys:
-        result['rx'] = float(rxryrz_m.group(1))
-        result['ry'] = float(rxryrz_m.group(2))
-        result['rz'] = float(rxryrz_m.group(3))
-
-    # Second pass: individual lines for anything not yet found
-    for line in text_block.splitlines():
+    m = _XYZ_RE.search(block)
+    if m and {'x','y','z'} <= keys:
+        result['x'], result['y'], result['z'] = float(m.group(1)), float(m.group(2)), float(m.group(3))
+    m = _RXRYRZ_RE.search(block)
+    if m and {'rx','ry','rz'} <= keys:
+        result['rx'], result['ry'], result['rz'] = float(m.group(1)), float(m.group(2)), float(m.group(3))
+    for line in block.splitlines():
         m = _KEY_RE.match(line)
-        if m:
-            k = m.group(1)
-            if k in keys and k not in result:
-                result[k] = float(m.group(2))
-
+        if m and m.group(1) in keys and m.group(1) not in result:
+            result[m.group(1)] = float(m.group(2))
     return result
 
 
-# ---------------------------------------------------------------------------
-# Helper: build Rhino Plane from ZYX Euler angles (degrees)
-#   Convention: R = Rz * Ry * Rx  (rotation applied X first, then Y, then Z)
-# ---------------------------------------------------------------------------
-def _plane_from_zyx_euler(ox, oy, oz, rx_deg, ry_deg, rz_deg):
+def _plane_from_zyx(ox, oy, oz, rx_deg, ry_deg, rz_deg):
+    """Build a Rhino Plane from ZYX Euler angles (degrees).
+
+    Convention matches RoboDK: R = Rz * Ry * Rx.
+    Column 0 of R → XAxis, column 1 → YAxis.
+    """
     rx = math.radians(rx_deg)
     ry = math.radians(ry_deg)
     rz = math.radians(rz_deg)
-
     cx, sx = math.cos(rx), math.sin(rx)
     cy, sy = math.cos(ry), math.sin(ry)
     cz, sz = math.cos(rz), math.sin(rz)
-
-    # R = Rz * Ry * Rx
-    # Column 0 (XAxis)
-    x0 = cz * cy
-    x1 = sz * cy
-    x2 = -sy
-    # Column 1 (YAxis)
-    y0 = cz * sy * sx - sz * cx
-    y1 = sz * sy * sx + cz * cx
-    y2 = cy * sx
-    # Column 2 (ZAxis) — not needed for Plane constructor but kept for reference
-    # z0 = cz * sy * cx + sz * sx
-    # z1 = sz * sy * cx - cz * sx
-    # z2 = cy * cx
-
-    origin = rg.Point3d(ox, oy, oz)
-    x_axis = rg.Vector3d(x0, x1, x2)
-    y_axis = rg.Vector3d(y0, y1, y2)
-    return rg.Plane(origin, x_axis, y_axis)
+    x_axis = rg.Vector3d(cz*cy,         sz*cy,         -sy)
+    y_axis = rg.Vector3d(cz*sy*sx-sz*cx, sz*sy*sx+cz*cx, cy*sx)
+    return rg.Plane(rg.Point3d(ox, oy, oz), x_axis, y_axis)
 
 
-# ---------------------------------------------------------------------------
-# Main logic
-# ---------------------------------------------------------------------------
+# ── Main ──────────────────────────────────────────────────────────────────────
 def _run():
-    # Read raw text (needed for inline key parsing) and also parse via yaml
-    with open(_yaml_path, 'r') as fh:
-        raw_text = fh.read()
+    with open(_YAML_PATH, 'r') as fh:
+        raw = fh.read()
 
-    data = yaml.safe_load(raw_text)
-    if data is None:
+    data = yaml.safe_load(raw)
+    if not data:
         return
 
-    # --- Base origin offset ---
-    base_x = _base_origin.X if _base_origin is not None else 0.0
-    base_y = _base_origin.Y if _base_origin is not None else 0.0
-    base_z = _base_origin.Z if _base_origin is not None else 0.0
-
-    # --- Waypoints ---
-    # Build a name -> Point3d lookup for edge endpoint resolution
-    name_to_origin = {}
-
-    wp_list = data.get('waypoints') or []
-    # Rebuild per-waypoint raw text blocks for inline-key extraction.
-    # Strategy: split raw_text into blocks by lines starting with '  - name:'
-    # (two-space indent list item).
-    wp_blocks = re.split(r'(?=\n  - name:)', raw_text)
-
-    # Build a map from waypoint name to its raw block
+    # Build per-waypoint raw text blocks for inline-key extraction
     wp_block_map = {}
-    for block in wp_blocks:
-        nm = re.search(r'name\s*:\s*(\S+)', block)
-        if nm:
-            wp_block_map[nm.group(1)] = block
+    for block in re.split(r'(?=\n  - name:)', raw):
+        m = re.search(r'name\s*:\s*(\S+)', block)
+        if m:
+            wp_block_map[m.group(1)] = block
 
-    for wp in wp_list:
+    name_to_pt = {}  # for edge endpoint lookup
+
+    for wp in (data.get('waypoints') or []):
         if not isinstance(wp, dict):
             continue
-        name = str(wp.get('name', ''))
+        name      = str(wp.get('name', ''))
         move_type = str(wp.get('move_type', ''))
+        block     = wp_block_map.get(name, '')
 
-        # Extract x,y,z,rx,ry,rz — try the parsed dict first (works when keys
-        # are on individual lines), fall back to regex on the raw block.
-        def _get(key, default=0.0):
-            val = wp.get(key)
-            if val is not None:
-                try:
-                    return float(val)
-                except (TypeError, ValueError):
-                    pass
-            # Fall back: regex scan the raw block for this waypoint
-            block = wp_block_map.get(name, '')
-            found = _extract_floats_from_text(block, {key})
-            return found.get(key, default)
+        def _f(key):
+            v = wp.get(key)
+            if v is not None:
+                try: return float(v)
+                except (TypeError, ValueError): pass
+            return _extract_floats(block, {key}).get(key, 0.0)
 
-        x  = _get('x')  * _scale
-        y  = _get('y')  * _scale
-        z  = _get('z')  * _scale
-        rx = _get('rx')
-        ry = _get('ry')
-        rz = _get('rz')
+        ox = _base_x + _f('x')
+        oy = _base_y + _f('y')
+        oz = _base_z + _f('z')
 
-        ox = base_x + x
-        oy = base_y + y
-        oz = base_z + z
-
-        plane = _plane_from_zyx_euler(ox, oy, oz, rx, ry, rz)
-        origin_pt = rg.Point3d(ox, oy, oz)
-
+        plane = _plane_from_zyx(ox, oy, oz, _f('rx'), _f('ry'), _f('rz'))
         planes.append(plane)
-        origins.append(origin_pt)
         names.append(name)
         move_types.append(move_type)
-        name_to_origin[name] = origin_pt
+        name_to_pt[name] = rg.Point3d(ox, oy, oz)
 
-    # --- Edges ---
-    edge_list = data.get('edges') or []
-    for edge in edge_list:
+    for edge in (data.get('edges') or []):
         if not isinstance(edge, dict):
             continue
-        from_name = str(edge.get('from', ''))
-        to_name   = str(edge.get('to',   ''))
-        tested    = edge.get('tested')
-        status    = 'null' if tested is None else str(tested).lower()
-
-        from_pt = name_to_origin.get(from_name)
-        to_pt   = name_to_origin.get(to_name)
-        if from_pt is not None and to_pt is not None:
-            edge_lines.append(rg.Line(from_pt, to_pt))
-            edge_names.append("{} -> {}".format(from_name, to_name))
-            edge_statuses.append(status)
+        from_pt = name_to_pt.get(str(edge.get('from', '')))
+        to_pt   = name_to_pt.get(str(edge.get('to',   '')))
+        if from_pt is None or to_pt is None:
+            continue
+        tested = edge.get('tested')
+        edge_lines.append(rg.Line(from_pt, to_pt))
+        edge_names.append("{} -> {}".format(edge['from'], edge['to']))
+        edge_statuses.append('null' if tested is None else str(tested).lower())
 
 
 try:
     _run()
 except Exception as _e:
     import traceback
-    # Surface the error as a GH runtime message rather than a silent failure
-    raise RuntimeError(
-        "visualize_waypoints.py error:\n{}".format(traceback.format_exc())
-    ) from _e
+    raise RuntimeError("visualize_waypoints error:\n{}".format(traceback.format_exc())) from _e
