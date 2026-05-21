@@ -398,6 +398,99 @@ the same move as B→A. Our `path_plan.yaml` should reflect this:
 
 **move_task.py full path:** `clones/knitwear-cell/src/main/action/move_task.py`
 
+## ── WAYPOINT GRAPH BUILD PLAN (2026-05-21) ───────────────────────────────────
+
+Full pipeline from Grasshopper-generated cone points to tested, visualised
+collision graph. Do these phases in order.
+
+### Phase 1 — Waypoint YAMLs from existing Grasshopper data
+
+**A. Base cone waypoints YAML**
+- Input: existing Grasshopper script that already generates base cone grab points
+  relative to the robot at j7=0 (rail home)
+- Task: rewrite that GhPython script so it also exports a YAML to
+  `robo_dk_output/base_cone_waypoints.yaml`
+- Each entry: name, pose (x,y,z,rx,ry,rz), move_type, j7_weight, note
+- Include both grab pose AND approach pose (200mm offset along local Z) as
+  separate named entries with an auto-generated edge between them
+
+**B. Machine cone waypoints YAML**
+- Input: machine cone targets already in RoboDK station (cone_grab_* targets)
+- Task: script (or GhPython) that exports these to
+  `robo_dk_output/machine_cone_waypoints.yaml` with same schema
+- Same: grab + approach per cone, edge between them
+
+**Waypoint YAML schema:**
+```yaml
+waypoints:
+  - name: base_cone_grab_0
+    x: 0.0  y: 0.0  z: 500.0  rx: 0.0  ry: 0.0  rz: 0.0
+    frame: robot_local          # robot_local | world
+    move_type: MoveL            # MoveJ | MoveL | MoveJ_j7_free | MoveJ_optimization
+    j7: 0.0                     # explicit j7 when move_type=MoveJ/MoveL
+    optimization_frame: null    # frame name when move_type=MoveJ_optimization
+
+edges:
+  - from: base_cone_grab_0_approach
+    to:   base_cone_grab_0
+    tested: null                # null=untested, true=clear, false=collision
+  - from: base_cone_grab_0
+    to:   base_cone_grab_0_approach
+    tested: null
+```
+
+### Phase 2 — Grasshopper visualization of waypoints
+
+**GhPython component: `read_waypoints_as_objects.py`**
+- Input: yaml_path, filter (optional regex)
+- Outputs: planes, names, move_types, j7_values — parallel lists
+- Colour hint output: move_type string so GH can colour-code points by type
+
+### Phase 3 — Manual waypoint addition from Grasshopper
+
+**GhPython component: `add_waypoint.py`**
+- Inputs: plane (Rhino Plane), name (str), move_type (str), j7 (float),
+  optimization_frame (str), yaml_path
+- On trigger: appends entry to the YAML, adds bidirectional edges to nearest
+  neighbours if requested
+- User places planes in Rhino, wires them in, hits button
+
+**Connections are always stored bidirectionally** — two separate edge entries
+A→B and B→A, each with their own `tested` field, because enter and exit
+paths may collide differently.
+
+### Phase 4 — Visualize full graph in Grasshopper
+
+**GhPython component: `visualize_graph.py`**
+- Reads waypoints YAML
+- Outputs: planes (waypoints), lines (edges), colours by status:
+  - untested: grey
+  - tested clear: green
+  - tested collision: red
+  - move_type colouring for waypoints
+
+### Phase 5 — Edge testing via RoboDK
+
+**Script: `robodk_code/test_edges.py`**
+- Reads waypoints YAML
+- For each edge with tested=null: runs MoveJ_Test in RoboDK
+- Writes tested=true/false back into the YAML
+- Both directions tested independently
+- Can be re-run; skips already-tested edges unless --retest flag
+- Visualize results by re-running Phase 4 component
+
+### Phase 6 — Integration with moving_a_cone.py
+
+- Replace path_config.yaml + path_plan.yaml with unified waypoints YAML
+- moving_a_cone.py reads waypoints YAML directly, uses tested edges for
+  Dijkstra routing
+- OR: keep existing path_plan system but feed it from the waypoints YAML
+
+### Current status
+- Phase 1A: NOT STARTED (need to see existing GH script first)
+- Phase 1B: NOT STARTED
+- Phase 2–6: NOT STARTED
+
 ## ── PRIORITY #1 (as of 2026-05-21) ──────────────────────────────────────────
 
 **Goal:** Validate our Dijkstra path planning cycle for our end effector.
