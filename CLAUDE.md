@@ -198,9 +198,7 @@ Fix: after `RDK.AddFile()`, call `item.setParent(parent_frame)` with the correct
 Still misbehaving after recent fixes. Needs further investigation when user reports
 specific error output from the GH print console.
 
-### [EXTREMELY LOW PRIORITY] Bins imported into RoboDK are blue instead of grey
-Default bin_color in `export_base_cone_waypoints.py` is blue `[0.2, 0.4, 1.0, 1.0]`.
-Should be grey. Change default to `[0.5, 0.5, 0.5, 1.0]` when there's nothing else to do.
+### ~~[EXTREMELY LOW PRIORITY] Bins imported into RoboDK are blue instead of grey~~ FIXED
 
 ### IK visible motion issue
 
