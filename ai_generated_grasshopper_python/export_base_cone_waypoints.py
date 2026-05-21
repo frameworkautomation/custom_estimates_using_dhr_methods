@@ -254,6 +254,11 @@ def write_waypoints_yaml(waypoints, edges, path):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+try:
+    trigger
+except NameError:
+    trigger = True
+
 # Initialise outputs so GH never gets an error even if trigger is off
 grab_planes         = []
 approach_planes     = []
