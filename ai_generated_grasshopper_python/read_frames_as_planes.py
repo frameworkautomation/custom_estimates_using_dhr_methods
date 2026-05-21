@@ -1,23 +1,25 @@
-# GhPython component: Read scraped RoboDK frames and output as Rhino Planes
+# GhPython component (Rhino 8 / CPython 3): RoboDK frames as Rhino Planes
 #
 # Inputs:
-#   json_path  (str)   -- path to scraped_frames.json
-#   group      (str)   -- which group: "rail_points", "approach_frames", or "all_frames"
-#                         default "rail_points"
-#   scale      (float) -- unit scale (default 1.0 = mm; use 0.001 for mm->metres)
+#   yaml_path  (str)   -- path to robodk.yaml (optional, uses default if blank)
+#   group      (str)   -- "rail_points" or "approach_frames" (default: "rail_points")
+#   scale      (float) -- unit scale for x/y/z (default 1.0 mm; use 0.001 for metres)
 #
 # Outputs:
 #   planes      -- list of Rhino.Geometry.Plane
 #   origins     -- list of Rhino.Geometry.Point3d
 #   frame_names -- list of str
 
-import json
+import sys
+sys.path.insert(0, r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\misc_extraction_utils")
+
+from robodk_yaml_reader import load_all_frames, filter_frames
 import Rhino.Geometry as rg
 
 try:
-    json_path
+    yaml_path
 except NameError:
-    json_path = None
+    yaml_path = None
 
 try:
     group
@@ -29,38 +31,32 @@ try:
 except NameError:
     scale = None
 
-if not json_path:
-    json_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\scraped_frames.json"
-
-with open(json_path, "r") as f:
-    data = json.load(f)
-
 if group is None or group == "":
     group = "rail_points"
 
-if group not in data:
-    available = list(data.keys())
-    raise KeyError("Group '{}' not found. Available: {}".format(group, available))
-
-entries = data[group]
-
 if scale is None:
     scale = 1.0
+
+PATTERNS = {
+    "rail_points":     r"^OptimizationApproachMachine\d+$",
+    "approach_frames": r"CurtainSafe$",
+}
+
+if group not in PATTERNS:
+    raise KeyError("group must be one of: {}".format(list(PATTERNS.keys())))
+
+all_frames = load_all_frames(yaml_path)
+entries    = filter_frames(all_frames, PATTERNS[group])
 
 planes      = []
 origins     = []
 frame_names = []
 
 for e in entries:
-    ox = e["x"] * scale
-    oy = e["y"] * scale
-    oz = e["z"] * scale
-
-    origin = rg.Point3d(ox, oy, oz)
+    origin = rg.Point3d(e["x"] * scale, e["y"] * scale, e["z"] * scale)
     xaxis  = rg.Vector3d(e["xaxis"][0], e["xaxis"][1], e["xaxis"][2])
     yaxis  = rg.Vector3d(e["yaxis"][0], e["yaxis"][1], e["yaxis"][2])
-    plane  = rg.Plane(origin, xaxis, yaxis)
 
-    planes.append(plane)
+    planes.append(rg.Plane(origin, xaxis, yaxis))
     origins.append(origin)
     frame_names.append(e["name"])
