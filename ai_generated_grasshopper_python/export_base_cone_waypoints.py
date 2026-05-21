@@ -432,7 +432,7 @@ if trigger:
                 print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
                 return
             if robot_base is not None:
-                item.setParent(robot_base)
+                item.setParentStatic(robot_base)
             try:
                 item.setColor(rgba)
                 print(f"  RoboDK: imported {os.path.basename(path)} color={rgba}")
