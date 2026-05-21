@@ -3,6 +3,8 @@ steps_from_SolidWorks/
 claude_notes/
 robo_dk_output/
 !robo_dk_output/path_config.yaml
+!robo_dk_output/scraped_frames.json
+!robo_dk_output/scraped_edges.json
 robo_dk_saves/
 extracted_assets/
 saved_rhino/

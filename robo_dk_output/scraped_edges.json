@@ -1,0 +1,771 @@
+{
+  "rail_edges": [
+    {
+      "name": "OptimizationApproachMachine1 -> OptimizationApproachMachine4",
+      "from": {
+        "name": "OptimizationApproachMachine1",
+        "x": -249.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine4",
+        "x": -247.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine4 -> OptimizationApproachMachine3",
+      "from": {
+        "name": "OptimizationApproachMachine4",
+        "x": -247.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine3",
+        "x": 1192.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine3 -> OptimizationApproachMachine6",
+      "from": {
+        "name": "OptimizationApproachMachine3",
+        "x": 1192.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine6",
+        "x": 1402.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine6 -> OptimizationApproachMachine2",
+      "from": {
+        "name": "OptimizationApproachMachine6",
+        "x": 1402.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine2",
+        "x": 1749.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine2 -> OptimizationApproachMachine5",
+      "from": {
+        "name": "OptimizationApproachMachine2",
+        "x": 1749.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine5",
+        "x": 2842.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine5 -> OptimizationApproachMachine8",
+      "from": {
+        "name": "OptimizationApproachMachine5",
+        "x": 2842.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine8",
+        "x": 3052.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine8 -> OptimizationApproachMachine7",
+      "from": {
+        "name": "OptimizationApproachMachine8",
+        "x": 3052.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine7",
+        "x": 4492.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine7 -> OptimizationApproachMachine10",
+      "from": {
+        "name": "OptimizationApproachMachine7",
+        "x": 4492.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine10",
+        "x": 4702.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine10 -> OptimizationApproachMachine9",
+      "from": {
+        "name": "OptimizationApproachMachine10",
+        "x": 4702.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine9",
+        "x": 6142.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine9 -> OptimizationApproachMachine12",
+      "from": {
+        "name": "OptimizationApproachMachine9",
+        "x": 6142.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine12",
+        "x": 6352.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine12 -> OptimizationApproachMachine11",
+      "from": {
+        "name": "OptimizationApproachMachine12",
+        "x": 6352.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine11",
+        "x": 7792.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine11 -> OptimizationApproachMachine14",
+      "from": {
+        "name": "OptimizationApproachMachine11",
+        "x": 7792.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine14",
+        "x": 8002.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine14 -> OptimizationApproachMachine13",
+      "from": {
+        "name": "OptimizationApproachMachine14",
+        "x": 8002.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine13",
+        "x": 9442.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine13 -> OptimizationApproachMachine16",
+      "from": {
+        "name": "OptimizationApproachMachine13",
+        "x": 9442.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine16",
+        "x": 9652.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine16 -> OptimizationApproachMachine15",
+      "from": {
+        "name": "OptimizationApproachMachine16",
+        "x": 9652.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine15",
+        "x": 11092.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine15 -> OptimizationApproachMachine18",
+      "from": {
+        "name": "OptimizationApproachMachine15",
+        "x": 11092.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine18",
+        "x": 11302.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine18 -> OptimizationApproachMachine17",
+      "from": {
+        "name": "OptimizationApproachMachine18",
+        "x": 11302.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine17",
+        "x": 12742.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine17 -> OptimizationApproachMachine20",
+      "from": {
+        "name": "OptimizationApproachMachine17",
+        "x": 12742.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine20",
+        "x": 12952.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine20 -> OptimizationApproachMachine19",
+      "from": {
+        "name": "OptimizationApproachMachine20",
+        "x": 12952.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine19",
+        "x": 14392.5,
+        "y": 2700.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine19 -> OptimizationApproachMachine22",
+      "from": {
+        "name": "OptimizationApproachMachine19",
+        "x": 14392.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine22",
+        "x": 14602.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine22 -> OptimizationApproachMachine21",
+      "from": {
+        "name": "OptimizationApproachMachine22",
+        "x": 14602.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine21",
+        "x": 16042.5,
+        "y": 2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine21 -> OptimizationApproachMachine24",
+      "from": {
+        "name": "OptimizationApproachMachine21",
+        "x": 16042.5,
+        "y": 2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine24",
+        "x": 16252.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine24 -> OptimizationApproachMachine23",
+      "from": {
+        "name": "OptimizationApproachMachine24",
+        "x": 16252.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine23",
+        "x": 17692.5,
+        "y": 2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine23 -> OptimizationApproachMachine26",
+      "from": {
+        "name": "OptimizationApproachMachine23",
+        "x": 17692.5,
+        "y": 2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine26",
+        "x": 17902.5,
+        "y": -2500.0,
+        "z": 60.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine26 -> OptimizationApproachMachine25",
+      "from": {
+        "name": "OptimizationApproachMachine26",
+        "x": 17902.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "OptimizationApproachMachine25",
+        "x": 19342.5,
+        "y": 2500.0,
+        "z": 60.0
+      }
+    }
+  ],
+  "approach_edges": [
+    {
+      "name": "OptimizationApproachMachine1 -> ApproachMachine1CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine1",
+        "x": -249.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine1CurtainSafe",
+        "x": 1450.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine4 -> ApproachMachine4CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine4",
+        "x": -247.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine4CurtainSafe",
+        "x": 2000.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine3 -> ApproachMachine3CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine3",
+        "x": 1192.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine3CurtainSafe",
+        "x": 3100.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine6 -> ApproachMachine6CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine6",
+        "x": 1402.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine6CurtainSafe",
+        "x": 3650.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine2 -> ApproachMachine2CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine2",
+        "x": 1749.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine2CurtainSafe",
+        "x": 350.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine5 -> ApproachMachine5CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine5",
+        "x": 2842.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine5CurtainSafe",
+        "x": 4750.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine8 -> ApproachMachine8CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine8",
+        "x": 3052.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine8CurtainSafe",
+        "x": 5300.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine7 -> ApproachMachine7CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine7",
+        "x": 4492.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine7CurtainSafe",
+        "x": 6400.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine10 -> ApproachMachine10CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine10",
+        "x": 4702.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine10CurtainSafe",
+        "x": 6950.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine9 -> ApproachMachine9CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine9",
+        "x": 6142.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine9CurtainSafe",
+        "x": 8050.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine12 -> ApproachMachine12CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine12",
+        "x": 6352.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine12CurtainSafe",
+        "x": 8600.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine11 -> ApproachMachine11CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine11",
+        "x": 7792.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine11CurtainSafe",
+        "x": 9700.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine14 -> ApproachMachine14CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine14",
+        "x": 8002.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine14CurtainSafe",
+        "x": 10250.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine13 -> ApproachMachine13CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine13",
+        "x": 9442.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine13CurtainSafe",
+        "x": 11350.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine16 -> ApproachMachine16CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine16",
+        "x": 9652.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine16CurtainSafe",
+        "x": 11900.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine15 -> ApproachMachine15CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine15",
+        "x": 11092.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine15CurtainSafe",
+        "x": 13000.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine18 -> ApproachMachine18CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine18",
+        "x": 11302.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine18CurtainSafe",
+        "x": 13550.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine17 -> ApproachMachine17CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine17",
+        "x": 12742.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine17CurtainSafe",
+        "x": 14650.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine20 -> ApproachMachine20CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine20",
+        "x": 12952.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine20CurtainSafe",
+        "x": 15200.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine19 -> ApproachMachine19CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine19",
+        "x": 14392.5,
+        "y": 2700.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine19CurtainSafe",
+        "x": 16300.0,
+        "y": 950.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine22 -> ApproachMachine22CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine22",
+        "x": 14602.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine22CurtainSafe",
+        "x": 16850.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine21 -> ApproachMachine21CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine21",
+        "x": 16042.5,
+        "y": 2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine21CurtainSafe",
+        "x": 17950.0,
+        "y": 750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine24 -> ApproachMachine24CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine24",
+        "x": 16252.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine24CurtainSafe",
+        "x": 18500.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine23 -> ApproachMachine23CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine23",
+        "x": 17692.5,
+        "y": 2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine23CurtainSafe",
+        "x": 19600.0,
+        "y": 750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine26 -> ApproachMachine26CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine26",
+        "x": 17902.5,
+        "y": -2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine26CurtainSafe",
+        "x": 20150.0,
+        "y": -750.0,
+        "z": 2360.0
+      }
+    },
+    {
+      "name": "OptimizationApproachMachine25 -> ApproachMachine25CurtainSafe",
+      "from": {
+        "name": "OptimizationApproachMachine25",
+        "x": 19342.5,
+        "y": 2500.0,
+        "z": 60.0
+      },
+      "to": {
+        "name": "ApproachMachine25CurtainSafe",
+        "x": 21250.0,
+        "y": 750.0,
+        "z": 2360.0
+      }
+    }
+  ]
+}
