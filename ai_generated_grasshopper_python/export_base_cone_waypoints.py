@@ -47,6 +47,11 @@ try:
 except NameError:
     string_approach_points = None
 
+try:
+    approach_mm
+except NameError:
+    approach_mm = 200.0
+
 if yaml_path is None or yaml_path == "":
     yaml_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
 
@@ -188,6 +193,11 @@ def plane_to_xyzrpw_robot_local(plane, base_orig):
         round(math.degrees(rx), 6), round(math.degrees(ry), 6), round(math.degrees(rz), 6),
     )
 
+def _compute_approach(grab_pl, offset_mm):
+    """Offset a grab plane by offset_mm along its own Z-axis."""
+    origin = grab_pl.Origin + grab_pl.ZAxis * offset_mm
+    return rg.Plane(origin, grab_pl.XAxis, grab_pl.YAxis)
+
 # ── STL writer (unchanged) ────────────────────────────────────────────────────
 
 def build_and_write_stl(geo_list, stl_path):
@@ -298,10 +308,19 @@ if 'bins' in dir() and bins is not None:
         flat = flatten_input(bins)
         for item in flat: bin_branches.append([item])
 
-cone_grab_planes_raw     = [resolve_plane(p) for p in flatten_input(grab_points)]
-cone_approach_planes_raw = [resolve_plane(p) for p in flatten_input(approach_points)] if approach_points is not None else []
-str_grab_planes_raw      = [resolve_plane(p) for p in flatten_input(string_grab_points)]
-str_approach_planes_raw  = [resolve_plane(p) for p in flatten_input(string_approach_points)] if string_approach_points is not None else []
+cone_grab_planes_raw = [resolve_plane(p) for p in flatten_input(grab_points)]
+if approach_points is not None:
+    cone_approach_planes_raw = [resolve_plane(p) for p in flatten_input(approach_points)]
+else:
+    cone_approach_planes_raw = [_compute_approach(p, approach_mm) for p in cone_grab_planes_raw if p is not None]
+    print(f"approach_points not wired — computing {len(cone_approach_planes_raw)} approach planes at {approach_mm}mm offset")
+
+str_grab_planes_raw = [resolve_plane(p) for p in flatten_input(string_grab_points)]
+if string_approach_points is not None:
+    str_approach_planes_raw = [resolve_plane(p) for p in flatten_input(string_approach_points)]
+else:
+    str_approach_planes_raw = [_compute_approach(p, approach_mm) for p in str_grab_planes_raw if p is not None]
+    print(f"string_approach_points not wired — computing {len(str_approach_planes_raw)} approach planes at {approach_mm}mm offset")
 base_orig                = resolve_first_point(base_origin) if 'base_origin' in dir() else None
 
 num_cones = len(cone_branches)
@@ -409,6 +428,17 @@ if trigger:
         _string_rgba = resolve_color(string_color if 'string_color' in dir() else None, [1.0, 1.0, 0.0, 1.0])
         _bin_rgba    = resolve_color(bin_color    if 'bin_color'    in dir() else None, [0.2, 0.4, 1.0, 1.0])
 
+        # Find robot — cones and bins are parented to the robot base so they
+        # move with the rail (j7 linear axis)
+        from robodk.robolink import ITEM_TYPE_ROBOT
+        robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
+        robot_base = robot.Parent() if robot.Valid() else None
+        if robot_base is not None and robot_base.Valid():
+            print(f"  RoboDK: parenting objects under '{robot_base.Name()}'")
+        else:
+            robot_base = None
+            print("  RoboDK: robot base not found, objects will be at world level")
+
         # Remove any previously imported base cone objects
         for item in RDK.ItemList(ITEM_TYPE_OBJECT):
             if item.Name().startswith("base_cone_") or item.Name().startswith("bin_"):
@@ -419,6 +449,8 @@ if trigger:
             if not item.Valid():
                 print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
                 return
+            if robot_base is not None:
+                item.setParent(robot_base)
             try:
                 item.setColor(rgba)
                 print(f"  RoboDK: imported {os.path.basename(path)} color={rgba}")
