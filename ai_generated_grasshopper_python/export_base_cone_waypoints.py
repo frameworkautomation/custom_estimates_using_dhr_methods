@@ -230,12 +230,16 @@ def build_and_write_stl(geo_list, stl_path):
 # ── YAML writer ───────────────────────────────────────────────────────────────
 
 def write_waypoints_yaml(waypoints, edges, path):
-    """Write waypoints and edges to a human-readable YAML file."""
+    """Write waypoints and edges to a valid YAML file."""
     lines = ["waypoints:"]
     for w in waypoints:
         lines.append(f"  - name: {w['name']}")
-        lines.append(f"    x: {w['x']}  y: {w['y']}  z: {w['z']}")
-        lines.append(f"    rx: {w['rx']}  ry: {w['ry']}  rz: {w['rz']}")
+        lines.append(f"    x: {w['x']}")
+        lines.append(f"    y: {w['y']}")
+        lines.append(f"    z: {w['z']}")
+        lines.append(f"    rx: {w['rx']}")
+        lines.append(f"    ry: {w['ry']}")
+        lines.append(f"    rz: {w['rz']}")
         lines.append(f"    frame: robot_local")
         lines.append(f"    move_type: {w['move_type']}")
         lines.append(f"    j7: {w['j7']}")

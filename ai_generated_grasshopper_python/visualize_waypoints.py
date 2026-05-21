@@ -54,7 +54,6 @@
 #                   "null" / "true" / "false" — use this to colour edges:
 #                   grey = untested, green = clear, red = collision.
 
-import re
 import math
 import Rhino.Geometry as rg
 
@@ -102,47 +101,13 @@ except ImportError:
         r'  C:\Users\samst\.rhinocode\py39-rh8\python.exe -m pip install pyyaml'
     )
 
-# ── Inline-key parsing ────────────────────────────────────────────────────────
-# The YAML writes x/y/z on one line: "    x: 0.0  y: 0.0  z: 500.0"
-# PyYAML parses that as a single string value for key 'x', not three keys.
-# We extract numbers with regex instead.
-_XYZ_RE = re.compile(
-    r'x\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-    r'[,\s]+'
-    r'y\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-    r'[,\s]+'
-    r'z\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-)
-_RXRYRZ_RE = re.compile(
-    r'rx\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-    r'[,\s]+'
-    r'ry\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-    r'[,\s]+'
-    r'rz\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)'
-)
-_KEY_RE = re.compile(
-    r'^\s*(x|y|z|rx|ry|rz)\s*:\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*$'
-)
-
-
-def _extract_floats(block, keys):
-    """Pull named float values out of a raw text block.
-
-    Handles both "x: 1.0  y: 2.0  z: 3.0" on one line and one key per line.
-    Returns {key: float} for whichever keys are found.
-    """
-    result = {}
-    m = _XYZ_RE.search(block)
-    if m and {'x','y','z'} <= keys:
-        result['x'], result['y'], result['z'] = float(m.group(1)), float(m.group(2)), float(m.group(3))
-    m = _RXRYRZ_RE.search(block)
-    if m and {'rx','ry','rz'} <= keys:
-        result['rx'], result['ry'], result['rz'] = float(m.group(1)), float(m.group(2)), float(m.group(3))
-    for line in block.splitlines():
-        m = _KEY_RE.match(line)
-        if m and m.group(1) in keys and m.group(1) not in result:
-            result[m.group(1)] = float(m.group(2))
-    return result
+def _f(wp, key):
+    """Extract a float value from a waypoint dict."""
+    v = wp.get(key, 0.0)
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _plane_from_zyx(ox, oy, oz, rx_deg, ry_deg, rz_deg):
@@ -166,10 +131,8 @@ def _plane_from_zyx(ox, oy, oz, rx_deg, ry_deg, rz_deg):
 def _run():
     print(f"Reading: {_YAML_PATH}")
     with open(_YAML_PATH, 'r') as fh:
-        raw = fh.read()
-    print(f"File read: {len(raw)} chars")
-
-    data = yaml.safe_load(raw)
+        data = yaml.safe_load(fh)
+    print(f"File read ok")
     print(f"YAML parsed: {type(data)}, keys={list(data.keys()) if isinstance(data, dict) else 'N/A'}")
     if not data:
         print("ERROR: YAML is empty or None")
@@ -180,13 +143,6 @@ def _run():
 
     print(f"base_origin offset: ({_base_x}, {_base_y}, {_base_z})")
 
-    # Build per-waypoint raw text blocks for inline-key extraction
-    wp_block_map = {}
-    for block in re.split(r'(?=\n  - name:)', raw):
-        m = re.search(r'name\s*:\s*(\S+)', block)
-        if m:
-            wp_block_map[m.group(1)] = block
-
     name_to_pt = {}  # for edge endpoint lookup
 
     for wp in (data.get('waypoints') or []):
@@ -194,20 +150,12 @@ def _run():
             continue
         name      = str(wp.get('name', ''))
         move_type = str(wp.get('move_type', ''))
-        block     = wp_block_map.get(name, '')
 
-        def _f(key):
-            v = wp.get(key)
-            if v is not None:
-                try: return float(v)
-                except (TypeError, ValueError): pass
-            return _extract_floats(block, {key}).get(key, 0.0)
+        ox = _base_x + _f(wp, 'x')
+        oy = _base_y + _f(wp, 'y')
+        oz = _base_z + _f(wp, 'z')
 
-        ox = _base_x + _f('x')
-        oy = _base_y + _f('y')
-        oz = _base_z + _f('z')
-
-        plane = _plane_from_zyx(ox, oy, oz, _f('rx'), _f('ry'), _f('rz'))
+        plane = _plane_from_zyx(ox, oy, oz, _f(wp, 'rx'), _f(wp, 'ry'), _f(wp, 'rz'))
         planes.append(plane)
         names.append(name)
         move_types.append(move_type)
