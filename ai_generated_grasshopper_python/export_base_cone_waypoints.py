@@ -315,7 +315,7 @@ if not trigger and sc.sticky.get("last_bc_stl_path", "") != "":
     approach_planes     = [p for p in cone_approach_planes_raw if p is not None]
     str_planes          = [p for p in str_grab_planes_raw      if p is not None]
     str_approach_planes = [p for p in str_approach_planes_raw  if p is not None]
-    print("Trigger not set — skipping STL/YAML write, outputting planes only.")
+    print("Trigger not set. Set trigger=True to write STLs + YAML and import into RoboDK.")
 else:
     print("Rebuilding STLs and YAML...")
 
