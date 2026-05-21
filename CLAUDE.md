@@ -392,6 +392,11 @@ Field name convention (XQuery): PascalCase frame → snake_case + `_N` index.
   - TODO: install robodk into `cone_planner` so one env covers both tests and scripts
   - NOTE: `sys.path.append("C:/RoboDK/Python")` in scripts is a Windows path; silently
     ignored in WSL. Works because robodk is pip-installed in `robodk_v1`.
+  - WARNING: the `robodk_v1` conda env on the machine may not match what the repo
+    expects (robodk version, other deps). If scripts behave unexpectedly, compare
+    `pip list` in `robodk_v1` against any requirements files in the repo and align them.
+    TODO: add a `requirements_robodk.txt` or extend `environment.yml` to lock the
+    robodk version so the env is reproducible.
 
 **j7 testing shortcut (agreed 2026-05-20):**
 For the initial sim validation use a small number of j7 routing candidates (3-4) to
