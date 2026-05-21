@@ -9,9 +9,9 @@
 #                         use 0.001 to convert mm to metres if your Rhino doc is in metres)
 #
 # Outputs:
-#   planes   -- list of Rhino.Geometry.Plane, one per frame
-#   origins  -- list of Rhino.Geometry.Point3d  (plane origins only, useful for display)
-#   names    -- list of str, frame names in the same order
+#   planes      -- list of Rhino.Geometry.Plane, one per frame
+#   origins     -- list of Rhino.Geometry.Point3d  (plane origins only, useful for display)
+#   frame_names -- list of str, frame names in the same order
 
 import json
 import Rhino.Geometry as rg
@@ -52,9 +52,9 @@ if scale is None:
     scale = 1.0
 
 # ── build planes ──────────────────────────────────────────────────────────────
-planes  = []
-origins = []
-names   = []
+planes      = []
+origins     = []
+frame_names = []
 
 for e in entries:
     ox = e["x"] * scale
@@ -70,4 +70,4 @@ for e in entries:
 
     planes.append(plane)
     origins.append(origin)
-    names.append(e["name"])
+    frame_names.append(e["name"])
