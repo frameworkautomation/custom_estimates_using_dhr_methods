@@ -370,7 +370,35 @@ ok = sm.handle()
 Field name convention (XQuery): PascalCase frame → snake_case + `_N` index.
 `CurtainSafeMachine1` with 1 state → attribute `curtain_safe_machine_1_1`.
 
-## ── RESUME POINT (left off 2026-05-20) ──────────────────────────────────────
+## ── DHR edge/transition architecture (2026-05-21) ───────────────────────────
+
+**DHR has no explicit edge or graph structure.** Transitions between states are
+hardcoded as sequential `yield from execute_state(trigger=...)` calls in
+`clones/knitwear-cell/src/main/action/move_task.py`.
+
+Key observations from reading move_task.py:
+- Line 29: always goes to `transport` first (arm folds to safe pose)
+- Line 33/37: `move_on_rail_optimization_approach_{type}_{id}` — explicit rail-slide
+  state generated from the `OptimizationApproachMachine{N}` frames in YAML.
+  These frames ARE used — not as TCP targets but as dedicated j7-positioning moves
+  before the arm reaches into the machine zone.
+- Lines 184–203: `approach_machine_{id}_curtain_safe_1` — enter machine zone (MoveJ)
+- Lines 211–218: `approach_machine_{id}_curtain_safe_2` — exit machine zone (MoveL)
+  Note: _1 = MoveJ (approach), _2 = MoveL (precise approach/retract). Same frame,
+  different move type — two separate State classes generated from the same YAML states array.
+- Lines 248–255: buffer entry/exit is 3 hardcoded waypoints in sequence
+- Lines 79–81 / 150–152: if grab/place fails, `_reverse_path()` retraces all moves
+  in reverse order to recover
+
+**Edges are monodirectional in DHR's implicit graph.** Enter and exit use different
+state indices (_1 vs _2 = MoveJ vs MoveL) and different arm configs. A→B is not
+the same move as B→A. Our `path_plan.yaml` should reflect this:
+- TODO: edges in path_plan.yaml should be directional (A→B tested separately from B→A)
+- Currently our Dijkstra graph treats edges as bidirectional which may be incorrect
+
+**move_task.py full path:** `clones/knitwear-cell/src/main/action/move_task.py`
+
+## ── RESUME POINT (left off 2026-05-21) ──────────────────────────────────────
 
 **Branch:** `collision_free_path_planning` (branched from `determining_how_position_gripper`)
 
