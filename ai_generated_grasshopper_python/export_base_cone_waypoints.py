@@ -3,11 +3,12 @@
 #
 # GH Inputs:
 #   cones               : geometry (DataTree one branch per cone, or flat list)
-#   grab_points         : flat list of Planes, one per cone
+#   grab_points         : flat list of Planes, one per cone — cone grab planes
+#   approach_points     : flat list of Planes, one per cone — cone approach planes (pre-computed in GH)
 #   string_grab_points  : flat list of Planes, one per cone
+#   string_approach_points : flat list of Planes, one per cone — string approach planes (pre-computed in GH)
 #   bins                : geometry (flat list or DataTree, one branch per bin)
 #   base_origin         : Point — robot base origin in Rhino model space
-#   approach_mm         : float — approach offset along grab Z-axis (default 200.0)
 #   yaml_path           : str   — output YAML path (default: repo/robo_dk_output/base_cone_waypoints.yaml)
 #   cone_color          : Colour (optional, default orange)
 #   string_color        : Colour (optional, default yellow)
@@ -15,10 +16,10 @@
 #   trigger             : Boolean
 #
 # GH Outputs:
-#   grab_planes         : list of Plane — cone grab planes (in Rhino world space)
-#   approach_planes     : list of Plane — cone approach planes (offset along Z)
-#   str_planes          : list of Plane — string grab planes
-#   str_approach_planes : list of Plane — string approach planes
+#   grab_planes         : list of Plane — cone grab planes (passthrough)
+#   approach_planes     : list of Plane — cone approach planes (passthrough)
+#   str_planes          : list of Plane — string grab planes (passthrough)
+#   str_approach_planes : list of Plane — string approach planes (passthrough)
 #   stl_paths           : list of str  — STL files written
 #   yaml_out            : str          — path to written YAML
 
@@ -32,14 +33,19 @@ import System
 
 # ── Optional inputs with defaults ────────────────────────────────────────────
 try:
-    approach_mm
-except NameError:
-    approach_mm = 200.0
-
-try:
     yaml_path
 except NameError:
     yaml_path = None
+
+try:
+    approach_points
+except NameError:
+    approach_points = None
+
+try:
+    string_approach_points
+except NameError:
+    string_approach_points = None
 
 if yaml_path is None or yaml_path == "":
     yaml_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
@@ -182,11 +188,6 @@ def plane_to_xyzrpw_robot_local(plane, base_orig):
         round(math.degrees(rx), 6), round(math.degrees(ry), 6), round(math.degrees(rz), 6),
     )
 
-def approach_plane(grab_pl, offset_mm):
-    """Offset a grab plane by offset_mm along its own Z-axis."""
-    origin = grab_pl.Origin + grab_pl.ZAxis * offset_mm
-    return rg.Plane(origin, grab_pl.XAxis, grab_pl.YAxis)
-
 # ── STL writer (unchanged) ────────────────────────────────────────────────────
 
 def build_and_write_stl(geo_list, stl_path):
@@ -266,10 +267,12 @@ if trigger and sc.sticky.get("last_bc_stl_path", "") != "":
     print("Trigger activated, forcing re-run")
 
 print("=== INPUT DIAGNOSTICS ===")
-diagnose_tree("cones",              cones)
-diagnose_tree("grab_points",        grab_points)
-diagnose_tree("string_grab_points", string_grab_points)
-diagnose_tree("bins",               bins if 'bins' in dir() else None)
+diagnose_tree("cones",                   cones)
+diagnose_tree("grab_points",             grab_points)
+diagnose_tree("approach_points",         approach_points)
+diagnose_tree("string_grab_points",      string_grab_points)
+diagnose_tree("string_approach_points",  string_approach_points)
+diagnose_tree("bins",                    bins if 'bins' in dir() else None)
 print("=========================")
 
 # Collect inputs
@@ -294,21 +297,24 @@ if 'bins' in dir() and bins is not None:
         flat = flatten_input(bins)
         for item in flat: bin_branches.append([item])
 
-cone_grab_planes_raw = [resolve_plane(p) for p in flatten_input(grab_points)]
-str_grab_planes_raw  = [resolve_plane(p) for p in flatten_input(string_grab_points)]
-base_orig            = resolve_first_point(base_origin) if 'base_origin' in dir() else None
+cone_grab_planes_raw     = [resolve_plane(p) for p in flatten_input(grab_points)]
+cone_approach_planes_raw = [resolve_plane(p) for p in flatten_input(approach_points)] if approach_points is not None else []
+str_grab_planes_raw      = [resolve_plane(p) for p in flatten_input(string_grab_points)]
+str_approach_planes_raw  = [resolve_plane(p) for p in flatten_input(string_approach_points)] if string_approach_points is not None else []
+base_orig                = resolve_first_point(base_origin) if 'base_origin' in dir() else None
 
 num_cones = len(cone_branches)
 num_bins  = len(bin_branches)
-print(f"num_cones={num_cones}  cone_grabs={len(cone_grab_planes_raw)}  str_grabs={len(str_grab_planes_raw)}")
-print(f"base_origin: {base_orig}  approach_mm: {approach_mm}")
+print(f"num_cones={num_cones}  cone_grabs={len(cone_grab_planes_raw)}  cone_approaches={len(cone_approach_planes_raw)}")
+print(f"str_grabs={len(str_grab_planes_raw)}  str_approaches={len(str_approach_planes_raw)}")
+print(f"base_origin: {base_orig}")
 
 if not trigger and sc.sticky.get("last_bc_stl_path", "") != "":
     # Not triggered — still populate output planes from what we have
-    grab_planes         = [p for p in cone_grab_planes_raw if p is not None]
-    approach_planes     = [approach_plane(p, approach_mm) for p in grab_planes]
-    str_planes          = [p for p in str_grab_planes_raw if p is not None]
-    str_approach_planes = [approach_plane(p, approach_mm) for p in str_planes]
+    grab_planes         = [p for p in cone_grab_planes_raw     if p is not None]
+    approach_planes     = [p for p in cone_approach_planes_raw if p is not None]
+    str_planes          = [p for p in str_grab_planes_raw      if p is not None]
+    str_approach_planes = [p for p in str_approach_planes_raw  if p is not None]
     print("Trigger not set — skipping STL/YAML write, outputting planes only.")
 else:
     print("Rebuilding STLs and YAML...")
@@ -339,14 +345,18 @@ else:
             print(f"  WARNING: cone_grab_{i} plane is None — skipping")
             continue
 
-        ap = approach_plane(pl, approach_mm)
+        ap = cone_approach_planes_raw[i] if i < len(cone_approach_planes_raw) else None
+        if ap is None:
+            print(f"  WARNING: cone_grab_{i} approach plane is None — skipping")
+            continue
+
         grab_planes.append(pl)
         approach_planes.append(ap)
 
         grab_name     = f"base_cone_grab_{i}"
         approach_name = f"base_cone_grab_{i}_approach"
 
-        x,y,z,rx,ry,rz   = plane_to_xyzrpw_robot_local(pl, base_orig)
+        x,y,z,rx,ry,rz      = plane_to_xyzrpw_robot_local(pl, base_orig)
         ax,ay,az,arx,ary,arz = plane_to_xyzrpw_robot_local(ap, base_orig)
 
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
@@ -365,14 +375,18 @@ else:
             print(f"  WARNING: str_grab_{i} plane is None — skipping")
             continue
 
-        ap = approach_plane(pl, approach_mm)
+        ap = str_approach_planes_raw[i] if i < len(str_approach_planes_raw) else None
+        if ap is None:
+            print(f"  WARNING: str_grab_{i} approach plane is None — skipping")
+            continue
+
         str_planes.append(pl)
         str_approach_planes.append(ap)
 
         grab_name     = f"base_str_grab_{i}"
         approach_name = f"base_str_grab_{i}_approach"
 
-        x,y,z,rx,ry,rz   = plane_to_xyzrpw_robot_local(pl, base_orig)
+        x,y,z,rx,ry,rz      = plane_to_xyzrpw_robot_local(pl, base_orig)
         ax,ay,az,arx,ary,arz = plane_to_xyzrpw_robot_local(ap, base_orig)
 
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
