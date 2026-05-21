@@ -7,15 +7,15 @@ matrix columns) to JSON so Grasshopper / Rhino can display them as planes.
 
 Two default groups are scraped:
 
-  --rail-pattern   (default: OptimizationApproach)
-      One frame per machine / cart / rack zone along the linear rail.
-      DHR names these: OptimizationApproachMachine1, OptimizationApproachCart2, etc.
-      Each frame's X position in world space = where the rail needs to be
-      to service that zone.
+  --rail-pattern   (default: CurtainSafe$)
+      One frame per machine at the curtain/door level (no "Down" variants).
+      In this station: ApproachMachine1CurtainSafe ... ApproachMachine26CurtainSafe.
+      X position of each = where along the rail that machine sits.
+      Override with --rail-pattern "OptimizationApproach" if your station
+      has OptimizationApproachMachine_N frames instead.
 
   --approach-pattern   (default: CurtainSafe)
-      Curtain-safe approach frames placed in front of each machine door.
-      DHR names these: ApproachMachine1CurtainSafe, etc.
+      All curtain-safe frames including Down variants -- full set.
 
 Output: robo_dk_output/scraped_frames.json
         Two top-level keys: "rail_points" and "approach_frames".
@@ -23,7 +23,7 @@ Output: robo_dk_output/scraped_frames.json
 
 Usage:
     python misc_extraction_utils/scrape_robodk_frames.py
-    python misc_extraction_utils/scrape_robodk_frames.py --rail-pattern "OptimizationApproach" --approach-pattern "CurtainSafe"
+    python misc_extraction_utils/scrape_robodk_frames.py --rail-pattern "OptimizationApproach"
     python misc_extraction_utils/scrape_robodk_frames.py --all-frames
 """
 
@@ -45,8 +45,8 @@ def parse_args():
     p = argparse.ArgumentParser(description="Scrape named frames from RoboDK station.")
     p.add_argument(
         "--rail-pattern",
-        default="OptimizationApproach",
-        help="Case-insensitive regex for rail-position frames (default: 'OptimizationApproach')",
+        default="CurtainSafe$",
+        help="Case-insensitive regex for rail-position frames (default: 'CurtainSafe$')",
     )
     p.add_argument(
         "--approach-pattern",
@@ -88,11 +88,11 @@ def frame_to_dict(frame):
         "x":  round(vals[0], 4),
         "y":  round(vals[1], 4),
         "z":  round(vals[2], 4),
-        # Euler ZYX angles (degrees) — for reference
+        # Euler ZYX angles (degrees) -for reference
         "rx": round(math.degrees(vals[3]), 6),
         "ry": round(math.degrees(vals[4]), 6),
         "rz": round(math.degrees(vals[5]), 6),
-        # Rotation matrix columns — use these to build Rhino Planes directly
+        # Rotation matrix columns -use these to build Rhino Planes directly
         "xaxis": [round(m[0][0], 6), round(m[1][0], 6), round(m[2][0], 6)],
         "yaxis": [round(m[0][1], 6), round(m[1][1], 6), round(m[2][1], 6)],
         "zaxis": [round(m[0][2], 6), round(m[1][2], 6), round(m[2][2], 6)],
@@ -137,17 +137,17 @@ def main():
         output["rail_points"] = scrape(rdk, ITEM_TYPE_FRAME, args.rail_pattern)
         output["approach_frames"] = scrape(rdk, ITEM_TYPE_FRAME, args.approach_pattern)
 
-        print(f"\nrail_points  (pattern: '{args.rail_pattern}')  — {len(output['rail_points'])} matches")
+        print(f"\nrail_points  (pattern: '{args.rail_pattern}')  -{len(output['rail_points'])} matches")
         print_table(output["rail_points"], "rail_points")
 
-        print(f"\napproach_frames  (pattern: '{args.approach_pattern}')  — {len(output['approach_frames'])} matches")
+        print(f"\napproach_frames  (pattern: '{args.approach_pattern}')  -{len(output['approach_frames'])} matches")
         print_table(output["approach_frames"], "approach_frames")
 
         if not output["rail_points"] and not output["approach_frames"]:
             print("\n[WARN] Nothing matched. Try --all-frames to see everything in the station.")
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w") as f:
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
     print(f"\n[INFO] Saved to {OUTPUT_PATH}")
 
