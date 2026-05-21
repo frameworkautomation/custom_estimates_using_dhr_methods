@@ -164,12 +164,21 @@ def _plane_from_zyx(ox, oy, oz, rx_deg, ry_deg, rz_deg):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def _run():
+    print(f"Reading: {_YAML_PATH}")
     with open(_YAML_PATH, 'r') as fh:
         raw = fh.read()
+    print(f"File read: {len(raw)} chars")
 
     data = yaml.safe_load(raw)
+    print(f"YAML parsed: {type(data)}, keys={list(data.keys()) if isinstance(data, dict) else 'N/A'}")
     if not data:
+        print("ERROR: YAML is empty or None")
         return
+
+    wp_list = data.get('waypoints') or []
+    print(f"Waypoints in YAML: {len(wp_list)}")
+
+    print(f"base_origin offset: ({_base_x}, {_base_y}, {_base_z})")
 
     # Build per-waypoint raw text blocks for inline-key extraction
     wp_block_map = {}
@@ -203,6 +212,8 @@ def _run():
         names.append(name)
         move_types.append(move_type)
         name_to_pt[name] = rg.Point3d(ox, oy, oz)
+
+    print(f"Planes built: {len(planes)}")
 
     for edge in (data.get('edges') or []):
         if not isinstance(edge, dict):
