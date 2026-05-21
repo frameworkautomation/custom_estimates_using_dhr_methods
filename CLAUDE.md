@@ -490,6 +490,13 @@ paths may collide differently.
   Dijkstra routing
 - OR: keep existing path_plan system but feed it from the waypoints YAML
 
+### Phase 7 — Full cell test with ceiling STL
+
+- Import the ceiling STL (from Robert via Slack) into the RoboDK station as a
+  collision object
+- Re-run `test_edges.py` with ceiling present to find any edges that now collide
+- Verify the full end-to-end cone move still works with the ceiling in place
+
 ### Current status
 - Phase 1A: DONE — `ai_generated_grasshopper_python/export_base_cone_waypoints.py`
   - Inputs: grab_points, approach_points, string_grab_points, string_approach_points (Planes from GH),
