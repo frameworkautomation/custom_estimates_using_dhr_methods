@@ -403,4 +403,34 @@ else:
     print(f"\n[OK] {len(waypoints)} waypoints, {len(edges)} edges -> {yaml_path}")
     print(f"[OK] {len(stl_paths)} STL files written")
 
+    # ── Import STLs into RoboDK ───────────────────────────────────────────────
+    try:
+        sys.path.append("C:/RoboDK/Python")
+        from robodk.robolink import Robolink, ITEM_TYPE_OBJECT
+        RDK = Robolink()
+        RDK.Item("")  # ping
+
+        # Remove any previously imported base cone objects
+        for item in RDK.ItemList(ITEM_TYPE_OBJECT):
+            if item.Name().startswith("base_cone_") or item.Name().startswith("bin_"):
+                item.Delete()
+
+        for path in stl_paths:
+            item = RDK.AddFile(path)
+            if item.Valid():
+                print(f"  RoboDK: imported {os.path.basename(path)}")
+            else:
+                print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
+
+        for path in bin_stl_paths:
+            item = RDK.AddFile(path)
+            if item.Valid():
+                print(f"  RoboDK: imported {os.path.basename(path)}")
+            else:
+                print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
+
+        print("[OK] STLs imported into RoboDK")
+    except Exception as e:
+        print(f"[WARN] RoboDK import skipped: {e}")
+
     sc.sticky["last_bc_stl_path"] = stl_paths[0] if stl_paths else ""
