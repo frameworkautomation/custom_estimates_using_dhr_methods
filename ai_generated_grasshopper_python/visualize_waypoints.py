@@ -75,6 +75,20 @@ try:
 except NameError:
     _base_origin = None
 
+# Resolve Guid → Point3d if GH passes an object reference
+import System
+import scriptcontext as sc
+if _base_origin is not None and isinstance(_base_origin, System.Guid):
+    _obj = sc.doc.Objects.FindId(_base_origin)
+    if _obj:
+        _geo = _obj.Geometry
+        if isinstance(_geo, rg.Point):
+            _base_origin = _geo.Location
+        elif hasattr(_geo, 'GetBoundingBox'):
+            _base_origin = _geo.GetBoundingBox(True).Center
+if _base_origin is not None and not isinstance(_base_origin, rg.Point3d):
+    _base_origin = None
+
 _base_x = _base_origin.X if _base_origin is not None else 0.0
 _base_y = _base_origin.Y if _base_origin is not None else 0.0
 _base_z = _base_origin.Z if _base_origin is not None else 0.0
