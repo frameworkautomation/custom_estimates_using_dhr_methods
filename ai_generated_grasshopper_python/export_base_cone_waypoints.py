@@ -408,7 +408,7 @@ if trigger:
         # Resolve colors (RGBA 0-1) from GH inputs
         _cone_rgba   = resolve_color(cone_color   if 'cone_color'   in dir() else None, [1.0, 0.5, 0.0, 1.0])
         _string_rgba = resolve_color(string_color if 'string_color' in dir() else None, [1.0, 1.0, 0.0, 1.0])
-        _bin_rgba    = resolve_color(bin_color    if 'bin_color'    in dir() else None, [0.2, 0.4, 1.0, 1.0])
+        _bin_rgba    = resolve_color(bin_color    if 'bin_color'    in dir() else None, [0.5, 0.5, 0.5, 1.0])
 
         # Find robot — cones and bins are parented to the robot base so they
         # move with the rail (j7 linear axis)
