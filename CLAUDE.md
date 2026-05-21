@@ -385,7 +385,13 @@ Field name convention (XQuery): PascalCase frame → snake_case + `_N` index.
 - `moving_a_cone.py`: plan-driven motion sequence using `path_plan_utils`
 - `robo_dk_output/path_config.yaml`: human-editable template committed (gitignore exception added)
 - `robodk_code/extract_waypoint_frames.py`: dumps named frames from RoboDK as 6D poses (JSON + CSV) for Rhino import
-- Conda environment: `cone_planner` — activate with `conda activate cone_planner`; run tests with `pytest tests/`
+- Conda environments (WSL, miniconda at `/home/samst/miniconda3`):
+  - `cone_planner` — pytest + pyyaml; use for `pytest tests/` (no robodk)
+  - `robodk_v1` — has robodk installed; use for running any `robodk_code/` scripts
+  - To activate from bash: `source /home/samst/miniconda3/etc/profile.d/conda.sh && conda activate <env>`
+  - TODO: install robodk into `cone_planner` so one env covers both tests and scripts
+  - NOTE: `sys.path.append("C:/RoboDK/Python")` in scripts is a Windows path; silently
+    ignored in WSL. Works because robodk is pip-installed in `robodk_v1`.
 
 **j7 testing shortcut (agreed 2026-05-20):**
 For the initial sim validation use a small number of j7 routing candidates (3-4) to
