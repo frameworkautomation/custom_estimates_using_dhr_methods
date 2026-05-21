@@ -184,6 +184,10 @@ the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 
 ## Known issues / future work
 
+### [EXTREMELY LOW PRIORITY] Bins imported into RoboDK are blue instead of grey
+Default bin_color in `export_base_cone_waypoints.py` is blue `[0.2, 0.4, 1.0, 1.0]`.
+Should be grey. Change default to `[0.5, 0.5, 0.5, 1.0]` when there's nothing else to do.
+
 ### IK visible motion issue
 
 See sub-optimal note above re: `move_to_base_cone_grab_with_setable_accuracy.py`.
