@@ -410,6 +410,11 @@ else:
         RDK = Robolink()
         RDK.Item("")  # ping
 
+        # Resolve colors (RGBA 0-1) from GH inputs
+        _cone_rgba   = resolve_color(cone_color   if 'cone_color'   in dir() else None, [1.0, 0.5, 0.0, 1.0])
+        _string_rgba = resolve_color(string_color if 'string_color' in dir() else None, [1.0, 1.0, 0.0, 1.0])
+        _bin_rgba    = resolve_color(bin_color    if 'bin_color'    in dir() else None, [0.2, 0.4, 1.0, 1.0])
+
         # Remove any previously imported base cone objects
         for item in RDK.ItemList(ITEM_TYPE_OBJECT):
             if item.Name().startswith("base_cone_") or item.Name().startswith("bin_"):
@@ -418,6 +423,7 @@ else:
         for path in stl_paths:
             item = RDK.AddFile(path)
             if item.Valid():
+                item.setColor(_cone_rgba)
                 print(f"  RoboDK: imported {os.path.basename(path)}")
             else:
                 print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
@@ -425,6 +431,7 @@ else:
         for path in bin_stl_paths:
             item = RDK.AddFile(path)
             if item.Valid():
+                item.setColor(_bin_rgba)
                 print(f"  RoboDK: imported {os.path.basename(path)}")
             else:
                 print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
