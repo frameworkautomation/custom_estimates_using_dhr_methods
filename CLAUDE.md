@@ -205,6 +205,27 @@ The custom LM solver calls `robot.setJoints(...)` on every iteration, causing
 the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 `RDK.Render(True)` to suppress this (future work).
 
+## ── TODO: Require explicit tool_name on routing candidates ───────────────────
+
+Every routing candidate in `path_config.yaml` should carry an explicit `tool_name:`
+field rather than relying on the global `default_tool:`.
+
+**Why:** Collision checking sweeps the robot *plus its mounted tool* through space.
+If the tool name is wrong or missing for a waypoint, the checker silently uses the
+wrong geometry — an edge that looks clear may actually collide in reality.
+Explicit `tool_name:` per routing candidate makes the collision intent auditable
+and prevents silent mischecks when someone changes `default_tool:` for a different
+purpose.
+
+**What to do:**
+1. Add `tool_name:` to every entry under `waypoints:` in path_config.yaml
+2. Update `test_path_config.py` to enforce that routing candidates have `tool_name:`
+3. Update `check_collision_free_paths.py` to use the per-waypoint tool rather than
+   always reading `default_tool:` — per-waypoint value takes precedence
+
+Not blocking current work but must be done before treating path_plan.yaml as
+production-safe.
+
 ## Known issues / future work
 
 ### [BLOCKING] Cones and bins do not move with the robot in RoboDK after GH import

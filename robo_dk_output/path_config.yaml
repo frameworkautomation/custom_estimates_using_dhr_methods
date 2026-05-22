@@ -26,14 +26,6 @@ waypoints:
 
 # Waypoints the pathfinder may route through.
 # Must be a subset of the keys in `waypoints` above.
-
-  compacted_for_moving:
-    joints: [0.0000, -56.0000, -9.0000, -0.0000, 0.0000, 0.0000, 0.0000]
-    source: human
-
-  compacted_for_moving_on_j7:
-    joints: [0.0000, -56.0000, -9.0000, -0.0000, 0.0000, 0.0000, 0.0000]
-    source: human
 routing_candidates:
   - home
   - transport

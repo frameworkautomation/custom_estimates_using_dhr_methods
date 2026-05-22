@@ -39,7 +39,10 @@ Horizontal split: 3D viewport takes ~65% width on the left, detail panel takes ~
 ### Rendering
 
 Each waypoint is rendered as:
-- An **orange sphere** at its world-space position (x, y, z from YAML)
+- A **sphere** at its world-space position (x, y, z from YAML), coloured by IK solve status:
+  - **Orange** — Cartesian-only, no `joints:` yet (unsolved)
+  - **Green** — `ik_collision_verified: true` (joints solved, static pose is collision-free)
+  - **Red** — `reachable: false` (all IK solutions had static collisions)
 - An **RGB axis triad** extending from the sphere center, oriented by rx/ry/rz (ZYX Euler, same convention as the GH scripts: R = Rz * Ry * Rx)
   - Red arrow = local X axis
   - Green arrow = local Y axis
@@ -68,7 +71,9 @@ Edge lines are rendered between waypoint positions, coloured by `tested` field:
 
 ### Idle state (nothing selected)
 
-- Legend: colour key for edge tested status
+- Legend:
+  - Waypoint spheres: orange = unsolved, green = IK verified, red = unreachable
+  - Edge lines: grey = untested, bright green = collision-free, red = collision
 - Counts: N waypoints, M edges
 - Filter dropdown: filter 3D view by `source` (grasshopper / human) and/or `move_type` (MoveJ / MoveL). Waypoints that don't match are hidden in the 3D scene; their edges are also hidden.
 
