@@ -167,6 +167,19 @@ Still exists in `robodk_code/test_reach_base_cone.py` and is imported by
 `moving_a_cone.py` and `check_base_cone_reachability.py` no longer use it for IK
 (they still import `fmt_joints` from that file).
 
+## ── Waypoint web viewer (planned) ────────────────────────────────────────────
+
+Interactive 3D GUI for viewing and editing waypoints and edges.
+Design doc and implementation plan: `waypoint_viewer/`
+
+**Stack:** FastAPI (Python) backend + React + react-three-fiber frontend.
+**Features:** clickable waypoint spheres, orientation arrows, edge lines coloured
+by tested status, click two waypoints → create bidirectional edge written back to
+`all_waypoints.yaml`, orbit + pan camera controls, edge/waypoint detail panel,
+delete edge, filter by source/move_type.
+
+Run: `uvicorn robodk_code.waypoint_server:app` (WSL) → open browser on Windows.
+
 ## ── TODO (low priority) ───────────────────────────────────────────────────────
 
 - **[LOW] Move GhPython scripts** — currently in `ai_generated_grasshopper_python/`.
