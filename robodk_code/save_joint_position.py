@@ -11,9 +11,12 @@ Workflow:
   4. Re-run check_collision_free_paths.py to test edges.
 
 Usage:
+    python robodk_code/save_joint_position.py
     python robodk_code/save_joint_position.py --name transport_j7_0
     python robodk_code/save_joint_position.py --name curtain_safe_machine_1 --robodk-ip 172.23.208.1
     python robodk_code/save_joint_position.py --name home --print-only
+
+If --name is omitted, a tkinter dialog pops up asking for the name.
 """
 
 import sys
@@ -79,9 +82,49 @@ def append_waypoint(name, joints):
         f.write(content)
 
 
+def ask_name_dialog(joints_str):
+    """Show a dialog to enter the waypoint name. Returns name or None if cancelled.
+
+    Uses PowerShell InputBox (works from WSL), falls back to tkinter.
+    """
+    # WSL: call powershell.exe on the Windows side
+    if os.path.exists("/proc/sys/fs/binfmt_misc/WSLInterop"):
+        import subprocess
+        ps_cmd = (
+            "Add-Type -AssemblyName 'Microsoft.VisualBasic'; "
+            f"[Microsoft.VisualBasic.Interaction]::InputBox("
+            f"'Joints: {joints_str}`n`nWaypoint name:', 'Save Waypoint', '')"
+        )
+        result = subprocess.run(
+            ["powershell.exe", "-Command", ps_cmd],
+            capture_output=True, text=True,
+        )
+        name = result.stdout.strip()
+        return name if name else None
+
+    # Non-WSL (Windows or Linux with display): try tkinter
+    try:
+        import tkinter as tk
+        from tkinter import simpledialog
+        root = tk.Tk()
+        root.withdraw()
+        root.lift()
+        root.attributes("-topmost", True)
+        name = simpledialog.askstring(
+            "Save Waypoint",
+            f"Joints: {joints_str}\n\nWaypoint name:",
+            parent=root,
+        )
+        root.destroy()
+        return name.strip() if name else None
+    except Exception as e:
+        print(f"[WARN] Dialog failed ({e}). Pass --name explicitly.")
+        return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Save current robot joint position to path_config.yaml")
-    parser.add_argument("--name", default=None, help="Waypoint name (e.g. transport_j7_0) — prompted if not given")
+    parser.add_argument("--name", default=None, help="Waypoint name — tkinter dialog shown if omitted")
     parser.add_argument("--robodk-ip", default="localhost", help="RoboDK host (default: localhost)")
     parser.add_argument("--print-only", action="store_true",
                         help="Print joints without writing to path_config.yaml")
@@ -94,7 +137,7 @@ def main():
     print(f"Joints: {format_joints(joints)}")
 
     if args.name is None:
-        args.name = input("\nWaypoint name: ").strip()
+        args.name = ask_name_dialog(format_joints(joints))
         if not args.name:
             print("No name given — exiting.")
             sys.exit(1)

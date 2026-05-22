@@ -62,21 +62,45 @@ def test_routing_candidates_have_joints(config):
 
 
 def test_all_waypoints_have_joints(config):
-    """Every waypoint in path_config.yaml must have joints: — no Cartesian-only entries.
+    """Every waypoint in path_config.yaml must be resolvable to joint values.
 
-    If a waypoint doesn't have joints yet, capture them with:
-        python robodk_code/save_joint_position.py --robodk-ip 172.23.208.1
+    Valid forms:
+      - joints: [...]              explicit joint list (human-validated)
+      - target: "RoboDKName"       resolved by check_collision_free_paths.py at plan time
+      - x/y/z + tool_name: "..."  Cartesian pose — tool_name required so IK can be computed
+
+    Cartesian pose WITHOUT tool_name is rejected: we cannot compute joints without
+    knowing which tool is mounted (affects TCP offset).
     """
     waypoints = config.get("waypoints", {})
-    missing = [
-        name for name, wp in waypoints.items()
-        if not isinstance(wp, dict) or wp.get("joints") is None
-    ]
-    assert not missing, (
-        "These waypoints in path_config.yaml are missing joints:\n  "
-        + "\n  ".join(missing)
-        + "\n\nCapture with: python robodk_code/save_joint_position.py --robodk-ip 172.23.208.1"
-    )
+    errors = []
+
+    for name, wp in waypoints.items():
+        if not isinstance(wp, dict):
+            errors.append(f"{name}: not a mapping")
+            continue
+
+        has_joints = isinstance(wp.get("joints"), list)
+        has_target = wp.get("target") is not None
+        has_cartesian = any(k in wp for k in ("x", "y", "z"))
+        has_tool_name = wp.get("tool_name") is not None
+
+        if has_joints or has_target:
+            continue  # valid
+
+        if has_cartesian and not has_tool_name:
+            errors.append(
+                f"{name}: has Cartesian pose (x/y/z) but no tool_name — "
+                "cannot compute joints without knowing the tool. "
+                "Add tool_name: or capture joints with save_joint_position.py"
+            )
+        elif not has_cartesian:
+            errors.append(
+                f"{name}: no joints:, target:, or x/y/z pose — waypoint is incomplete. "
+                "Capture joints with: python robodk_code/save_joint_position.py --robodk-ip 172.23.208.1"
+            )
+
+    assert not errors, "Waypoint validation errors in path_config.yaml:\n  " + "\n  ".join(errors)
 
 
 def test_routing_candidates_defined(config):
