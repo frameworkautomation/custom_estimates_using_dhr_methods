@@ -81,7 +81,7 @@ def append_waypoint(name, joints):
 
 def main():
     parser = argparse.ArgumentParser(description="Save current robot joint position to path_config.yaml")
-    parser.add_argument("--name", required=True, help="Waypoint name (e.g. transport_j7_0)")
+    parser.add_argument("--name", default=None, help="Waypoint name (e.g. transport_j7_0) — prompted if not given")
     parser.add_argument("--robodk-ip", default="localhost", help="RoboDK host (default: localhost)")
     parser.add_argument("--print-only", action="store_true",
                         help="Print joints without writing to path_config.yaml")
@@ -92,6 +92,12 @@ def main():
 
     print(f"\nRobot: {robot.Name()}")
     print(f"Joints: {format_joints(joints)}")
+
+    if args.name is None:
+        args.name = input("\nWaypoint name: ").strip()
+        if not args.name:
+            print("No name given — exiting.")
+            sys.exit(1)
 
     if args.print_only:
         print(f"\n# Add to path_config.yaml manually:")

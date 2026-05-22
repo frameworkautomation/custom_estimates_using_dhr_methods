@@ -588,6 +588,44 @@ paths may collide differently.
 
 - Phases 4–6: NOT STARTED
 
+## ── Cartesian waypoints → joint poses ────────────────────────────────────────
+
+GH exports Cartesian poses (world coords) in `all_waypoints.yaml`. For path
+planning, `path_config.yaml` needs joint values. Three options:
+
+**Option A — `target:` key in path_config.yaml (recommended for cone grabs)**
+`check_collision_free_paths.py` already supports `target: "waypoint_name"` — it
+resolves the named RoboDK target to joints via SolveIK at plan-creation time.
+Since `import_waypoints_to_robodk.py` already creates RoboDK Targets from the
+YAML, reference them directly. No extra step needed.
+```yaml
+waypoints:
+  base_cone_grab_0:
+    target: "base_cone_grab_0"   # resolved to joints by check_collision_free_paths.py
+```
+
+**Option B — Batch IK solve script (not yet built)**
+Script reads `all_waypoints.yaml`, solves IK for every world-coord waypoint using
+OptimAxes (j7 constrained to zone X-position), writes joint values back. Good for
+automating many targets. Risk: wrong IK solution for some poses; needs seed joints
+per zone. Build this when Option A proves insufficient.
+
+**Option C — Jog-and-save in RoboDK (recommended for routing candidates)**
+1. `import_waypoints_to_robodk.py` to see Cartesian targets in station
+2. "Move to Target" in RoboDK GUI to drive robot there
+3. `python robodk_code/save_joint_position.py --robodk-ip 172.23.208.1` — prompts
+   for a name, appends joint values to `path_config.yaml`
+4. Add name to `routing_candidates:` in path_config.yaml
+
+Use Option C for transport/curtain-safe routing candidates (few in number, arm
+configuration needs human sign-off). Use Option A for the many cone grab targets.
+
+**Euler angle convention — IMPORTANT**
+GH scripts extract ZYX Euler angles: R = Rz * Ry * Rx (rotate X first, Z last).
+RoboDK's `TxyzRxyz_2_Pose` uses the opposite order (Rx * Ry * Rz). Always build
+RoboDK Mat directly from the Rz*Ry*Rx formula — see `build_pose()` in
+`import_waypoints_to_robodk.py` for the reference implementation.
+
 ## ── PRIORITY #1 (as of 2026-05-21) ──────────────────────────────────────────
 
 **Goal:** Validate our Dijkstra path planning cycle for our end effector.
