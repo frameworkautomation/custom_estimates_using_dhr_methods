@@ -167,6 +167,16 @@ Still exists in `robodk_code/test_reach_base_cone.py` and is imported by
 `moving_a_cone.py` and `check_base_cone_reachability.py` no longer use it for IK
 (they still import `fmt_joints` from that file).
 
+## ── TODO (low priority) ───────────────────────────────────────────────────────
+
+- **[LOW] Move GhPython scripts** — currently in `ai_generated_grasshopper_python/`.
+  Move to a cleaner location once workflow stabilises. Don't move until explicitly requested.
+
+- **[LOW] `save_joint_position.py` — series variant** — after single-point tool is tested,
+  add a variant that accepts N waypoint names in sequence, lets user jog to each in RoboDK,
+  and automatically creates bidirectional edges between consecutive points in `path_config.yaml`.
+  Same `source: human` tag.
+
 ## Sub-optimal / known limitations (not blocking, but worth fixing later)
 
 ### `check_base_cone_reachability.py` approach-pose coupling
@@ -587,6 +597,62 @@ paths may collide differently.
     check that robot_local frame offset (base_origin) is applied correctly**
 
 - Phases 4–6: NOT STARTED
+
+## ── RULE: joints must always be present ──────────────────────────────────────
+
+**Every waypoint in `path_config.yaml` must have an explicit `joints:` list.**
+Never use Cartesian-only (`target:`, `x/y/z`) waypoints for routing — joint values
+must be validated by a human and committed. This is enforced by `tests/test_path_config.py`
+which will fail CI if any waypoint is missing `joints:`.
+
+Use `save_joint_position.py` to capture joints from RoboDK:
+```bash
+python robodk_code/save_joint_position.py --robodk-ip 172.23.208.1
+# prompts for a name, appends to path_config.yaml with source: human
+```
+
+**path_config.yaml is committed** (gitignore exception). Commit it every time you
+add or modify a waypoint.
+
+## ── `source` field in waypoint YAMLs ─────────────────────────────────────────
+
+Every waypoint entry in `all_waypoints.yaml` / `base_cone_waypoints.yaml` /
+`machine_cone_waypoints.yaml` has a `source:` field:
+- `source: grasshopper` — exported by a GhPython component automatically
+- `source: human` — captured via `save_joint_position.py`
+
+This makes it auditable which waypoints were validated by a human.
+
+## ── RoboDK IK API ────────────────────────────────────────────────────────────
+
+**`robot.SolveIK(pose, joints_approx=seed)`**
+Returns the single IK solution closest to `seed` in joint space. Use this when
+you want to seed toward a known good arm configuration for a zone. `joints_approx`
+bakes in the j7 position too.
+
+**`robot.SolveIK_All(pose)`**
+Returns all discrete IK solutions as a 2D matrix `[N_joints × N_solutions]`.
+For a 6-DOF arm there are up to 8 discrete solutions (shoulder/elbow/wrist
+combinations). **Important:** for a 7-DOF robot (6+rail), j7 is a continuous
+redundancy — `SolveIK_All` returns the 8 arm solutions at the CURRENT j7 position.
+It does NOT explore the j7 manifold. To cover the full solution space you would
+need to sample j7 positions and call `SolveIK_All` at each — effectively 8 × N_j7.
+This is why seeded IK (`SolveIK` with `joints_approx` fixing j7) is preferred.
+
+**`robot.JointsConfig(joints)`**
+For any joint solution, returns configuration flags `[REAR, LOWERARM, FLIP]`:
+- `REAR`: 1=rear, 0=front (shoulder side)
+- `LOWERARM`: 1=lower, 0=upper (elbow direction)
+- `FLIP`: 1=flip, 0=non-flip (wrist)
+
+Use to filter solutions for a specific arm configuration:
+```python
+all_sols = robot.SolveIK_All(pose)
+for j in all_sols:
+    cfg = robot.JointsConfig(j).list()
+    if cfg[0] == 0 and cfg[1] == 0:  # front, elbow up
+        joints = j; break
+```
 
 ## ── Cartesian waypoints → joint poses ────────────────────────────────────────
 

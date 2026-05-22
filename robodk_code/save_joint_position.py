@@ -64,7 +64,7 @@ def append_waypoint(name, joints):
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
-    entry = f"\n  {name}:\n    joints: {format_joints(joints)}\n"
+    entry = f"\n  {name}:\n    joints: {format_joints(joints)}\n    source: human\n"
 
     # Insert after the `waypoints:` section header (before routing_candidates)
     if "routing_candidates:" in content:

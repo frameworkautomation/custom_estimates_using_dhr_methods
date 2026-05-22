@@ -156,6 +156,7 @@ def write_waypoints_yaml(waypoints, edges, path):
         lines.append(f"    frame: world")
         lines.append(f"    move_type: {w['move_type']}")
         lines.append(f"    j7: null")
+        lines.append(f"    source: grasshopper")
         if w.get('note'):
             lines.append(f"    note: \"{w['note']}\"")
     lines.append("")

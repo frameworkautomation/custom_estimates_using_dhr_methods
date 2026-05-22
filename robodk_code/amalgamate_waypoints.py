@@ -43,6 +43,7 @@ def write_yaml(waypoints, edges, path):
         lines.append(f"    move_type: {w.get('move_type', 'MoveJ')}")
         j7 = w.get('j7')
         lines.append(f"    j7: {j7 if j7 is not None else 'null'}")
+        lines.append(f"    source: {w.get('source', 'unknown')}")
         if w.get('note'):
             lines.append(f"    note: \"{w['note']}\"")
     lines.append("")
