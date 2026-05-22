@@ -177,7 +177,11 @@ def main():
     station = RDK.ActiveStation()
 
     # ── Robot base pose (needed for robot_local frames) ───────────────────────
-    robot_base_pose = robot.PoseFrame()
+    # PoseAbs() gives the world-space pose of the robot base at its current
+    # rail position. Base cones are robot-local at j7=0, so make sure j7=0
+    # before running this script (or the offset will be wrong).
+    robot_base_pose = robot.PoseAbs()
+    print(f"  Robot base (world): {robot_base_pose.Pos()}")
 
     # ── Resolve / create parent frame ─────────────────────────────────────────
     parent_frame = RDK.Item(args.parent_name, ITEM_TYPE_FRAME)
