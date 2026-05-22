@@ -206,6 +206,7 @@ def main():
                 replaced += 1
 
             target = RDK.AddTarget(name, parent_frame, robot)
+            target.setAsCartesianTarget()
             target.setPose(world_pose)
 
             # Colour by move type (best-effort — not all RoboDK versions expose setColor on targets)
