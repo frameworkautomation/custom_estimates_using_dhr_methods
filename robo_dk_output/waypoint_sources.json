@@ -1,0 +1,7 @@
+{
+  "sources": [
+    "robo_dk_output/base_cone_waypoints.yaml",
+    "robo_dk_output/machine_cone_waypoints.yaml"
+  ],
+  "output": "robo_dk_output/all_waypoints.yaml"
+}

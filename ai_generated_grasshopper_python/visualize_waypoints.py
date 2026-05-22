@@ -1,7 +1,10 @@
 # GhPython component (Rhino 8 / CPython 3)
 #
-# Reads base_cone_waypoints.yaml and displays every waypoint as a Plane and
-# every edge (connection between waypoints) as a Line in Grasshopper.
+# Reads all_waypoints.yaml (the amalgamated file produced by amalgamate_waypoints.py)
+# and displays every waypoint as a Plane and every edge as a Line in Grasshopper.
+#
+# Which file to read is determined by robo_dk_output/waypoint_sources.json ("output" key).
+# To add more source YAMLs, edit waypoint_sources.json and re-run amalgamate_waypoints.py.
 #
 # ── What is a waypoint? ───────────────────────────────────────────────────────
 # A waypoint is a named robot pose (position + orientation) stored in the YAML.
@@ -55,10 +58,15 @@
 #                   grey = untested, green = clear, red = collision.
 
 import math
+import json
 import Rhino.Geometry as rg
 
-# ── YAML path (no input needed — always reads from the repo output folder) ────
-_YAML_PATH = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
+# ── Resolve YAML path from waypoint_sources.json ─────────────────────────────
+_REPO_ROOT = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+_CONFIG_PATH = _REPO_ROOT + r"\robo_dk_output\waypoint_sources.json"
+with open(_CONFIG_PATH, "r") as _cfg:
+    _sources_config = json.load(_cfg)
+_YAML_PATH = _REPO_ROOT + "\\" + _sources_config["output"].replace("/", "\\")
 
 # ── Initialise all outputs so GH never sees an unbound name ──────────────────
 planes        = []
