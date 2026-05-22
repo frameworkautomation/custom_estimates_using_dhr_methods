@@ -28,7 +28,7 @@ REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file
 
 # ── RoboDK imports ─────────────────────────────────────────────────────────────
 from robodk.robolink import Robolink, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET, ITEM_TYPE_ROBOT
-from robodk.robomath import TxyzRxyz_2_Pose
+from robodk.robomath import Mat
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
 ROBOT_NAME     = "Fanuc R2000iC 125L"
@@ -109,12 +109,25 @@ def parse_waypoints_yaml(path):
 # ── POSE BUILDER ───────────────────────────────────────────────────────────────
 
 def build_pose(wp):
-    """Return a RoboDK Mat for the waypoint (x/y/z in mm, rx/ry/rz in degrees)."""
-    return TxyzRxyz_2_Pose([
-        wp["x"], wp["y"], wp["z"],
-        math.radians(wp["rx"]),
-        math.radians(wp["ry"]),
-        math.radians(wp["rz"]),
+    """Return a RoboDK Mat for the waypoint (x/y/z in mm, rx/ry/rz in degrees).
+
+    The GH scripts extract ZYX Euler angles: R = Rz * Ry * Rx.
+    TxyzRxyz_2_Pose uses the opposite order (Rx * Ry * Rz), so we build
+    the matrix directly instead.
+    """
+    x, y, z = wp["x"], wp["y"], wp["z"]
+    rx = math.radians(wp["rx"])
+    ry = math.radians(wp["ry"])
+    rz = math.radians(wp["rz"])
+    cx, sx = math.cos(rx), math.sin(rx)
+    cy, sy = math.cos(ry), math.sin(ry)
+    cz, sz = math.cos(rz), math.sin(rz)
+    # R = Rz * Ry * Rx
+    return Mat([
+        [cy*cz,  cz*sx*sy - cx*sz,  cx*cz*sy + sx*sz,  x],
+        [cy*sz,  cx*cz + sx*sy*sz,  cx*sy*sz - cz*sx,  y],
+        [-sy,    cy*sx,             cx*cy,              z],
+        [0,      0,                 0,                  1],
     ])
 
 
