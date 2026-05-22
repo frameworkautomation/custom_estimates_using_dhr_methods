@@ -1,8 +1,9 @@
 """
 import_waypoints_to_robodk.py
 
-Reads a waypoints YAML file and imports every waypoint as a RoboDK Target
-into the live RoboDK station.  Run with RoboDK open.
+Reads the amalgamated all_waypoints.yaml (produced by amalgamate_waypoints.py)
+and imports every waypoint as a RoboDK Target into the live RoboDK station.
+Run with RoboDK open.
 
 Usage:
     python robodk_code/import_waypoints_to_robodk.py
@@ -10,15 +11,13 @@ Usage:
     python robodk_code/import_waypoints_to_robodk.py --yaml robo_dk_output/machine_cone_waypoints.yaml
     python robodk_code/import_waypoints_to_robodk.py --robodk-ip 172.23.208.1
 
-YAML format note:
-    The waypoints YAML uses a non-standard inline format where multiple keys
-    appear on a single line (e.g. "x: 0.0  y: 0.0  z: 500.0").  PyYAML
-    treats that as a plain string, not a mapping.  This script parses the
-    file as raw text instead of via yaml.safe_load.
+Default YAML is read from robo_dk_output/waypoint_sources.json ("output" key).
+Run amalgamate_waypoints.py first to generate all_waypoints.yaml.
 """
 
 import sys
 import os
+import json
 import re
 import math
 import argparse
@@ -32,10 +31,20 @@ from robodk.robolink import Robolink, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET, ITEM_TY
 from robodk.robomath import TxyzRxyz_2_Pose
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
-ROBOT_NAME         = "Fanuc R2000iC 125L"
-DEFAULT_YAML       = os.path.join(REPO_ROOT, "robo_dk_output", "base_cone_waypoints.yaml")
-DEFAULT_PARENT     = "WaypointTargets"
-DEFAULT_IP         = "localhost"
+ROBOT_NAME     = "Fanuc R2000iC 125L"
+DEFAULT_PARENT = "WaypointTargets"
+DEFAULT_IP     = "localhost"
+
+def _default_yaml():
+    config_path = os.path.join(REPO_ROOT, "robo_dk_output", "waypoint_sources.json")
+    if os.path.exists(config_path):
+        with open(config_path) as f:
+            cfg = json.load(f)
+        rel = cfg.get("output", "robo_dk_output/all_waypoints.yaml")
+        return os.path.join(REPO_ROOT, rel.replace("/", os.sep))
+    return os.path.join(REPO_ROOT, "robo_dk_output", "all_waypoints.yaml")
+
+DEFAULT_YAML = _default_yaml()
 
 # Target colours (R, G, B) — RoboDK uses 0-255 per channel packed as 0xRRGGBB
 COLOR_MOVEJ = 0x4444FF   # blue
@@ -43,159 +52,56 @@ COLOR_MOVEL = 0x44BB44   # green
 COLOR_OTHER = 0xAAAAAA   # grey
 
 
-# ── RAW-TEXT YAML PARSER ───────────────────────────────────────────────────────
-
-def _kv_pairs(line):
-    """Return dict of all key: value tokens found on a single line."""
-    return {k: v for k, v in re.findall(r'(\w+):\s*([-\d.eE+]+)', line)}
-
-
-def _str_value(line, key):
-    """Return the string value after 'key:' on a line, stripped of quotes/whitespace."""
-    m = re.search(rf'{key}:\s*([^\s#][^\n]*)', line)
-    if not m:
-        return None
-    return m.group(1).strip().strip('"').strip("'")
-
+# ── YAML PARSER ────────────────────────────────────────────────────────────────
 
 def parse_waypoints_yaml(path):
     """
-    Parse the non-standard waypoints YAML by reading raw text lines.
+    Parse the waypoints YAML using PyYAML.
 
     Returns:
         waypoints : list of dicts with keys:
                       name, x, y, z, rx, ry, rz, frame, move_type, j7, note
         edges     : list of dicts with keys: from_name, to_name, tested
     """
+    try:
+        import yaml
+    except ImportError:
+        raise ImportError("PyYAML not found. Install with: pip install pyyaml")
+
     with open(path, "r", encoding="utf-8") as fh:
-        lines = fh.readlines()
+        data = yaml.safe_load(fh)
 
     waypoints = []
+    for wp in (data.get("waypoints") or []):
+        if not isinstance(wp, dict):
+            continue
+        j7_raw = wp.get("j7")
+        waypoints.append({
+            "name":      str(wp.get("name", "")),
+            "x":         float(wp.get("x", 0.0)),
+            "y":         float(wp.get("y", 0.0)),
+            "z":         float(wp.get("z", 0.0)),
+            "rx":        float(wp.get("rx", 0.0)),
+            "ry":        float(wp.get("ry", 0.0)),
+            "rz":        float(wp.get("rz", 0.0)),
+            "frame":     str(wp.get("frame", "world")),
+            "move_type": str(wp.get("move_type", "MoveJ")),
+            "j7":        float(j7_raw) if j7_raw is not None else None,
+            "note":      str(wp.get("note", "")),
+        })
+
     edges = []
-
-    # ── state machine ──────────────────────────────────────────────────────────
-    in_waypoints = False
-    in_edges     = False
-    current_wp   = None
-    current_edge = None
-
-    def flush_wp():
-        if current_wp and current_wp.get("name"):
-            waypoints.append(current_wp)
-
-    def flush_edge():
-        if current_edge and current_edge.get("from_name") and current_edge.get("to_name"):
-            edges.append(current_edge)
-
-    for raw in lines:
-        line = raw.rstrip("\n")
-        stripped = line.strip()
-
-        # Skip blank lines and comments
-        if not stripped or stripped.startswith("#"):
+    for e in (data.get("edges") or []):
+        if not isinstance(e, dict):
             continue
-
-        # Section headers
-        if re.match(r'^waypoints\s*:', line):
-            in_waypoints = True
-            in_edges     = False
-            continue
-
-        if re.match(r'^edges\s*:', line):
-            flush_wp()
-            current_wp = None
-            in_waypoints = False
-            in_edges     = True
-            continue
-
-        # ── Waypoints section ──────────────────────────────────────────────────
-        if in_waypoints:
-            # Start of a new waypoint entry
-            m = re.match(r'\s*-\s*name:\s*(.+)', line)
-            if m:
-                flush_wp()
-                current_wp = {
-                    "name": m.group(1).strip().strip('"').strip("'"),
-                    "x": 0.0, "y": 0.0, "z": 0.0,
-                    "rx": 0.0, "ry": 0.0, "rz": 0.0,
-                    "frame": "world",
-                    "move_type": "MoveJ",
-                    "j7": 0.0,
-                    "note": "",
-                }
-                continue
-
-            if current_wp is None:
-                continue
-
-            # Position line: x: ... y: ... z: ...
-            if re.search(r'\bx\s*:', line) and re.search(r'\by\s*:', line) and re.search(r'\bz\s*:', line):
-                kv = _kv_pairs(line)
-                if "x" in kv:
-                    current_wp["x"] = float(kv["x"])
-                if "y" in kv:
-                    current_wp["y"] = float(kv["y"])
-                if "z" in kv:
-                    current_wp["z"] = float(kv["z"])
-                continue
-
-            # Rotation line: rx: ... ry: ... rz: ...
-            if re.search(r'\brx\s*:', line) and re.search(r'\bry\s*:', line) and re.search(r'\brz\s*:', line):
-                kv = _kv_pairs(line)
-                if "rx" in kv:
-                    current_wp["rx"] = float(kv["rx"])
-                if "ry" in kv:
-                    current_wp["ry"] = float(kv["ry"])
-                if "rz" in kv:
-                    current_wp["rz"] = float(kv["rz"])
-                continue
-
-            # Scalar fields on their own lines
-            for field in ("frame", "move_type", "note"):
-                m = re.match(rf'\s+{field}:\s*(.+)', line)
-                if m:
-                    current_wp[field] = m.group(1).strip().strip('"').strip("'")
-                    break
-
-            m = re.match(r'\s+j7:\s*([-\d.eE+]+)', line)
-            if m:
-                current_wp["j7"] = float(m.group(1))
-
-        # ── Edges section ─────────────────────────────────────────────────────
-        elif in_edges:
-            # Start of a new edge entry
-            m = re.match(r'\s*-\s*from:\s*(.+)', line)
-            if m:
-                flush_edge()
-                current_edge = {
-                    "from_name": m.group(1).strip().strip('"').strip("'"),
-                    "to_name":   None,
-                    "tested":    None,
-                }
-                continue
-
-            if current_edge is None:
-                continue
-
-            m = re.match(r'\s+to:\s*(.+)', line)
-            if m:
-                current_edge["to_name"] = m.group(1).strip().strip('"').strip("'")
-                continue
-
-            m = re.match(r'\s+tested:\s*(.+)', line)
-            if m:
-                val = m.group(1).strip()
-                if val.lower() in ("true", "yes"):
-                    current_edge["tested"] = True
-                elif val.lower() in ("false", "no"):
-                    current_edge["tested"] = False
-                else:
-                    current_edge["tested"] = None
-                continue
-
-    # Flush final entries
-    flush_wp()
-    flush_edge()
+        tested = e.get("tested")
+        if isinstance(tested, str):
+            tested = True if tested.lower() == "true" else (False if tested.lower() == "false" else None)
+        edges.append({
+            "from_name": str(e.get("from", "")),
+            "to_name":   str(e.get("to", "")),
+            "tested":    tested,
+        })
 
     return waypoints, edges
 
