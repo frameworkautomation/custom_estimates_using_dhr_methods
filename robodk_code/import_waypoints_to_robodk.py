@@ -176,14 +176,6 @@ def main():
 
     station = RDK.ActiveStation()
 
-    # ── Robot base translation (needed for robot_local frames) ────────────────
-    # robot_local coords are Rhino-world minus base_origin (a plain XYZ offset).
-    # We only need the translation of the robot base in RoboDK world space —
-    # NOT the full matrix multiply, which would wrongly rotate the orientations.
-    from robodk.robomath import transl
-    _rb_pos = robot.PoseAbs().Pos()
-    robot_base_transl = transl(_rb_pos[0], _rb_pos[1], _rb_pos[2])
-    print(f"  Robot base XYZ (world): {_rb_pos}")
 
     # ── Resolve / create parent frame ─────────────────────────────────────────
     parent_frame = RDK.Item(args.parent_name, ITEM_TYPE_FRAME)
@@ -203,12 +195,9 @@ def main():
         try:
             local_pose = build_pose(wp)
 
-            if wp["frame"] == "robot_local":
-                # Offset position only — orientation stays as exported from GH
-                world_pose = robot_base_transl * local_pose
-            else:
-                # "world" or unrecognised — use as-is
-                world_pose = local_pose
+            # Use YAML coords directly as world coords — same as GH visualizer
+            # which applies no offset when base_origin is at world origin.
+            world_pose = local_pose
 
             # Delete existing target with the same name if present
             existing = RDK.Item(name, ITEM_TYPE_TARGET)
