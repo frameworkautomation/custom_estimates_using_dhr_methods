@@ -16,3 +16,6 @@ ik_solutions/
 *.sh.bak
 Miniconda*.sh
 tests/__pycache__/
+
+waypoint_viewer/node_modules/
+waypoint_viewer/dist/
