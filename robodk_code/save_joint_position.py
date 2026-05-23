@@ -50,20 +50,20 @@ def format_joints(joints):
 
 
 def get_fk_pose(rdk, robot):
-    """Return (x, y, z, rx, ry, rz) of current TCP in world frame.
+    """Return (x, y, z, rx, ry, rz) of current TCP in robot-local frame.
 
-    Uses ZYX Euler convention (R = Rz * Ry * Rx) to match build_pose() and
-    the visualizer. Temporarily sets the robot reference frame to World so the
-    result is in world space regardless of whatever frame is active.
+    Uses robot.SolveFK() which returns TCP relative to the robot base frame —
+    the same coordinate convention as Grasshopper-exported robot_local waypoints
+    (relative to robot base at j7=0).
+
+    NOTE: for j7 != 0, SolveFK still gives coords relative to the robot's fixed
+    base (not shifted by the rail), so this is consistent with robot_local at any
+    j7 position as long as the rail axis is accounted for in the GH export.
     """
     import math
-    from robodk.robolink import ITEM_TYPE_FRAME
 
-    world_frame = rdk.Item("World", ITEM_TYPE_FRAME)
-    original_frame = robot.PoseFrame()
-    robot.setPoseFrame(world_frame)
-    pose = robot.Pose()
-    robot.setPoseFrame(original_frame)
+    joints = robot.Joints().list()
+    pose = robot.SolveFK(joints)  # TCP relative to robot base frame
 
     x = pose[0, 3]
     y = pose[1, 3]
@@ -121,7 +121,7 @@ def append_waypoint(name, joints, pose=None):
             f"    rx: {rx}",
             f"    ry: {ry}",
             f"    rz: {rz}",
-            f"    frame: world",
+            f"    frame: robot_local",
             f"    move_type: MoveJ",
         ]
     lines += [
@@ -281,7 +281,7 @@ def main():
         print(f"    rx: {rx}")
         print(f"    ry: {ry}")
         print(f"    rz: {rz}")
-        print(f"    frame: world")
+        print(f"    frame: robot_local")
         print(f"    move_type: MoveJ")
         print(f"    joints: {format_joints(joints)}")
         return

@@ -463,32 +463,8 @@ waypoints:
     j7: null
     source: grasshopper
 
-  transport:
-    x: 1844.333
-    y: -25.0
-    z: 1979.746
-    rx: 77.3747
-    ry: 44.2989
-    rz: -98.891
-    frame: world
-    move_type: MoveJ
-    joints: [0.0000, -56.0000, -9.0000, -0.0000, 0.0000, 0.0000, 0.0000]
-    source: human
-
-  home:
-    x: 2311.369
-    y: 0.0
-    z: 1300.0
-    rx: 90.0
-    ry: 45.0
-    rz: -90.0
-    frame: world
-    move_type: MoveJ
-    joints: [0.0000, 0.0000, 0.0000, 0.0000, -0.0000, 0.0000]
-    source: human
 routing_candidates:
   - home
-  - transport
 
 # Destination cone groups. Human-defined by machine/zone.
 # cones: list of RoboDK target names (cone_grab_* items in station)
