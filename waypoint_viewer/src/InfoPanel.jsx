@@ -1,6 +1,6 @@
 import React from 'react'
 
-const STATUS_COLORS = { true: '#44bb44', false: '#ff4444', null: '#888' }
+const STATUS_COLORS = { 'true': '#44bb44', 'false': '#ff4444', 'null': '#888' }
 
 function statusStr(tested) {
   return tested === null ? 'null' : String(tested)
