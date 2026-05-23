@@ -775,9 +775,41 @@ their YAML data (frame positions) as input to our own tools.
 4. If viable: proceed to full cone-move test end-to-end
 5. If not viable: identify which edges fail and add intermediate waypoints
 
-## ── RESUME POINT (left off 2026-05-21) ──────────────────────────────────────
+## ── RESUME POINT (left off 2026-05-22) ──────────────────────────────────────
 
 **Branch:** `collision_free_path_planning` (branched from `determining_how_position_gripper`)
+
+**Active work: waypoint 3D viewer (React + Three.js + FastAPI)**
+Plan: `docs/superpowers/plans/2026-05-22-waypoint-viewer.md`
+To resume: say "resume the viewer build" — pick up at Task 4.
+
+| Task | Status |
+|------|--------|
+| 1 — FastAPI backend (`robodk_code/waypoint_server.py` + tests) | ✅ done |
+| 2 — React scaffold (`waypoint_viewer/` package.json, vite, api.js) | ✅ done |
+| 3 — 3D scene components (Scene, Waypoint, Edges) | ✅ done |
+| 4 — InfoPanel + full App.jsx wiring | pending |
+| 5 — FilterBar | pending |
+| 6 — Production build + final commit/push | pending |
+
+**Run the viewer (once all tasks done):**
+```bash
+# Terminal 1 — FastAPI:
+source /home/samst/miniconda3/etc/profile.d/conda.sh && conda activate robodk_v1
+uvicorn robodk_code.waypoint_server:app --host 0.0.0.0 --port 8000 --reload
+# Terminal 2 — Vite dev server:
+cd waypoint_viewer && npm run dev
+# Open http://localhost:5173 in Windows browser
+```
+
+**Also done this session (2026-05-22):**
+- `save_joint_position.py` — now records FK pose (SolveFK, robot_local frame) alongside joints
+  so home/transport appear in the Grasshopper visualizer
+- `visualize_waypoints.py` — reads `path_config.yaml` directly (dict format), shows edges
+- `amalgamate_waypoints.py` — writes edges into `path_config.yaml` (no more all_waypoints.yaml)
+- `path_config.yaml` — home + transport re-recorded with robot_local FK poses
+
+**Previous branch:** `determining_how_position_gripper`
 
 **Status:** All code complete and pushed (32/32 tests passing). Pending: populating
 `path_config.yaml` with real waypoints and running the pipeline.
