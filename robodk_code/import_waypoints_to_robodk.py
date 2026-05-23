@@ -1,18 +1,17 @@
 """
 import_waypoints_to_robodk.py
 
-Reads the amalgamated all_waypoints.yaml (produced by amalgamate_waypoints.py)
-and imports every waypoint as a RoboDK Target into the live RoboDK station.
+Reads path_config.yaml (the single source of truth, populated by amalgamate_waypoints.py)
+and imports every Cartesian waypoint as a RoboDK Target into the live RoboDK station.
 Run with RoboDK open.
 
 Usage:
     python robodk_code/import_waypoints_to_robodk.py
     python robodk_code/import_waypoints_to_robodk.py --yaml robo_dk_output/base_cone_waypoints.yaml
-    python robodk_code/import_waypoints_to_robodk.py --yaml robo_dk_output/machine_cone_waypoints.yaml
     python robodk_code/import_waypoints_to_robodk.py --robodk-ip 172.23.208.1
 
-Default YAML is read from robo_dk_output/waypoint_sources.json ("output" key).
-Run amalgamate_waypoints.py first to generate all_waypoints.yaml.
+Default: reads robo_dk_output/path_config.yaml.
+Run amalgamate_waypoints.py first to populate it from the GH source files.
 """
 
 import sys
@@ -35,16 +34,7 @@ ROBOT_NAME     = "Fanuc R2000iC 125L"
 DEFAULT_PARENT = "WaypointTargets"
 DEFAULT_IP     = "localhost"
 
-def _default_yaml():
-    config_path = os.path.join(REPO_ROOT, "robo_dk_output", "waypoint_sources.json")
-    if os.path.exists(config_path):
-        with open(config_path) as f:
-            cfg = json.load(f)
-        rel = cfg.get("output", "robo_dk_output/all_waypoints.yaml")
-        return os.path.join(REPO_ROOT, rel.replace("/", os.sep))
-    return os.path.join(REPO_ROOT, "robo_dk_output", "all_waypoints.yaml")
-
-DEFAULT_YAML = _default_yaml()
+DEFAULT_YAML = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
 
 # Target colours (R, G, B) — RoboDK uses 0-255 per channel packed as 0xRRGGBB
 COLOR_MOVEJ = 0x4444FF   # blue
@@ -71,9 +61,19 @@ def parse_waypoints_yaml(path):
     with open(path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
 
+    # path_config.yaml stores waypoints as a dict (name → attrs); flatten to list
+    raw_wps = data.get("waypoints") or {}
+    if isinstance(raw_wps, dict):
+        wp_iter = [{"name": k, **v} for k, v in raw_wps.items() if isinstance(v, dict)]
+    else:
+        wp_iter = raw_wps  # source YAML files use list format
+
     waypoints = []
-    for wp in (data.get("waypoints") or []):
+    for wp in wp_iter:
         if not isinstance(wp, dict):
+            continue
+        # Skip joints-only entries (home, transport) — no Cartesian pose to import
+        if "x" not in wp and "y" not in wp and "z" not in wp:
             continue
         j7_raw = wp.get("j7")
         waypoints.append({

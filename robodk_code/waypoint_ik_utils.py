@@ -6,8 +6,8 @@ No RoboDK import — fully testable in the cone_planner conda env.
 """
 
 import math
-import json
 import os
+import re
 import yaml
 from collections import deque
 
@@ -89,61 +89,7 @@ def joint_distance(j1: list, j2: list) -> float:
 
 # ── YAML I/O ──────────────────────────────────────────────────────────────────
 
-def load_all_waypoints(yaml_path: str) -> tuple:
-    """Load all_waypoints.yaml. Returns (waypoints: list[dict], edges: list[dict])."""
-    with open(yaml_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return data.get("waypoints") or [], data.get("edges") or []
-
-
-def save_all_waypoints(yaml_path: str, waypoints: list, edges: list) -> None:
-    """Write waypoints and edges back to YAML in the project's line-by-line format."""
-    lines = ["waypoints:"]
-    for w in waypoints:
-        lines.append(f"  - name: {w['name']}")
-        for key in ("x", "y", "z", "rx", "ry", "rz"):
-            if key in w:
-                lines.append(f"    {key}: {w[key]}")
-        for key in ("frame", "move_type"):
-            if key in w:
-                lines.append(f"    {key}: {w[key]}")
-        if "j7" in w:
-            j7 = w["j7"]
-            lines.append(f"    j7: {'null' if j7 is None else j7}")
-        if "source" in w:
-            lines.append(f"    source: {w['source']}")
-        if "joints" in w:
-            joints_str = "[" + ", ".join(f"{j:.4f}" for j in w["joints"]) + "]"
-            lines.append(f"    joints: {joints_str}")
-        if "ik_collision_verified" in w:
-            lines.append(f"    ik_collision_verified: {str(w['ik_collision_verified']).lower()}")
-        if w.get("reachable") is False:
-            lines.append(f"    reachable: false")
-        if "note" in w:
-            lines.append(f"    note: \"{w['note']}\"")
-
-    lines.append("")
-    lines.append("edges:")
-    for e in edges:
-        lines.append(f"  - from: {e['from']}")
-        lines.append(f"    to:   {e['to']}")
-        tested = e.get("tested")
-        lines.append(f"    tested: {tested if tested is not None else 'null'}")
-
-    with open(yaml_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
-
-
 # ── Config loaders ────────────────────────────────────────────────────────────
-
-def resolve_output_yaml(repo_root: str) -> str:
-    """Read waypoint_sources.json and return absolute path to all_waypoints.yaml."""
-    config_path = os.path.join(repo_root, "robo_dk_output", "waypoint_sources.json")
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-    rel = config["output"].replace("/", os.sep)
-    return os.path.join(repo_root, rel)
-
 
 def load_path_config(path_config_path: str) -> tuple:
     """Load path_config.yaml. Returns (waypoints: list[dict], edges: list[dict]).

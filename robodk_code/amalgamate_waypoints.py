@@ -1,13 +1,10 @@
 """
 amalgamate_waypoints.py
 
-Merges multiple waypoint YAML files into a single all_waypoints.yaml.
-Source files and output path are read from robo_dk_output/waypoint_sources.json.
+Reads waypoint YAML source files and merges everything into path_config.yaml —
+the single source of truth for all waypoints and edges.
 
-Also updates path_config.yaml: any Cartesian waypoint (one with x/y/z) that is
-not already present in path_config.yaml's `waypoints:` section is appended there.
-This lets check_collision_free_paths.py see the GH-generated cone positions, and
-lets visualize_waypoints.py show them by reading a single file.
+Source files are listed in robo_dk_output/waypoint_sources.json ("sources" key).
 
 Usage:
     python robodk_code/amalgamate_waypoints.py
@@ -25,7 +22,7 @@ import json
 import sys
 
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "waypoint_sources.json")
+SOURCES_CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "waypoint_sources.json")
 PATH_CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
 
 try:
@@ -35,46 +32,15 @@ except ImportError:
     sys.exit(1)
 
 
-def write_yaml(waypoints, edges, path):
-    lines = ["waypoints:"]
-    for w in waypoints:
-        lines.append(f"  - name: {w['name']}")
-        lines.append(f"    x: {w.get('x', 0.0)}")
-        lines.append(f"    y: {w.get('y', 0.0)}")
-        lines.append(f"    z: {w.get('z', 0.0)}")
-        lines.append(f"    rx: {w.get('rx', 0.0)}")
-        lines.append(f"    ry: {w.get('ry', 0.0)}")
-        lines.append(f"    rz: {w.get('rz', 0.0)}")
-        lines.append(f"    frame: {w.get('frame', 'robot_local')}")
-        lines.append(f"    move_type: {w.get('move_type', 'MoveJ')}")
-        j7 = w.get('j7')
-        lines.append(f"    j7: {j7 if j7 is not None else 'null'}")
-        lines.append(f"    source: {w.get('source', 'unknown')}")
-        if w.get('note'):
-            lines.append(f"    note: \"{w['note']}\"")
-    lines.append("")
-    lines.append("edges:")
-    for e in edges:
-        lines.append(f"  - from: {e['from']}")
-        lines.append(f"    to:   {e['to']}")
-        tested = e.get('tested')
-        lines.append(f"    tested: {tested if tested is not None else 'null'}")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
-
-
 def main():
-    if not os.path.exists(CONFIG_PATH):
-        print(f"[ERROR] Config not found: {CONFIG_PATH}")
+    if not os.path.exists(SOURCES_CONFIG_PATH):
+        print(f"[ERROR] Config not found: {SOURCES_CONFIG_PATH}")
         sys.exit(1)
 
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    with open(SOURCES_CONFIG_PATH, "r", encoding="utf-8") as f:
         config = json.load(f)
 
     sources = config.get("sources", [])
-    output_rel = config.get("output", "robo_dk_output/all_waypoints.yaml")
-    output_path = os.path.join(REPO_ROOT, output_rel.replace("/", os.sep))
 
     all_waypoints = []
     all_edges = []
@@ -139,9 +105,7 @@ def main():
         if added_from_pc:
             print(f"[OK] path_config.yaml: {added_from_pc} human Cartesian waypoints")
 
-    write_yaml(all_waypoints, all_edges, output_path)
-    print(f"\n[OK] {len(all_waypoints)} total waypoints, {len(all_edges)} total edges -> {output_path}")
-
+    print(f"\n[OK] Collected {len(all_waypoints)} waypoints, {len(all_edges)} edges")
     _update_path_config(all_waypoints, all_edges)
 
 
