@@ -47,6 +47,11 @@ try:
 except NameError:
     string_approach_points = None
 
+try:
+    strings
+except NameError:
+    strings = None
+
 
 if yaml_path is None or yaml_path == "":
     yaml_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
@@ -282,6 +287,7 @@ diagnose_tree("grab_points",             grab_points)
 diagnose_tree("approach_points",         approach_points)
 diagnose_tree("string_grab_points",      string_grab_points)
 diagnose_tree("string_approach_points",  string_approach_points)
+diagnose_tree("strings",                 strings)
 diagnose_tree("bins",                    bins if 'bins' in dir() else None)
 print("=========================")
 
@@ -307,6 +313,16 @@ if 'bins' in dir() and bins is not None:
         flat = flatten_input(bins)
         for item in flat: bin_branches.append([item])
 
+string_branches = []
+if strings is not None:
+    if hasattr(strings, 'Branches') and len(strings.Branches) > 1:
+        for branch in strings.Branches:
+            items = [item for item in branch if item is not None]
+            if items: string_branches.append(items)
+    else:
+        flat = flatten_input(strings)
+        for item in flat: string_branches.append([item])
+
 cone_grab_planes_raw     = [resolve_plane(p) for p in flatten_input(grab_points)]
 cone_approach_planes_raw = [resolve_plane(p) for p in flatten_input(approach_points)] if approach_points is not None else []
 str_grab_planes_raw      = [resolve_plane(p) for p in flatten_input(string_grab_points)]
@@ -330,6 +346,7 @@ if trigger:
 
     os.makedirs("C:/temp/base_cones", exist_ok=True)
     os.makedirs("C:/temp/bins", exist_ok=True)
+    os.makedirs("C:/temp/base_strings", exist_ok=True)
 
     # Write STLs
     for i, branch_geos in enumerate(cone_branches):
@@ -344,6 +361,13 @@ if trigger:
         tris = build_and_write_stl(branch_geos, path)
         bin_stl_paths.append(path)
         print(f"  bin_{i}: {tris} triangles -> {path}")
+
+    string_stl_paths = []
+    for i, branch_geos in enumerate(string_branches):
+        path = f"C:/temp/base_strings/base_str_{i}.stl"
+        tris = build_and_write_stl(branch_geos, path)
+        string_stl_paths.append(path)
+        print(f"  base_str_{i}: {tris} triangles -> {path}")
 
     # Build output planes and YAML entries
     waypoints = []
@@ -433,9 +457,11 @@ if trigger:
             robot_base = None
             print("  RoboDK: robot base not found, objects will be at world level")
 
-        # Remove any previously imported base cone objects
+        # Remove any previously imported base cone / bin / string objects
         for item in RDK.ItemList(ITEM_TYPE_OBJECT):
-            if item.Name().startswith("base_cone_") or item.Name().startswith("bin_"):
+            if (item.Name().startswith("base_cone_") or
+                    item.Name().startswith("bin_") or
+                    item.Name().startswith("base_str_")):
                 item.Delete()
 
         def _import_stl(path, rgba):
@@ -456,6 +482,9 @@ if trigger:
 
         for path in bin_stl_paths:
             _import_stl(path, _bin_rgba)
+
+        for path in string_stl_paths:
+            _import_stl(path, _string_rgba)
 
         print("[OK] STLs imported into RoboDK")
     except Exception as e:

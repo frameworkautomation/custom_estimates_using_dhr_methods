@@ -40,7 +40,7 @@ sys.path.append("C:/RoboDK/Python")
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 sys.path.insert(0, REPO_ROOT)
 
-from robodk_code.waypoint_ik_utils import load_all_waypoints, resolve_output_yaml
+from robodk_code.waypoint_ik_utils import load_path_config
 
 PATH_CONFIG  = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
 OUTPUT_JSON  = os.path.join(REPO_ROOT, "robo_dk_output", "waypoint_collisions.json")
@@ -139,9 +139,8 @@ def main():
                         help="Print results but do not write JSON")
     args = parser.parse_args()
 
-    yaml_path = resolve_output_yaml(REPO_ROOT)
-    waypoints, _ = load_all_waypoints(yaml_path)
-    print(f"Loaded {len(waypoints)} waypoints from {yaml_path}")
+    waypoints, _ = load_path_config(PATH_CONFIG)
+    print(f"Loaded {len(waypoints)} waypoints from {PATH_CONFIG}")
 
     # Load existing results (skip already-checked unless --force)
     existing = {}
@@ -182,6 +181,13 @@ def main():
         cone_mesh = None
 
     always_exclude_items = []
+    # Auto-exclude all base_str_* items (string geometry — robot always approaches these)
+    from robodk.robolink import ITEM_TYPE_OBJECT
+    for item in rdk.ItemList(ITEM_TYPE_OBJECT):
+        if re.match(r"^base_str_\d+$", item.Name()):
+            always_exclude_items.append(item)
+            print(f"  [AUTO-EXCLUDE] {item.Name()} (string geometry)")
+    # Also exclude any items listed explicitly in path_config.yaml
     for name in always_excl_names:
         item = rdk.Item(name)
         if item.Valid():

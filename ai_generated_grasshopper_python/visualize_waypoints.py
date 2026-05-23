@@ -58,15 +58,11 @@
 #                   grey = untested, green = clear, red = collision.
 
 import math
-import json
 import Rhino.Geometry as rg
 
-# ── Resolve YAML path from waypoint_sources.json ─────────────────────────────
+# ── path_config.yaml is the single source of truth ───────────────────────────
 _REPO_ROOT = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
-_CONFIG_PATH = _REPO_ROOT + r"\robo_dk_output\waypoint_sources.json"
-with open(_CONFIG_PATH, "r") as _cfg:
-    _sources_config = json.load(_cfg)
-_YAML_PATH = _REPO_ROOT + "\\" + _sources_config["output"].replace("/", "\\")
+_YAML_PATH = _REPO_ROOT + r"\robo_dk_output\path_config.yaml"
 
 # ── Initialise all outputs so GH never sees an unbound name ──────────────────
 planes        = []
@@ -146,14 +142,22 @@ def _run():
         print("ERROR: YAML is empty or None")
         return
 
-    wp_list = data.get('waypoints') or []
+    # path_config.yaml stores waypoints as a dict (name → attrs), not a list
+    raw_wps = data.get('waypoints') or {}
+    if isinstance(raw_wps, dict):
+        wp_list = [{"name": k, **v} for k, v in raw_wps.items() if isinstance(v, dict)]
+    else:
+        wp_list = raw_wps  # fallback if already a list
     print(f"Waypoints in YAML: {len(wp_list)}")
     print(f"base_origin offset: ({_base_x}, {_base_y}, {_base_z})")
 
     name_to_pt = {}  # for edge endpoint lookup
 
-    for wp in (data.get('waypoints') or []):
+    for wp in wp_list:
         if not isinstance(wp, dict):
+            continue
+        # Skip joints-only waypoints (home, transport) — no Cartesian pose to draw
+        if 'x' not in wp and 'y' not in wp and 'z' not in wp:
             continue
         name      = str(wp.get('name', ''))
         move_type = str(wp.get('move_type', ''))

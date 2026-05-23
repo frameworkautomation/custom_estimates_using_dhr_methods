@@ -49,9 +49,8 @@ from robodk_code.waypoint_ik_utils import (
     build_pose,
     bfs_solve_order,
     joint_distance,
-    load_all_waypoints,
-    save_all_waypoints,
-    resolve_output_yaml,
+    load_path_config,
+    save_path_config_ik_results,
     load_home_joints,
 )
 
@@ -159,9 +158,9 @@ def main():
                         help="Re-solve waypoints that already have joints")
     args = parser.parse_args()
 
-    yaml_path = resolve_output_yaml(REPO_ROOT)
+    yaml_path = PATH_CONFIG
     print(f"Loading: {yaml_path}")
-    waypoints, edges = load_all_waypoints(yaml_path)
+    waypoints, edges = load_path_config(yaml_path)
 
     wp_by_name = {w["name"]: w for w in waypoints}
 
@@ -290,7 +289,7 @@ def main():
     print(f"  Already had joints:  {already_had}")
 
     if not args.dry_run:
-        save_all_waypoints(yaml_path, waypoints, edges)
+        save_path_config_ik_results(yaml_path, waypoints)
         print(f"\n[OK] Written to {yaml_path}")
     else:
         print("\n[DRY RUN] Not writing to YAML.")
