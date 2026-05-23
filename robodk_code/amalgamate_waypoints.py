@@ -116,6 +116,29 @@ def main():
 
         print(f"[OK] {src_rel}: {added_wp} waypoints, {added_edge} edges")
 
+    # Pull any Cartesian waypoints the user manually added to path_config.yaml
+    # (joints-only entries like home/transport are skipped — no pose to visualise)
+    if os.path.exists(PATH_CONFIG_PATH):
+        with open(PATH_CONFIG_PATH, "r", encoding="utf-8") as f:
+            pc = yaml.safe_load(f)
+        pc_wps = (pc or {}).get("waypoints") or {}
+        added_from_pc = 0
+        for name, attrs in pc_wps.items():
+            if name in seen_names or not isinstance(attrs, dict):
+                continue
+            if "x" not in attrs and "y" not in attrs and "z" not in attrs:
+                continue
+            wp = {"name": name}
+            for k in ("x", "y", "z", "rx", "ry", "rz", "frame", "move_type", "j7", "source"):
+                if k in attrs:
+                    wp[k] = attrs[k]
+            wp.setdefault("source", "human")
+            seen_names.add(name)
+            all_waypoints.append(wp)
+            added_from_pc += 1
+        if added_from_pc:
+            print(f"[OK] path_config.yaml: {added_from_pc} human Cartesian waypoints")
+
     write_yaml(all_waypoints, all_edges, output_path)
     print(f"\n[OK] {len(all_waypoints)} total waypoints, {len(all_edges)} total edges -> {output_path}")
 

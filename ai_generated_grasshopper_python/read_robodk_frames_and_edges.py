@@ -1,4 +1,4 @@
-# GhPython component (Rhino 8 / CPython 3): RoboDK DHR frames and edges
+# GhPython component (Rhino 8 / CPython 3): RoboDK frames and edges
 #
 # Replaces both read_frames_as_planes.py and read_edges_as_lines.py.
 #
