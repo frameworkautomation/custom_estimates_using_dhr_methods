@@ -15,10 +15,6 @@ cone_mesh_template: "base_cone_0"
 # Optional per-waypoint tool override:
 #   tool: "tool_name"                        — overrides default_tool at this waypoint
 waypoints:
-  home:
-    joints: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-  transport:
-    joints: [0.0, -55.0, 30.0, 0.0, -30.0, -90.0, 0.0]
   # Example target-based waypoint (uncomment and fill in):
   # curtain_safe_machine_1:
   #   target: "approach_machine_1_curtain_safe"
