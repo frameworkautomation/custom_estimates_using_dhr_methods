@@ -82,6 +82,73 @@ def append_waypoint(name, joints):
         f.write(content)
 
 
+def _report_collision_status(name, repo_root):
+    """Look up waypoint name in waypoint_collisions.json and report status.
+
+    Also writes collision_checked: true/false into the waypoint entry in
+    path_config.yaml if the JSON has data for this waypoint.
+    """
+    import json
+
+    collisions_path = os.path.join(repo_root, "robo_dk_output", "waypoint_collisions.json")
+
+    if not os.path.exists(collisions_path):
+        print("  Collision: not yet checked — run check_waypoint_collisions.py")
+        return
+
+    with open(collisions_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    waypoints = data.get("waypoints", {})
+    if name not in waypoints:
+        print("  Collision: not yet checked — run check_waypoint_collisions.py")
+        return
+
+    entry = waypoints[name]
+    collision = entry.get("collision", None)
+
+    if collision is False:
+        print("  Collision: CLEAR")
+        checked_value = "true"
+    elif collision is True:
+        colliding = entry.get("colliding_items", [])
+        print(f"  Collision: DETECTED — {colliding}")
+        checked_value = "false"
+    else:
+        print("  Collision: not yet checked — run check_waypoint_collisions.py")
+        return
+
+    # Write collision_checked field into the waypoint entry in path_config.yaml
+    config_path = os.path.join(repo_root, "robo_dk_output", "path_config.yaml")
+    if not os.path.exists(config_path):
+        return
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Find the waypoint block and insert collision_checked after the source: line.
+    # Pattern: the waypoint name followed (eventually) by "source: human" — insert after.
+    import re as _re
+    # Replace `source: human` within this waypoint's block (first occurrence after the name key)
+    marker = f"  {name}:\n"
+    name_pos = content.find(marker)
+    if name_pos == -1:
+        return  # waypoint block not found — don't corrupt the file
+
+    # Search for `source: human` starting from the waypoint name position
+    source_pattern = _re.compile(r"(    source: human\n)", _re.MULTILINE)
+    match = source_pattern.search(content, name_pos)
+    if match and "collision_checked:" not in content[name_pos:match.end() + 50]:
+        insert_pos = match.end()
+        content = (
+            content[:insert_pos]
+            + f"    collision_checked: {checked_value}\n"
+            + content[insert_pos:]
+        )
+        with open(config_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+
 def ask_name_dialog(joints_str):
     """Show a dialog to enter the waypoint name. Returns name or None if cancelled.
 
@@ -156,6 +223,7 @@ def main():
     append_waypoint(args.name, joints)
     print(f"\n[OK] Saved '{args.name}' to {CONFIG_PATH}")
     print(f"  Add '{args.name}' to routing_candidates: in path_config.yaml if needed.")
+    _report_collision_status(args.name, REPO_ROOT)
 
 
 if __name__ == "__main__":

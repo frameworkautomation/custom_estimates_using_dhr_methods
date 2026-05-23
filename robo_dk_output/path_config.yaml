@@ -50,6 +50,15 @@ destination_groups:
 collision_enable: []
 collision_disable: []
 
+# Items to ALWAYS exclude from static collision checks in check_waypoint_collisions.py.
+# Add RoboDK item names here for geometry that is always OK to be near —
+# typically yarn/string objects in the machine zone that the robot routinely passes through.
+# Example:
+#   collision_exclude_always:
+#     - YarnString_1
+#     - YarnString_2
+collision_exclude_always: []
+
 # ── DHR-style states blocks ────────────────────────────────────────────────────
 # Each RoboDK frame or target that needs custom motion behaviour gets a `states:`
 # array.  yaml_to_state_class.xq reads this (via JSON) and generates Python State
