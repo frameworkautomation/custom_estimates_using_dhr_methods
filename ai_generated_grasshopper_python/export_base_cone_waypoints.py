@@ -242,7 +242,8 @@ def write_waypoints_yaml(waypoints, edges, path):
         lines.append(f"    rz: {w['rz']}")
         lines.append(f"    frame: robot_local")
         lines.append(f"    move_type: {w['move_type']}")
-        lines.append(f"    j7: {w['j7']}")
+        j7_val = w.get('j7')
+        lines.append(f"    j7: {'null' if j7_val is None else j7_val}")
         lines.append(f"    source: grasshopper")
         if w.get('note'):
             lines.append(f"    note: \"{w['note']}\"")
@@ -363,9 +364,9 @@ if trigger:
         ax,ay,az,arx,ary,arz = plane_to_xyzrpw_robot_local(ap, base_orig)
 
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
-                          "move_type":"MoveJ","j7":0.0,"note":"cone approach"})
+                          "move_type":"MoveJ","j7":None,"note":"cone approach — robot-relative, j7 free (any rail position)"})
         waypoints.append({"name": grab_name,     "x":x, "y":y, "z":z, "rx":rx, "ry":ry, "rz":rz,
-                          "move_type":"MoveL","j7":0.0,"note":"cone grab"})
+                          "move_type":"MoveL","j7":None,"note":"cone grab — robot-relative, j7 free (any rail position)"})
 
         # Bidirectional edges — enter (approach→grab) and exit (grab→approach)
         edges.append({"from": approach_name, "to": grab_name})
@@ -390,9 +391,9 @@ if trigger:
         ax,ay,az,arx,ary,arz = plane_to_xyzrpw_robot_local(ap, base_orig)
 
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
-                          "move_type":"MoveJ","j7":0.0,"note":"string grab approach"})
+                          "move_type":"MoveJ","j7":None,"note":"string grab approach — robot-relative, j7 free"})
         waypoints.append({"name": grab_name,     "x":x, "y":y, "z":z, "rx":rx, "ry":ry, "rz":rz,
-                          "move_type":"MoveL","j7":0.0,"note":"string grab"})
+                          "move_type":"MoveL","j7":None,"note":"string grab — robot-relative, j7 free"})
 
         edges.append({"from": approach_name, "to": grab_name})
         edges.append({"from": grab_name,     "to": approach_name})

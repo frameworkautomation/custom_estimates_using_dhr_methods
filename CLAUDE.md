@@ -205,6 +205,27 @@ The custom LM solver calls `robot.setJoints(...)` on every iteration, causing
 the RoboDK GUI to redraw on every step. Wrap with `RDK.Render(False)` /
 `RDK.Render(True)` to suppress this (future work).
 
+## ── TODO: Hash tool shape + end effector geometry for collision integrity ─────
+
+Add a hash of the tool mesh geometry and all defined end-effector contact points
+(position + orientation relative to the tool frame) to `path_config.yaml` and to
+`path_plan.yaml`.
+
+**Why:** If the tool geometry changes (mesh swapped, resized, or contact point shifted)
+after `check_collision_free_paths.py` ran, `path_plan.yaml` is silently stale — edges
+marked collision-free were tested with a different tool shape. The hash would invalidate
+the plan and force a re-run, the same way the current `collision_critical` hash works
+for collision pair configuration.
+
+**What to do:**
+1. Compute a hash of the tool STL (or tool bounding box dimensions) + all contact-point
+   poses defined in path_config.yaml
+2. Include it in `collision_critical_data` in `check_collision_free_paths.py` alongside
+   the existing collision_enable/disable hash
+3. Ensure `path_plan.yaml` stores this hash and `moving_a_cone.py` checks it at startup
+
+Not blocking current work.
+
 ## ── TODO: Require explicit tool_name on routing candidates ───────────────────
 
 Every routing candidate in `path_config.yaml` should carry an explicit `tool_name:`
