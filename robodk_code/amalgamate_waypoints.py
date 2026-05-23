@@ -4,6 +4,11 @@ amalgamate_waypoints.py
 Merges multiple waypoint YAML files into a single all_waypoints.yaml.
 Source files and output path are read from robo_dk_output/waypoint_sources.json.
 
+Also updates path_config.yaml: any Cartesian waypoint (one with x/y/z) that is
+not already present in path_config.yaml's `waypoints:` section is appended there.
+This lets check_collision_free_paths.py see the GH-generated cone positions, and
+lets visualize_waypoints.py show them by reading a single file.
+
 Usage:
     python robodk_code/amalgamate_waypoints.py
 
@@ -21,6 +26,7 @@ import sys
 
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "waypoint_sources.json")
+PATH_CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
 
 try:
     import yaml
@@ -112,6 +118,63 @@ def main():
 
     write_yaml(all_waypoints, all_edges, output_path)
     print(f"\n[OK] {len(all_waypoints)} total waypoints, {len(all_edges)} total edges -> {output_path}")
+
+    _update_path_config(all_waypoints)
+
+
+def _update_path_config(waypoints):
+    """Append Cartesian waypoints from all_waypoints into path_config.yaml.
+
+    Only waypoints that have x/y/z are written (joints-only routing candidates
+    already live in path_config.yaml and are not touched). Existing names are
+    skipped. New entries are inserted just before the `routing_candidates:` line
+    so the human-edited structure and all comments are preserved.
+    """
+    if not os.path.exists(PATH_CONFIG_PATH):
+        print(f"[WARN] path_config.yaml not found, skipping: {PATH_CONFIG_PATH}")
+        return
+
+    with open(PATH_CONFIG_PATH, "r", encoding="utf-8") as f:
+        text = f.read()
+    existing = yaml.safe_load(text) or {}
+    existing_names = set((existing.get("waypoints") or {}).keys())
+
+    to_add = [
+        wp for wp in waypoints
+        if "x" in wp and wp["name"] not in existing_names
+    ]
+    if not to_add:
+        print("[OK] path_config.yaml: no new Cartesian waypoints to add")
+        return
+
+    # Build the YAML lines for each new waypoint (indented under `waypoints:`)
+    new_lines = []
+    for wp in to_add:
+        new_lines.append(f"  {wp['name']}:")
+        for key in ("x", "y", "z", "rx", "ry", "rz"):
+            new_lines.append(f"    {key}: {wp.get(key, 0.0)}")
+        new_lines.append(f"    frame: {wp.get('frame', 'robot_local')}")
+        new_lines.append(f"    move_type: {wp.get('move_type', 'MoveJ')}")
+        j7 = wp.get("j7")
+        new_lines.append(f"    j7: {'null' if j7 is None else j7}")
+        new_lines.append(f"    source: {wp.get('source', 'grasshopper')}")
+        if wp.get("z_axis_free"):
+            new_lines.append(f"    z_axis_free: true")
+
+    insert_block = "\n".join(new_lines) + "\n"
+
+    # Insert just before `routing_candidates:` to stay inside the waypoints block
+    marker = "routing_candidates:"
+    idx = text.find(marker)
+    if idx == -1:
+        # Fallback: append at end
+        updated = text.rstrip("\n") + "\n" + insert_block
+    else:
+        updated = text[:idx] + insert_block + text[idx:]
+
+    with open(PATH_CONFIG_PATH, "w", encoding="utf-8") as f:
+        f.write(updated)
+    print(f"[OK] path_config.yaml: added {len(to_add)} Cartesian waypoints")
 
 
 if __name__ == "__main__":

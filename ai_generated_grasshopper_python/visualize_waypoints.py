@@ -61,12 +61,13 @@ import math
 import json
 import Rhino.Geometry as rg
 
-# ── Resolve YAML path from waypoint_sources.json ─────────────────────────────
+# ── Resolve YAML paths ────────────────────────────────────────────────────────
 _REPO_ROOT = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 _CONFIG_PATH = _REPO_ROOT + r"\robo_dk_output\waypoint_sources.json"
 with open(_CONFIG_PATH, "r") as _cfg:
     _sources_config = json.load(_cfg)
 _YAML_PATH = _REPO_ROOT + "\\" + _sources_config["output"].replace("/", "\\")
+_PATH_CONFIG_PATH = _REPO_ROOT + r"\robo_dk_output\path_config.yaml"
 
 # ── Initialise all outputs so GH never sees an unbound name ──────────────────
 planes        = []
@@ -137,6 +138,7 @@ def _plane_from_zyx(ox, oy, oz, rx_deg, ry_deg, rz_deg):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def _run():
+    # --- all_waypoints.yaml (GH cones, edges) ---
     print(f"Reading: {_YAML_PATH}")
     with open(_YAML_PATH, 'r') as fh:
         data = yaml.safe_load(fh)
@@ -147,17 +149,18 @@ def _run():
         return
 
     wp_list = data.get('waypoints') or []
-    print(f"Waypoints in YAML: {len(wp_list)}")
-
+    print(f"Waypoints in all_waypoints.yaml: {len(wp_list)}")
     print(f"base_origin offset: ({_base_x}, {_base_y}, {_base_z})")
 
     name_to_pt = {}  # for edge endpoint lookup
+    seen_names = set()
 
-    for wp in (data.get('waypoints') or []):
+    for wp in wp_list:
         if not isinstance(wp, dict):
             continue
         name      = str(wp.get('name', ''))
         move_type = str(wp.get('move_type', ''))
+        seen_names.add(name)
 
         ox = _base_x + _f(wp, 'x')
         oy = _base_y + _f(wp, 'y')
@@ -168,6 +171,38 @@ def _run():
         names.append(name)
         move_types.append(move_type)
         name_to_pt[name] = rg.Point3d(ox, oy, oz)
+
+    # --- path_config.yaml (manually-added Cartesian waypoints, e.g. curtain-safe frames) ---
+    import os
+    if os.path.exists(_PATH_CONFIG_PATH):
+        try:
+            with open(_PATH_CONFIG_PATH, 'r') as fh:
+                pc_data = yaml.safe_load(fh)
+            pc_wps = (pc_data or {}).get('waypoints') or {}
+            pc_added = 0
+            for name, attrs in pc_wps.items():
+                if not isinstance(attrs, dict):
+                    continue
+                if name in seen_names:
+                    continue
+                # Only show waypoints with Cartesian pose data
+                if 'x' not in attrs and 'y' not in attrs and 'z' not in attrs:
+                    continue
+                move_type = str(attrs.get('move_type', ''))
+                ox = _base_x + _f(attrs, 'x')
+                oy = _base_y + _f(attrs, 'y')
+                oz = _base_z + _f(attrs, 'z')
+                plane = _plane_from_zyx(ox, oy, oz, _f(attrs, 'rx'), _f(attrs, 'ry'), _f(attrs, 'rz'))
+                planes.append(plane)
+                names.append(name)
+                move_types.append(move_type)
+                name_to_pt[name] = rg.Point3d(ox, oy, oz)
+                seen_names.add(name)
+                pc_added += 1
+            if pc_added:
+                print(f"Added {pc_added} Cartesian waypoints from path_config.yaml")
+        except Exception as e:
+            print(f"[WARN] Could not read path_config.yaml: {e}")
 
     print(f"Planes built: {len(planes)}")
 
