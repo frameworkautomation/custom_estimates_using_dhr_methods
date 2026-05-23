@@ -49,6 +49,46 @@ def format_joints(joints):
     return "[" + ", ".join(f"{j:.4f}" for j in joints) + "]"
 
 
+def get_fk_pose(rdk, robot):
+    """Return (x, y, z, rx, ry, rz) of current TCP in world frame.
+
+    Uses ZYX Euler convention (R = Rz * Ry * Rx) to match build_pose() and
+    the visualizer. Temporarily sets the robot reference frame to World so the
+    result is in world space regardless of whatever frame is active.
+    """
+    import math
+    from robodk.robolink import ITEM_TYPE_FRAME
+
+    world_frame = rdk.Item("World", ITEM_TYPE_FRAME)
+    original_frame = robot.PoseFrame()
+    robot.setPoseFrame(world_frame)
+    pose = robot.Pose()
+    robot.setPoseFrame(original_frame)
+
+    x = pose[0, 3]
+    y = pose[1, 3]
+    z = pose[2, 3]
+
+    # ZYX Euler: R = Rz * Ry * Rx
+    r20 = pose[2, 0]
+    ry = math.asin(-max(-1.0, min(1.0, r20)))
+    cos_ry = math.cos(ry)
+    if abs(cos_ry) > 1e-6:
+        rx = math.atan2(pose[2, 1] / cos_ry, pose[2, 2] / cos_ry)
+        rz = math.atan2(pose[1, 0] / cos_ry, pose[0, 0] / cos_ry)
+    else:
+        # Gimbal lock
+        rx = 0.0
+        rz = math.atan2(-pose[0, 1], pose[1, 1])
+
+    return (
+        round(x, 3), round(y, 3), round(z, 3),
+        round(math.degrees(rx), 4),
+        round(math.degrees(ry), 4),
+        round(math.degrees(rz), 4),
+    )
+
+
 def waypoint_exists(name):
     """Check if a waypoint with this name already exists in path_config.yaml."""
     if not os.path.exists(CONFIG_PATH):
@@ -59,21 +99,41 @@ def waypoint_exists(name):
     return bool(re.search(rf'^\s+{re.escape(name)}\s*:', content, re.MULTILINE))
 
 
-def append_waypoint(name, joints):
-    """Append a new joint waypoint to path_config.yaml."""
+def append_waypoint(name, joints, pose=None):
+    """Append a new waypoint to path_config.yaml.
+
+    pose: optional (x, y, z, rx, ry, rz) tuple — written as Cartesian fields so
+    the visualizer can show the waypoint even though it is primarily joints-driven.
+    """
     if not os.path.exists(CONFIG_PATH):
         raise FileNotFoundError(f"path_config.yaml not found at {CONFIG_PATH}")
 
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
-    entry = f"\n  {name}:\n    joints: {format_joints(joints)}\n    source: human\n"
+    lines = [f"\n  {name}:"]
+    if pose is not None:
+        x, y, z, rx, ry, rz = pose
+        lines += [
+            f"    x: {x}",
+            f"    y: {y}",
+            f"    z: {z}",
+            f"    rx: {rx}",
+            f"    ry: {ry}",
+            f"    rz: {rz}",
+            f"    frame: world",
+            f"    move_type: MoveJ",
+        ]
+    lines += [
+        f"    joints: {format_joints(joints)}",
+        f"    source: human",
+    ]
+    entry = "\n".join(lines) + "\n"
 
-    # Insert after the `waypoints:` section header (before routing_candidates)
+    # Insert before routing_candidates: so it lands in the waypoints block
     if "routing_candidates:" in content:
         content = content.replace("routing_candidates:", entry + "routing_candidates:", 1)
     elif "waypoints:" in content:
-        # Append at end of waypoints block — find last waypoint entry
         content += entry
     else:
         raise RuntimeError("Could not find 'waypoints:' section in path_config.yaml")
@@ -199,9 +259,11 @@ def main():
 
     rdk, robot = connect(args.robodk_ip)
     joints = get_joints(robot)
+    pose = get_fk_pose(rdk, robot)
 
     print(f"\nRobot: {robot.Name()}")
     print(f"Joints: {format_joints(joints)}")
+    print(f"Pose:   x={pose[0]}  y={pose[1]}  z={pose[2]}  rx={pose[3]}  ry={pose[4]}  rz={pose[5]}")
 
     if args.name is None:
         args.name = ask_name_dialog(format_joints(joints))
@@ -212,6 +274,15 @@ def main():
     if args.print_only:
         print(f"\n# Add to path_config.yaml manually:")
         print(f"  {args.name}:")
+        x, y, z, rx, ry, rz = pose
+        print(f"    x: {x}")
+        print(f"    y: {y}")
+        print(f"    z: {z}")
+        print(f"    rx: {rx}")
+        print(f"    ry: {ry}")
+        print(f"    rz: {rz}")
+        print(f"    frame: world")
+        print(f"    move_type: MoveJ")
         print(f"    joints: {format_joints(joints)}")
         return
 
@@ -220,7 +291,7 @@ def main():
         print("  Delete or rename it first, then re-run.")
         sys.exit(1)
 
-    append_waypoint(args.name, joints)
+    append_waypoint(args.name, joints, pose=pose)
     print(f"\n[OK] Saved '{args.name}' to {CONFIG_PATH}")
     print(f"  Add '{args.name}' to routing_candidates: in path_config.yaml if needed.")
     _report_collision_status(args.name, REPO_ROOT)

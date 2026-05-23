@@ -26,6 +26,446 @@ waypoints:
 
 # Waypoints the pathfinder may route through.
 # Must be a subset of the keys in `waypoints` above.
+  base_cone_grab_0_approach:
+    x: 2054.3195
+    y: -368.0
+    z: 1449.8693
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_0:
+    x: 1936.5568
+    y: -368.0
+    z: 1010.373
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_1_approach:
+    x: 1876.5891
+    y: -368.0
+    z: 1497.492
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_1:
+    x: 1758.8265
+    y: -368.0
+    z: 1057.9957
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_2_approach:
+    x: 1698.8588
+    y: -368.0
+    z: 1545.1147
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_2:
+    x: 1581.0961
+    y: -368.0
+    z: 1105.6184
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_3_approach:
+    x: 2054.3195
+    y: -152.0
+    z: 1449.8693
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_3:
+    x: 1936.5568
+    y: -152.0
+    z: 1010.373
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_4_approach:
+    x: 1876.5891
+    y: -152.0
+    z: 1497.492
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_4:
+    x: 1758.8265
+    y: -152.0
+    z: 1057.9957
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_5_approach:
+    x: 1698.8588
+    y: -152.0
+    z: 1545.1147
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_cone_grab_5:
+    x: 1581.0961
+    y: -152.0
+    z: 1105.6184
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_0_approach:
+    x: 2054.3195
+    y: -368.0
+    z: 1449.8693
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_0:
+    x: 1936.5568
+    y: -368.0
+    z: 1010.373
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_1_approach:
+    x: 1876.5891
+    y: -368.0
+    z: 1497.492
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_1:
+    x: 1758.8265
+    y: -368.0
+    z: 1057.9957
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_2_approach:
+    x: 1698.8588
+    y: -368.0
+    z: 1545.1147
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_2:
+    x: 1581.0961
+    y: -368.0
+    z: 1105.6184
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_3_approach:
+    x: 2054.3195
+    y: -152.0
+    z: 1449.8693
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_3:
+    x: 1936.5568
+    y: -152.0
+    z: 1010.373
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_4_approach:
+    x: 1876.5891
+    y: -152.0
+    z: 1497.492
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_4:
+    x: 1758.8265
+    y: -152.0
+    z: 1057.9957
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_5_approach:
+    x: 1698.8588
+    y: -152.0
+    z: 1545.1147
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: 0.0
+    source: grasshopper
+  base_str_grab_5:
+    x: 1581.0961
+    y: -152.0
+    z: 1105.6184
+    rx: 15.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: 0.0
+    source: grasshopper
+  cone_grab_0:
+    x: 2453.8476
+    y: 1309.8514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  cone_grab_0_approach:
+    x: 2453.8476
+    y: 1309.8514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  cone_grab_1:
+    x: 2453.8476
+    y: 1649.4514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  cone_grab_1_approach:
+    x: 2453.8476
+    y: 1649.4514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  cone_grab_2:
+    x: 2771.0476
+    y: 1479.6514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  cone_grab_2_approach:
+    x: 2771.0476
+    y: 1479.6514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  cone_grab_3:
+    x: 2771.0476
+    y: 1819.2514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  cone_grab_3_approach:
+    x: 2771.0476
+    y: 1819.2514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  string_grab_0:
+    x: 2453.8476
+    y: 1309.8514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  string_grab_0_approach:
+    x: 2253.8476
+    y: 1309.8514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  string_grab_1:
+    x: 2453.8476
+    y: 1649.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  string_grab_1_approach:
+    x: 2253.8476
+    y: 1649.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  string_grab_2:
+    x: 2771.0476
+    y: 1479.6514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  string_grab_2_approach:
+    x: 2971.0476
+    y: 1479.6514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  string_grab_3:
+    x: 2771.0476
+    y: 1819.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  string_grab_3_approach:
+    x: 2971.0476
+    y: 1819.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
 routing_candidates:
   - home
   - transport
@@ -99,3 +539,126 @@ collision_exclude_always: []
 #
 # Uncomment and populate `frames:` below once you have curtain-safe frames in RoboDK:
 # frames: []
+
+# ── Edges (auto-generated by amalgamate_waypoints.py) ──────────────────
+edges:
+  - from: base_cone_grab_0_approach
+    to:   base_cone_grab_0
+    tested: null
+  - from: base_cone_grab_0
+    to:   base_cone_grab_0_approach
+    tested: null
+  - from: base_cone_grab_1_approach
+    to:   base_cone_grab_1
+    tested: null
+  - from: base_cone_grab_1
+    to:   base_cone_grab_1_approach
+    tested: null
+  - from: base_cone_grab_2_approach
+    to:   base_cone_grab_2
+    tested: null
+  - from: base_cone_grab_2
+    to:   base_cone_grab_2_approach
+    tested: null
+  - from: base_cone_grab_3_approach
+    to:   base_cone_grab_3
+    tested: null
+  - from: base_cone_grab_3
+    to:   base_cone_grab_3_approach
+    tested: null
+  - from: base_cone_grab_4_approach
+    to:   base_cone_grab_4
+    tested: null
+  - from: base_cone_grab_4
+    to:   base_cone_grab_4_approach
+    tested: null
+  - from: base_cone_grab_5_approach
+    to:   base_cone_grab_5
+    tested: null
+  - from: base_cone_grab_5
+    to:   base_cone_grab_5_approach
+    tested: null
+  - from: base_str_grab_0_approach
+    to:   base_str_grab_0
+    tested: null
+  - from: base_str_grab_0
+    to:   base_str_grab_0_approach
+    tested: null
+  - from: base_str_grab_1_approach
+    to:   base_str_grab_1
+    tested: null
+  - from: base_str_grab_1
+    to:   base_str_grab_1_approach
+    tested: null
+  - from: base_str_grab_2_approach
+    to:   base_str_grab_2
+    tested: null
+  - from: base_str_grab_2
+    to:   base_str_grab_2_approach
+    tested: null
+  - from: base_str_grab_3_approach
+    to:   base_str_grab_3
+    tested: null
+  - from: base_str_grab_3
+    to:   base_str_grab_3_approach
+    tested: null
+  - from: base_str_grab_4_approach
+    to:   base_str_grab_4
+    tested: null
+  - from: base_str_grab_4
+    to:   base_str_grab_4_approach
+    tested: null
+  - from: base_str_grab_5_approach
+    to:   base_str_grab_5
+    tested: null
+  - from: base_str_grab_5
+    to:   base_str_grab_5_approach
+    tested: null
+  - from: cone_grab_0_approach
+    to:   cone_grab_0
+    tested: null
+  - from: cone_grab_0
+    to:   cone_grab_0_approach
+    tested: null
+  - from: cone_grab_1_approach
+    to:   cone_grab_1
+    tested: null
+  - from: cone_grab_1
+    to:   cone_grab_1_approach
+    tested: null
+  - from: cone_grab_2_approach
+    to:   cone_grab_2
+    tested: null
+  - from: cone_grab_2
+    to:   cone_grab_2_approach
+    tested: null
+  - from: cone_grab_3_approach
+    to:   cone_grab_3
+    tested: null
+  - from: cone_grab_3
+    to:   cone_grab_3_approach
+    tested: null
+  - from: string_grab_0_approach
+    to:   string_grab_0
+    tested: null
+  - from: string_grab_0
+    to:   string_grab_0_approach
+    tested: null
+  - from: string_grab_1_approach
+    to:   string_grab_1
+    tested: null
+  - from: string_grab_1
+    to:   string_grab_1_approach
+    tested: null
+  - from: string_grab_2_approach
+    to:   string_grab_2
+    tested: null
+  - from: string_grab_2
+    to:   string_grab_2_approach
+    tested: null
+  - from: string_grab_3_approach
+    to:   string_grab_3
+    tested: null
+  - from: string_grab_3
+    to:   string_grab_3_approach
+    tested: null
