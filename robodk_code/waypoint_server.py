@@ -47,7 +47,7 @@ def _write_edges(text: str, edges: list) -> None:
         lines.append(f"  - from: {e['from']}")
         lines.append(f"    to:   {e['to']}")
         tested = e.get("tested")
-        lines.append(f"    tested: {'null' if tested is None else tested}")
+        lines.append(f"    tested: {'null' if tested is None else str(tested).lower()}")
     block = "\n".join(lines) + "\n"
     idx = text.find(_EDGES_MARKER)
     text = (text[:idx] + block) if idx != -1 else (text.rstrip("\n") + "\n\n" + block)
