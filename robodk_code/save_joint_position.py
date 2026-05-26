@@ -102,10 +102,14 @@ def get_robot_base_world(robot):
 
 
 def update_robot_base_world(bx, by, bz):
-    """Write robot_base_world: {x, y, z} into viewer_config.yaml."""
-    if not os.path.exists(VIEWER_CONFIG_PATH):
+    """Write robot_base_world: {x, y, z} into path_config.yaml.
+
+    robot_base_world lives in path_config.yaml because it is needed for path
+    planning (e.g. converting robot-local coords to world) as well as viewing.
+    """
+    if not os.path.exists(CONFIG_PATH):
         return
-    with open(VIEWER_CONFIG_PATH, "r", encoding="utf-8") as f:
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
     new_block = f"robot_base_world:\n  x: {bx}\n  y: {by}\n  z: {bz}\n"
@@ -117,9 +121,9 @@ def update_robot_base_world(bx, by, bz):
             content,
         )
     else:
-        content += "\n" + new_block
+        content = new_block + "\n" + content
 
-    with open(VIEWER_CONFIG_PATH, "w", encoding="utf-8") as f:
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         f.write(content)
 
 

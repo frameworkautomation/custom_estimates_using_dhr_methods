@@ -1,5 +1,24 @@
 # Project Context for Claude
 
+## ── RULES: Never remove data from path_config.yaml ───────────────────────────
+
+**`path_config.yaml` is the single source of truth for ALL robot configuration.**
+Fields in it serve both the path planner AND the viewer AND other scripts.
+NEVER move a field out of `path_config.yaml` into a viewer-only or display-only
+file just because a viewer feature needs it. Add a reader in the viewer; do not
+relocate the data.
+
+Specific fields that must stay in `path_config.yaml`:
+- `robot_base_world` — needed by path planner to convert robot-local ↔ world coords
+- `default_tool`, `cone_mesh_template` — needed by collision checker
+- All waypoint entries — source of truth for routing
+
+`viewer_config.yaml` exists only for viewer-specific display settings (e.g.
+`world_origin`). It must never become a home for planning data.
+
+Both `path_config.yaml` and `viewer_config.yaml` are committed to git
+(gitignore exception already set). Never remove either from tracking.
+
 ## Repo cloning setup
 
 There is a `cloning_stuff/` folder at the project root that manages external repo dependencies.

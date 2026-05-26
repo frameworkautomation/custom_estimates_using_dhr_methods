@@ -58,13 +58,18 @@ def _write_edges(text: str, edges: list) -> None:
 
 @app.get("/api/origins")
 def get_origins():
-    cfg = {}
+    # world_origin lives in viewer_config.yaml (viewer/display concern only)
+    viewer_cfg = {}
     if VIEWER_CONFIG_PATH.exists():
         with open(VIEWER_CONFIG_PATH, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
+            viewer_cfg = yaml.safe_load(f) or {}
+
+    # robot_base_world lives in path_config.yaml (needed for planning + viewing)
+    plan_cfg = _load()
+
     return {
-        "world": cfg.get("world_origin", {"x": 0.0, "y": 0.0, "z": 0.0}),
-        "robot_base": cfg.get("robot_base_world"),
+        "world": viewer_cfg.get("world_origin", {"x": 0.0, "y": 0.0, "z": 0.0}),
+        "robot_base": plan_cfg.get("robot_base_world"),
     }
 
 
