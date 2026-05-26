@@ -32,6 +32,12 @@ export async function deleteEdge(from_name, to_name) {
   return r.json()
 }
 
+export async function getGuiSettings() {
+  const r = await fetch(`${BASE}/gui_settings`)
+  if (!r.ok) throw new Error(`GET /api/gui_settings failed: ${r.status}`)
+  return r.json()
+}
+
 export async function getOrigins() {
   const r = await fetch(`${BASE}/origins`)
   if (!r.ok) throw new Error(`GET /api/origins failed: ${r.status}`)

@@ -83,7 +83,7 @@ function Legend() {
   )
 }
 
-export default function Scene({ waypoints, edges, selected, onSelect, origins }) {
+export default function Scene({ waypoints, edges, selected, onSelect, origins, guiSettings }) {
   const waypointMap = useMemo(() => {
     const m = {}
     waypoints.forEach((wp) => { m[wp.name] = wp })
@@ -120,6 +120,7 @@ export default function Scene({ waypoints, edges, selected, onSelect, origins })
             waypoint={wp}
             isSelected={selected.includes(wp.name)}
             onSelect={onSelect}
+            axisLength={guiSettings?.axis_length_mm ?? 37.5}
           />
         ))}
 

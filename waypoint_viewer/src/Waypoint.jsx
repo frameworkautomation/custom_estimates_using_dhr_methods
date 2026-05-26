@@ -25,10 +25,10 @@ function frameAxes(rxDeg, ryDeg, rzDeg) {
   return { xAxis, yAxis, zAxis }
 }
 
-const SPHERE_R  = 25   // mm
-const ARROW_LEN = 150  // mm
+const SPHERE_R = 25  // mm
 
-export default function Waypoint({ waypoint: wp, isSelected, onSelect }) {
+export default function Waypoint({ waypoint: wp, isSelected, onSelect, axisLength }) {
+  const ARROW_LEN = axisLength ?? 37.5
   // Scene mapping: [-robot_x, robot_z, robot_y]
   const pos = [-(wp.x ?? 0), wp.z ?? 0, wp.y ?? 0]
   const sphereColor = isSelected ? '#ffff00' : WAYPOINT_COLOR
