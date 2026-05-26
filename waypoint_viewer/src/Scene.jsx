@@ -48,10 +48,8 @@ function OriginMarker({ position, label, size = 150 }) {
 
 // Colour legend overlay (outside Canvas, positioned absolutely)
 const LEGEND_ITEMS = [
-  { color: '#4488ff', label: 'MoveJ waypoint' },
-  { color: '#44bb44', label: 'MoveL waypoint' },
-  { color: '#ffff00', label: 'Selected' },
-  { color: '#aaaaaa', label: 'Unknown move type' },
+  { color: '#44bb44', label: 'Waypoint' },
+  { color: '#ffff00', label: 'Waypoint — selected' },
   { color: '#ffffff', label: 'World origin' },
   { color: '#ff8800', label: 'Robot base' },
   { color: '#44bb44', label: 'Edge — collision free' },

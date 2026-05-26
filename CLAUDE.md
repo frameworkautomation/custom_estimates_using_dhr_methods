@@ -199,6 +199,14 @@ delete edge, filter by source/move_type.
 
 Run: `uvicorn robodk_code.waypoint_server:app` (WSL) → open browser on Windows.
 
+## ── TODO (medium priority) ───────────────────────────────────────────────────
+
+- **[MEDIUM] Waypoint coloring in viewer** — currently all waypoints are green.
+  move_type (MoveJ/MoveL) belongs on edges, not waypoints. Decide what waypoint
+  color should represent (source: grasshopper/human, frame: world/robot_local,
+  collision status, or something else) and implement it. Update the legend accordingly.
+  Also decide whether edges should show move_type via color or line style.
+
 ## ── TODO (low priority) ───────────────────────────────────────────────────────
 
 - **[LOW] Move GhPython scripts** — currently in `ai_generated_grasshopper_python/`.

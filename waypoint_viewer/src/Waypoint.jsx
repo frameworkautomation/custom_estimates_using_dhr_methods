@@ -2,8 +2,7 @@ import React, { useMemo } from 'react'
 import * as THREE from 'three'
 import { Line } from '@react-three/drei'
 
-// Unselected sphere color by move_type
-const MOVE_COLORS = { MoveJ: '#4488ff', MoveL: '#44bb44' }
+const WAYPOINT_COLOR = '#44bb44'
 
 // Compute all 3 axis directions from ZYX Euler angles (degrees).
 // R = Rz * Ry * Rx. Remaps robot→scene coords: [robot_x, robot_z, robot_y].
@@ -29,7 +28,7 @@ const ARROW_LEN = 150  // mm
 
 export default function Waypoint({ waypoint: wp, isSelected, onSelect }) {
   const pos = [wp.x ?? 0, wp.z ?? 0, wp.y ?? 0]
-  const sphereColor = isSelected ? '#ffff00' : (MOVE_COLORS[wp.move_type] ?? '#aaaaaa')
+  const sphereColor = isSelected ? '#ffff00' : WAYPOINT_COLOR
 
   const { xAxis, yAxis, zAxis } = useMemo(
     () => frameAxes(wp.rx, wp.ry, wp.rz),
