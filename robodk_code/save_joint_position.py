@@ -28,6 +28,7 @@ sys.path.append("C:/RoboDK/Python")
 
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
+VIEWER_CONFIG_PATH = os.path.join(REPO_ROOT, "robo_dk_output", "viewer_config.yaml")
 ROBOT_NAME = "Fanuc R2000iC 125L"
 
 
@@ -101,10 +102,10 @@ def get_robot_base_world(robot):
 
 
 def update_robot_base_world(bx, by, bz):
-    """Write robot_base_world: {x, y, z} into path_config.yaml."""
-    if not os.path.exists(CONFIG_PATH):
+    """Write robot_base_world: {x, y, z} into viewer_config.yaml."""
+    if not os.path.exists(VIEWER_CONFIG_PATH):
         return
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    with open(VIEWER_CONFIG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
     new_block = f"robot_base_world:\n  x: {bx}\n  y: {by}\n  z: {bz}\n"
@@ -116,9 +117,9 @@ def update_robot_base_world(bx, by, bz):
             content,
         )
     else:
-        content = new_block + "\n" + content
+        content += "\n" + new_block
 
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+    with open(VIEWER_CONFIG_PATH, "w", encoding="utf-8") as f:
         f.write(content)
 
 

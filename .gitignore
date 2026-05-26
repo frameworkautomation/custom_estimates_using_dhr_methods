@@ -4,6 +4,7 @@ claude_notes/
 robo_dk_output/
 !robo_dk_output/path_config.yaml
 !robo_dk_output/waypoint_sources.json
+!robo_dk_output/viewer_config.yaml
 robo_dk_saves/
 extracted_assets/
 saved_rhino/
