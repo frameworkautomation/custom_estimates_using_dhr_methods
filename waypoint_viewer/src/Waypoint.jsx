@@ -2,13 +2,12 @@ import React, { useMemo } from 'react'
 import * as THREE from 'three'
 import { Line } from '@react-three/drei'
 
-// Map robot move_type → sphere color (unselected)
+// Unselected sphere color by move_type
 const MOVE_COLORS = { MoveJ: '#4488ff', MoveL: '#44bb44' }
 
-// Convert ZYX Euler (degrees) to the tool Z-axis direction in scene coords.
-// Robot coord system: Z=up. Scene coord system: Y=up (we map robot z→scene y).
-// Column 2 of R = Rz*Ry*Rx in robot space, then remap z→y.
-function toolZAxis(rxDeg, ryDeg, rzDeg) {
+// Compute all 3 axis directions from ZYX Euler angles (degrees).
+// R = Rz * Ry * Rx. Remaps robot→scene coords: [robot_x, robot_z, robot_y].
+function frameAxes(rxDeg, ryDeg, rzDeg) {
   const toRad = (d) => (d * Math.PI) / 180
   const rx = toRad(rxDeg ?? 0)
   const ry = toRad(ryDeg ?? 0)
@@ -16,30 +15,31 @@ function toolZAxis(rxDeg, ryDeg, rzDeg) {
   const cx = Math.cos(rx), sx = Math.sin(rx)
   const cy = Math.cos(ry), sy = Math.sin(ry)
   const cz = Math.cos(rz), sz = Math.sin(rz)
-  // Column 2 (Z-axis of frame, robot space): [cx*cz*sy+sx*sz, cx*sy*sz-cz*sx, cx*cy]
-  const robotX = cx * cz * sy + sx * sz
-  const robotY = cx * sy * sz - cz * sx
-  const robotZ = cx * cy
-  // Map robot→scene: [x, z, y]
-  return new THREE.Vector3(robotX, robotZ, robotY).normalize()
+
+  // Columns of R = Rz*Ry*Rx in robot space, remapped [rx, rz, ry] → scene
+  const xAxis = new THREE.Vector3(cz * cy,              -sy,         sz * cy)
+  const yAxis = new THREE.Vector3(cz * sy * sx - sz * cx, cy * sx, sz * sy * sx + cz * cx)
+  const zAxis = new THREE.Vector3(cz * sy * cx + sz * sx, cy * cx, sz * sy * cx - cz * sx)
+
+  return { xAxis, yAxis, zAxis }
 }
 
-const SPHERE_R = 25   // mm — visible at scene scale
-const ARROW_LEN = 120 // mm
+const SPHERE_R  = 25   // mm
+const ARROW_LEN = 150  // mm
 
 export default function Waypoint({ waypoint: wp, isSelected, onSelect }) {
   const pos = [wp.x ?? 0, wp.z ?? 0, wp.y ?? 0]
-  const color = isSelected ? '#ffff00' : (MOVE_COLORS[wp.move_type] ?? '#aaaaaa')
+  const sphereColor = isSelected ? '#ffff00' : (MOVE_COLORS[wp.move_type] ?? '#aaaaaa')
 
-  const arrowDir = useMemo(
-    () => toolZAxis(wp.rx, wp.ry, wp.rz),
+  const { xAxis, yAxis, zAxis } = useMemo(
+    () => frameAxes(wp.rx, wp.ry, wp.rz),
     [wp.rx, wp.ry, wp.rz]
   )
 
-  const arrowEnd = [
-    pos[0] + arrowDir.x * ARROW_LEN,
-    pos[1] + arrowDir.y * ARROW_LEN,
-    pos[2] + arrowDir.z * ARROW_LEN,
+  const tip = (axis) => [
+    pos[0] + axis.x * ARROW_LEN,
+    pos[1] + axis.y * ARROW_LEN,
+    pos[2] + axis.z * ARROW_LEN,
   ]
 
   return (
@@ -49,9 +49,13 @@ export default function Waypoint({ waypoint: wp, isSelected, onSelect }) {
         onClick={(e) => { e.stopPropagation(); onSelect(wp.name) }}
       >
         <sphereGeometry args={[SPHERE_R, 16, 16]} />
-        <meshStandardMaterial color={color} />
+        <meshStandardMaterial color={sphereColor} />
       </mesh>
-      <Line points={[pos, arrowEnd]} color={color} lineWidth={2} />
+
+      {/* XYZ trihedron — red/green/blue matching RoboDK convention */}
+      <Line points={[pos, tip(xAxis)]} color="#ff3333" lineWidth={2} />
+      <Line points={[pos, tip(yAxis)]} color="#33cc33" lineWidth={2} />
+      <Line points={[pos, tip(zAxis)]} color="#3388ff" lineWidth={2} />
     </group>
   )
 }

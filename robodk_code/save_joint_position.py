@@ -91,6 +91,15 @@ def get_fk_pose(rdk, robot):
     )
 
 
+def get_active_tool_name(robot):
+    """Return the name of the active tool attached to the robot, or None."""
+    from robodk.robolink import ITEM_TYPE_TOOL
+    tool = robot.getLink(ITEM_TYPE_TOOL)
+    if tool.Valid():
+        return tool.Name()
+    return None
+
+
 def get_robot_base_world(robot):
     """Return (x, y, z) of the robot arm base in RoboDK world frame."""
     base_pose = robot.PoseAbs()
@@ -137,11 +146,12 @@ def waypoint_exists(name):
     return bool(re.search(rf'^\s+{re.escape(name)}\s*:', content, re.MULTILINE))
 
 
-def append_waypoint(name, joints, pose=None):
+def append_waypoint(name, joints, pose=None, tool_name=None):
     """Append a new waypoint to path_config.yaml.
 
     pose: optional (x, y, z, rx, ry, rz) tuple — written as Cartesian fields so
     the visualizer can show the waypoint even though it is primarily joints-driven.
+    tool_name: name of the active RoboDK tool, or None.
     """
     if not os.path.exists(CONFIG_PATH):
         raise FileNotFoundError(f"path_config.yaml not found at {CONFIG_PATH}")
@@ -163,6 +173,7 @@ def append_waypoint(name, joints, pose=None):
             f"    move_type: MoveJ",
         ]
     lines += [
+        f"    tool_name: {'null' if tool_name is None else tool_name}",
         f"    joints: {format_joints(joints)}",
         f"    source: human",
     ]
@@ -300,9 +311,11 @@ def main():
     pose = get_fk_pose(rdk, robot)
     base_world = get_robot_base_world(robot)
     update_robot_base_world(*base_world)
-    print(f"  Robot base (world): x={base_world[0]}  y={base_world[1]}  z={base_world[2]}")
+    tool_name = get_active_tool_name(robot)
 
     print(f"\nRobot: {robot.Name()}")
+    print(f"Tool:   {tool_name or '(none)'}")
+    print(f"  Robot base (world): x={base_world[0]}  y={base_world[1]}  z={base_world[2]}")
     print(f"Joints: {format_joints(joints)}")
     print(f"Pose:   x={pose[0]}  y={pose[1]}  z={pose[2]}  rx={pose[3]}  ry={pose[4]}  rz={pose[5]}")
 
@@ -332,7 +345,7 @@ def main():
         print("  Delete or rename it first, then re-run.")
         sys.exit(1)
 
-    append_waypoint(args.name, joints, pose=pose)
+    append_waypoint(args.name, joints, pose=pose, tool_name=tool_name)
     print(f"\n[OK] Saved '{args.name}' to {CONFIG_PATH}")
     print(f"  Add '{args.name}' to routing_candidates: in path_config.yaml if needed.")
     _report_collision_status(args.name, REPO_ROOT)
