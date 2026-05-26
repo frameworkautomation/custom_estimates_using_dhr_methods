@@ -10,7 +10,7 @@ Run with RoboDK open (station already loaded):
 Optional args:
     --approach-mm FLOAT   approach offset along grab Z-axis (default 200.0)
     --output PATH         output YAML path (default: robo_dk_output/machine_cone_waypoints.yaml)
-    --robodk-ip IP        RoboDK host (default: localhost)
+    --robodk-ip IP        RoboDK host (default: 172.23.208.1)
 
 Output YAML schema (world frame, j7 free):
     waypoints:
@@ -119,8 +119,8 @@ def main():
                         help=f"Approach offset along grab Z-axis in mm (default {DEFAULT_APPROACH_MM})")
     parser.add_argument("--output",      default=DEFAULT_OUTPUT,
                         help=f"Output YAML path (default: {DEFAULT_OUTPUT})")
-    parser.add_argument("--robodk-ip",   default="localhost",
-                        help="RoboDK host IP (default: localhost)")
+    parser.add_argument("--robodk-ip",   default="172.23.208.1",
+                        help="RoboDK host IP (default: 172.23.208.1)")
     args = parser.parse_args()
 
     rdk = connect(args.robodk_ip)

@@ -252,7 +252,7 @@ def ask_name_dialog(joints_str):
 def main():
     parser = argparse.ArgumentParser(description="Save current robot joint position to path_config.yaml")
     parser.add_argument("--name", default=None, help="Waypoint name — tkinter dialog shown if omitted")
-    parser.add_argument("--robodk-ip", default="localhost", help="RoboDK host (default: localhost)")
+    parser.add_argument("--robodk-ip", default="172.23.208.1", help="RoboDK host (default: 172.23.208.1)")
     parser.add_argument("--print-only", action="store_true",
                         help="Print joints without writing to path_config.yaml")
     args = parser.parse_args()

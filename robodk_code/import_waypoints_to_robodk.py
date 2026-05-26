@@ -32,7 +32,7 @@ from robodk.robomath import Mat
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
 ROBOT_NAME     = "Fanuc R2000iC 125L"
 DEFAULT_PARENT = "WaypointTargets"
-DEFAULT_IP     = "localhost"
+DEFAULT_IP     = "172.23.208.1"
 
 DEFAULT_YAML = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
 

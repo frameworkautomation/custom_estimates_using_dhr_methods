@@ -132,7 +132,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Static collision check for all solved waypoints in all_waypoints.yaml"
     )
-    parser.add_argument("--robodk-ip", default="localhost")
+    parser.add_argument("--robodk-ip", default="172.23.208.1")
     parser.add_argument("--force", action="store_true",
                         help="Re-check waypoints already in the output JSON")
     parser.add_argument("--dry-run", action="store_true",

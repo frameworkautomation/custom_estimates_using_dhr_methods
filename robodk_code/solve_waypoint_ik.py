@@ -151,7 +151,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Solve IK for all Cartesian waypoints in all_waypoints.yaml"
     )
-    parser.add_argument("--robodk-ip", default="localhost")
+    parser.add_argument("--robodk-ip", default="172.23.208.1")
     parser.add_argument("--dry-run", action="store_true",
                         help="Solve but do not write results to YAML")
     parser.add_argument("--force", action="store_true",
