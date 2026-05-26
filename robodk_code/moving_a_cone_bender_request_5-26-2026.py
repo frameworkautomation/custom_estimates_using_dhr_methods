@@ -293,6 +293,8 @@ def find_destination_cones(RDK):
 
 def compute_all_offsets(RDK, robot, cone_targets):
     """Compute IK for base cone targets using RoboDK OptimAxes. Returns dict of results."""
+    current_tool = robot.getLink(ITEM_TYPE_TOOL)
+    print(f"[IK] Tool in use: '{current_tool.Name() if current_tool.Valid() else 'None (no tool set)'}'")
     print("\nComputing IK for base cone targets (RoboDK OptimAxes, j7 constrained) ...")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
     print("  " + "-" * 52)
@@ -308,14 +310,7 @@ def compute_all_offsets(RDK, robot, cone_targets):
             name = target.Name()
             grab_pose = target.PoseAbs()
 
-            # Use the explicit _approach target from RoboDK if it exists,
-            # otherwise fall back to computed offset along local Z
-            approach_target = RDK.Item(name + "_approach", ITEM_TYPE_TARGET)
-            if approach_target.Valid():
-                app_pose = approach_target.PoseAbs()
-            else:
-                print(f"  [WARN] No '{name}_approach' target in station — using computed offset.")
-                app_pose = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
+            app_pose = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
             grab_j, _, _, grab_ok = solve_ik(robot, grab_pose, f"{name} grab")
             app_j,  _, _, app_ok  = solve_ik(robot, app_pose,  f"{name} approach")
