@@ -55,6 +55,16 @@ def _write_edges(text: str, edges: list) -> None:
         f.write(text)
 
 
+@app.get("/api/origins")
+def get_origins():
+    data = _load()
+    robot_base = data.get("robot_base_world")  # e.g. {"x": 0.0, "y": 0.0, "z": 870.0}
+    return {
+        "world": {"x": 0.0, "y": 0.0, "z": 0.0},
+        "robot_base": robot_base,
+    }
+
+
 @app.get("/api/waypoints")
 def get_waypoints():
     raw = _load().get("waypoints") or {}

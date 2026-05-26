@@ -31,3 +31,9 @@ export async function deleteEdge(from_name, to_name) {
   if (!r.ok) throw new Error(`DELETE /api/edges failed: ${r.status}`)
   return r.json()
 }
+
+export async function getOrigins() {
+  const r = await fetch(`${BASE}/origins`)
+  if (!r.ok) throw new Error(`GET /api/origins failed: ${r.status}`)
+  return r.json()
+}

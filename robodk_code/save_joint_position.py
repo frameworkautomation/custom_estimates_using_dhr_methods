@@ -50,20 +50,21 @@ def format_joints(joints):
 
 
 def get_fk_pose(rdk, robot):
-    """Return (x, y, z, rx, ry, rz) of current TCP in robot-local frame.
+    """Return (x, y, z, rx, ry, rz) of current TCP in RoboDK world frame.
 
-    Uses robot.SolveFK() which returns TCP relative to the robot base frame —
-    the same coordinate convention as Grasshopper-exported robot_local waypoints
-    (relative to robot base at j7=0).
-
-    NOTE: for j7 != 0, SolveFK still gives coords relative to the robot's fixed
-    base (not shifted by the rail), so this is consistent with robot_local at any
-    j7 position as long as the rail axis is accounted for in the GH export.
+    Temporarily sets the robot reference frame to World, reads Pose(), then
+    restores the previous frame.  Stored as frame: world — consistent with
+    Grasshopper-exported waypoints which also use RoboDK world coordinates.
     """
     import math
 
-    joints = robot.Joints().list()
-    pose = robot.SolveFK(joints)  # TCP relative to robot base frame
+    world_frame = rdk.Item("World")
+    prev_frame = robot.PoseFrame()
+    try:
+        robot.setPoseFrame(world_frame)
+        pose = robot.Pose()
+    finally:
+        robot.setPoseFrame(prev_frame)
 
     x = pose[0, 3]
     y = pose[1, 3]
@@ -87,6 +88,38 @@ def get_fk_pose(rdk, robot):
         round(math.degrees(ry), 4),
         round(math.degrees(rz), 4),
     )
+
+
+def get_robot_base_world(robot):
+    """Return (x, y, z) of the robot arm base in RoboDK world frame."""
+    base_pose = robot.PoseAbs()
+    return (
+        round(base_pose[0, 3], 3),
+        round(base_pose[1, 3], 3),
+        round(base_pose[2, 3], 3),
+    )
+
+
+def update_robot_base_world(bx, by, bz):
+    """Write robot_base_world: {x, y, z} into path_config.yaml."""
+    if not os.path.exists(CONFIG_PATH):
+        return
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    new_block = f"robot_base_world:\n  x: {bx}\n  y: {by}\n  z: {bz}\n"
+
+    if "robot_base_world:" in content:
+        content = re.sub(
+            r"robot_base_world:\n  x:[^\n]*\n  y:[^\n]*\n  z:[^\n]*\n",
+            new_block,
+            content,
+        )
+    else:
+        content = new_block + "\n" + content
+
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        f.write(content)
 
 
 def waypoint_exists(name):
@@ -121,7 +154,7 @@ def append_waypoint(name, joints, pose=None):
             f"    rx: {rx}",
             f"    ry: {ry}",
             f"    rz: {rz}",
-            f"    frame: robot_local",
+            f"    frame: world",
             f"    move_type: MoveJ",
         ]
     lines += [
@@ -260,6 +293,9 @@ def main():
     rdk, robot = connect(args.robodk_ip)
     joints = get_joints(robot)
     pose = get_fk_pose(rdk, robot)
+    base_world = get_robot_base_world(robot)
+    update_robot_base_world(*base_world)
+    print(f"  Robot base (world): x={base_world[0]}  y={base_world[1]}  z={base_world[2]}")
 
     print(f"\nRobot: {robot.Name()}")
     print(f"Joints: {format_joints(joints)}")
@@ -281,7 +317,7 @@ def main():
         print(f"    rx: {rx}")
         print(f"    ry: {ry}")
         print(f"    rz: {rz}")
-        print(f"    frame: robot_local")
+        print(f"    frame: world")
         print(f"    move_type: MoveJ")
         print(f"    joints: {format_joints(joints)}")
         return

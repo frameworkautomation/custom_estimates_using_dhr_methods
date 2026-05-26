@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { getWaypoints, getEdges, createEdge, deleteEdge } from './api'
+import { getWaypoints, getEdges, createEdge, deleteEdge, getOrigins } from './api'
 import Scene from './Scene'
 import InfoPanel from './InfoPanel'
 import FilterBar from './FilterBar'
@@ -9,6 +9,7 @@ export default function App() {
   const [edges, setEdges] = useState([])
   const [selected, setSelected] = useState([])   // array of name strings, max 2
   const [filters, setFilters] = useState({ sources: null, moveTypes: null })
+  const [origins, setOrigins] = useState(null)
 
   const reload = useCallback(async () => {
     const [wps, eds] = await Promise.all([getWaypoints(), getEdges()])
@@ -17,6 +18,7 @@ export default function App() {
   }, [])
 
   useEffect(() => { reload() }, [reload])
+  useEffect(() => { getOrigins().then(setOrigins) }, [])
 
   const visibleWaypoints = waypoints.filter(wp => {
     if (!('x' in wp)) return false
@@ -59,6 +61,7 @@ export default function App() {
             edges={edges}
             selected={selected}
             onSelect={handleSelect}
+            origins={origins}
           />
         </div>
         <InfoPanel
