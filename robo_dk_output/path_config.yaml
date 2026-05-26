@@ -464,29 +464,8 @@ waypoints:
     source: grasshopper
 
 
-  transport:
-    x: 1377.036
-    y: 0.0
-    z: 519.097
-    rx: -180.0
-    ry: -81.0
-    rz: -0.0
-    frame: robot_local
-    move_type: MoveJ
-    joints: [0.0000, -56.0000, -9.0000, 0.0000, 0.0000, 0.0000]
-    source: human
 
-  home:
-    x: 2257.0
-    y: 0.0
-    z: 1300.0
-    rx: 0.0
-    ry: -90.0
-    rz: -180.0
-    frame: robot_local
-    move_type: MoveJ
-    joints: [0.0000, 0.0000, 0.0000, 0.0000, -0.0000, 0.0000]
-    source: human
+
 routing_candidates:
 
 # Destination cone groups. Human-defined by machine/zone.
