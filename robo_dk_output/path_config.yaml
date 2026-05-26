@@ -1,3 +1,8 @@
+robot_base_world:
+  x: -100.0
+  y: -25.0
+  z: 1550.5
+
 # path_config.yaml
 # Human-editable configuration for the collision-free path planner.
 # Edit this file, then re-run check_collision_free_paths.py to update path_plan.yaml.
@@ -466,6 +471,30 @@ waypoints:
 
 
 
+
+  home:
+    x: 2731.369
+    y: -25.0
+    z: 2850.5
+    rx: 90.0
+    ry: 45.0
+    rz: -90.0
+    frame: world
+    move_type: MoveJ
+    joints: [0.0000, 0.0000, 0.0000, 0.0000, -0.0000, 0.0000, 0.0000]
+    source: human
+
+  transport:
+    x: 1844.333
+    y: -25.0
+    z: 1979.746
+    rx: 77.3747
+    ry: 44.2989
+    rz: -98.891
+    frame: world
+    move_type: MoveJ
+    joints: [0.0000, -56.0000, -9.0000, 0.0000, 0.0000, 0.0000, 0.0000]
+    source: human
 routing_candidates:
 
 # Destination cone groups. Human-defined by machine/zone.
