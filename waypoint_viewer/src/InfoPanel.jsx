@@ -2,6 +2,18 @@ import React from 'react'
 
 const STATUS_COLORS = { 'true': '#44bb44', 'false': '#ff4444', 'null': '#888' }
 
+// A single labelled field row with an optional grey description
+function Row({ label, value, desc }) {
+  if (value == null) return null
+  return (
+    <div style={{ display: 'flex', gap: '6px', marginTop: '3px', alignItems: 'baseline' }}>
+      <span style={{ color: '#a0c4ff', flexShrink: 0 }}>{label}:</span>
+      <span style={{ color: '#fff' }}>{String(value)}</span>
+      {desc && <span style={{ color: '#666', fontSize: '10px' }}>— {desc}</span>}
+    </div>
+  )
+}
+
 function statusStr(tested) {
   return tested === null ? 'null' : String(tested)
 }
@@ -39,21 +51,43 @@ export default function InfoPanel({ selected, edges, onCreateEdge, onDeleteEdge 
           <div style={{ fontWeight: 'bold', color: '#ffff00', marginBottom: '4px' }}>
             {wp.name}
           </div>
-          {'x' in wp && (
-            <div style={{ color: '#ccc' }}>
-              <div>x: {wp.x?.toFixed(1)}  y: {wp.y?.toFixed(1)}  z: {wp.z?.toFixed(1)}</div>
-              <div>rx: {wp.rx?.toFixed(1)}  ry: {wp.ry?.toFixed(1)}  rz: {wp.rz?.toFixed(1)}</div>
-            </div>
+          {[
+            ['x', wp.x?.toFixed(1), 'TCP position X (mm)'],
+            ['y', wp.y?.toFixed(1), 'TCP position Y (mm)'],
+            ['z', wp.z?.toFixed(1), 'TCP position Z (mm)'],
+            ['rx', wp.rx?.toFixed(2), 'Rotation about X (deg, ZYX Euler)'],
+            ['ry', wp.ry?.toFixed(2), 'Rotation about Y (deg, ZYX Euler)'],
+            ['rz', wp.rz?.toFixed(2), 'Rotation about Z (deg, ZYX Euler)'],
+          ].filter(([, v]) => v != null).map(([k, v, desc]) => (
+            <Row key={k} label={k} value={v} desc={desc} />
+          ))}
+          <Row
+            label="frame"
+            value={wp.frame}
+            desc={
+              wp.frame === 'world'       ? 'Absolute RoboDK world coordinates' :
+              wp.frame === 'robot_local' ? 'Relative to robot base at j7=0 (rail home)' :
+              null
+            }
+          />
+          <Row
+            label="source"
+            value={wp.source}
+            desc={
+              wp.source === 'human'       ? 'Captured via save_joint_position.py' :
+              wp.source === 'grasshopper' ? 'Exported by Grasshopper script' :
+              null
+            }
+          />
+          {wp.tool_name != null && (
+            <Row label="tool" value={wp.tool_name ?? 'null'} desc="Active RoboDK tool when recorded" />
           )}
-          <div style={{ marginTop: '4px', color: '#aaa' }}>
-            {wp.move_type && <span style={{ marginRight: '8px' }}>{wp.move_type}</span>}
-            {wp.frame && <span style={{ marginRight: '8px' }}>{wp.frame}</span>}
-            {wp.source && <span>{wp.source}</span>}
-          </div>
           {wp.joints && (
-            <div style={{ color: '#888', marginTop: '4px' }}>
-              joints: [{wp.joints.map(j => Number(j).toFixed(1)).join(', ')}]
-            </div>
+            <Row
+              label="joints"
+              value={`[${wp.joints.map(j => Number(j).toFixed(1)).join(', ')}]`}
+              desc="Joint angles (deg), j7 in mm"
+            />
           )}
         </div>
       ))}
