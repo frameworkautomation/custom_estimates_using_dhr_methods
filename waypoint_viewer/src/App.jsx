@@ -8,7 +8,7 @@ export default function App() {
   const [waypoints, setWaypoints] = useState([])
   const [edges, setEdges] = useState([])
   const [selected, setSelected] = useState([])   // array of name strings, max 2
-  const [filters, setFilters] = useState({ sources: null, moveTypes: null })
+  const [filters, setFilters] = useState({ sources: null })
   const [origins, setOrigins] = useState(null)
 
   const reload = useCallback(async () => {
@@ -23,7 +23,6 @@ export default function App() {
   const visibleWaypoints = waypoints.filter(wp => {
     if (!('x' in wp)) return false
     if (filters.sources && !filters.sources.includes(wp.source)) return false
-    if (filters.moveTypes && !filters.moveTypes.includes(wp.move_type)) return false
     return true
   })
 
