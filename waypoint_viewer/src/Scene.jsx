@@ -90,28 +90,21 @@ export default function Scene({ waypoints, edges, selected, onSelect, origins })
     return m
   }, [waypoints])
 
-  // Convert robot world coords → scene coords: [robot_x, robot_z, robot_y]
-  const worldPos = [
-    origins?.world?.x ?? 0,
-    origins?.world?.z ?? 0,
-    origins?.world?.y ?? 0,
-  ]
-  const robotBasePos = origins?.robot_base ? [
-    origins.robot_base.x,
-    origins.robot_base.z,
-    origins.robot_base.y,
-  ] : null
+  // Scene mapping: [-robot_x, robot_z, robot_y]
+  const toScene = ({ x = 0, y = 0, z = 0 }) => [-x, z, y]
+  const worldPos    = toScene(origins?.world      ?? {})
+  const robotBasePos = origins?.robot_base ? toScene(origins.robot_base) : null
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas
-        camera={{ position: [4000, 2500, 3000], fov: 55, near: 1, far: 200000 }}
+        camera={{ position: [-4000, 2500, 3000], fov: 55, near: 1, far: 200000 }}
         style={{ width: '100%', height: '100%', background: '#1a1a2e' }}
         onPointerMissed={() => {}}
       >
         <ambientLight intensity={0.7} />
         <directionalLight position={[5000, 8000, 5000]} intensity={0.9} />
-        <OrbitControls target={[1500, 800, 0]} makeDefault />
+        <OrbitControls target={[-1500, 800, 0]} makeDefault />
 
         {/* World origin marker — always shown */}
         <OriginMarker position={worldPos} label="World origin" size={150} />

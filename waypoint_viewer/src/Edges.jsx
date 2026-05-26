@@ -4,8 +4,9 @@ import { Line } from '@react-three/drei'
 // tested: null → grey, true → green, false → red
 const COLORS = { true: '#44bb44', false: '#ff4444', null: '#555577' }
 
+// Scene mapping: [-robot_x, robot_z, robot_y] — negating X restores right-handedness
 function toScene(wp) {
-  return [wp.x ?? 0, wp.z ?? 0, wp.y ?? 0]
+  return [-(wp.x ?? 0), wp.z ?? 0, wp.y ?? 0]
 }
 
 export default function Edges({ edges, waypointMap }) {

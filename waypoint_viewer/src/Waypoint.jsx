@@ -15,10 +15,12 @@ function frameAxes(rxDeg, ryDeg, rzDeg) {
   const cy = Math.cos(ry), sy = Math.sin(ry)
   const cz = Math.cos(rz), sz = Math.sin(rz)
 
-  // Columns of R = Rz*Ry*Rx in robot space, remapped [rx, rz, ry] → scene
-  const xAxis = new THREE.Vector3(cz * cy,              -sy,         sz * cy)
-  const yAxis = new THREE.Vector3(cz * sy * sx - sz * cx, cy * sx, sz * sy * sx + cz * cx)
-  const zAxis = new THREE.Vector3(cz * sy * cx + sz * sx, cy * cx, sz * sy * cx - cz * sx)
+  // Columns of R = Rz*Ry*Rx in robot space.
+  // Scene mapping: scene = [-robot_x, robot_z, robot_y]
+  // Negating X restores right-handedness after the Y↔Z axis swap.
+  const xAxis = new THREE.Vector3(-(cz * cy),               -sy,          sz * cy)
+  const yAxis = new THREE.Vector3(-(cz * sy * sx - sz * cx), cy * sx,  sz * sy * sx + cz * cx)
+  const zAxis = new THREE.Vector3(-(cz * sy * cx + sz * sx), cy * cx,  sz * sy * cx - cz * sx)
 
   return { xAxis, yAxis, zAxis }
 }
@@ -27,7 +29,8 @@ const SPHERE_R  = 25   // mm
 const ARROW_LEN = 150  // mm
 
 export default function Waypoint({ waypoint: wp, isSelected, onSelect }) {
-  const pos = [wp.x ?? 0, wp.z ?? 0, wp.y ?? 0]
+  // Scene mapping: [-robot_x, robot_z, robot_y]
+  const pos = [-(wp.x ?? 0), wp.z ?? 0, wp.y ?? 0]
   const sphereColor = isSelected ? '#ffff00' : WAYPOINT_COLOR
 
   const { xAxis, yAxis, zAxis } = useMemo(
