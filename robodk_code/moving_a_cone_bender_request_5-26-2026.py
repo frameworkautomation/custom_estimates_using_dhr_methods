@@ -419,6 +419,8 @@ def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
     robot.setPoseFrame(world_frame)
     RDK.Render(False)
 
+    current_tool = robot.getLink(ITEM_TYPE_TOOL)
+    print(f"[IK] Tool in use: '{current_tool.Name() if current_tool.Valid() else 'None'}'")
     print("\nComputing IK for destination cones (OptimAxes, j7 free) ...")
     print("  (robot will move internally — screen updates suppressed)")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
@@ -664,7 +666,15 @@ def main():
     for i, t in enumerate(dest_cones):
         print(f"  [{i}] {t.Name()}")
 
-    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, tool, recompute=args.recompute_dest)
+    pickup_closed_tool = RDK.Item("pickup_closed", ITEM_TYPE_TOOL)
+    if pickup_closed_tool.Valid():
+        robot.setTool(pickup_closed_tool)
+        print(f"[INFO] Switched to 'pickup_closed' for dest cone IK.")
+    else:
+        print(f"[WARN] 'pickup_closed' not found — dest IK will use current tool.")
+        pickup_closed_tool = tool
+    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, pickup_closed_tool, recompute=args.recompute_dest)
+    robot.setTool(tool)   # restore pickup_open for base cone approach
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
     print()
