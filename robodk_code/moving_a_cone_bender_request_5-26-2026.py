@@ -193,14 +193,16 @@ def solve_ik(robot, pose, label):
         return [0.0] * 7, 999.0, 999.0, False
 
 
-def solve_ik_free_j7(robot, pose, label):
+def solve_ik_free_j7(robot, pose, label, seed=None):
     """Solve IK via OptimAxes (Algorithm 3 DLS) with j7 free to move as needed.
 
-    Used for destination cones where the rail moves to optimally reach the target.
+    seed: joint list to initialise the robot before solving; defaults to HOME_SEED.
+    Seeding from the last human_target joints biases the solver toward that
+    arm configuration, minimising z-axis travel from the end of the human sequence.
     Returns (joints, converged).
     """
     robot.setParam("OptimAxes", OPT_AXES_FREE_J7)
-    robot.setJoints(HOME_SEED)
+    robot.setJoints(seed if seed is not None else HOME_SEED)
     try:
         robot.MoveJ(pose)
         raw = robot.Joints()
@@ -208,11 +210,11 @@ def solve_ik_free_j7(robot, pose, label):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-        robot.setJoints(HOME_SEED)
+        robot.setJoints(seed if seed is not None else HOME_SEED)
         print(f"    [SUCCESS] {label}  j7={joints[6]:.1f}mm")
         return joints, True
     except Exception as e:
-        robot.setJoints(HOME_SEED)
+        robot.setJoints(seed if seed is not None else HOME_SEED)
         print(f"    [FAIL   ] {label}  ({e})")
         return [0.0] * 7, False
 
@@ -296,9 +298,9 @@ def find_base_cones(RDK):
 
 def find_destination_cones(RDK):
     """Return sorted list of all cone_grab_* targets (placement destinations).
-    Falls back to searching under WaypointTargets frame if global ItemList finds nothing."""
+    Excludes _approach suffixed targets. Falls back to WaypointTargets frame."""
     def _is_dest(t):
-        return t.Name().startswith("cone_grab_")
+        return t.Name().startswith("cone_grab_") and not t.Name().endswith("_approach")
 
     targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_dest(t)]
     if not targets:
@@ -407,19 +409,30 @@ def save_dest_ik_cache(results, approach_offset, tool_pose_key):
     print(f"[INFO] Dest cone IK saved to cache: {DEST_IK_CACHE_PATH}")
 
 
-def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
+def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False, seed=None):
     """Solve IK for destination cones using OptimAxes (Algorithm 3 DLS), j7 free.
 
-    Loads from robo_dk_output/dest_cone_ik_<tool>.json if available and not stale.
-    Pass recompute=True (or delete the cache file / use --recompute-dest) to force
-    a fresh solve. The rail moves to whatever position is needed to reach each target.
+    seed: joint list to seed the IK solver for each cone. Pass the joints of the
+    last human_target so the solver finds solutions near that arm configuration,
+    minimising z-axis travel from the end of the human waypoint sequence.
+
+    Loads from cache if available and seed fingerprint matches. Pass recompute=True
+    or --recompute-dest to force a fresh solve.
 
     Returns a dict keyed by cone name with the same schema as compute_all_offsets.
     """
+    seed_key = [round(v, 2) for v in seed] if seed is not None else None
     tpk = _tool_pose_key(tool)
     if not recompute:
         cached = load_dest_ik_cache(APPROACH_OFFSET_MM, tpk)
         if cached is not None:
+            # Invalidate if seed has changed since cache was written
+            if cached.get("__seed__") != seed_key:
+                print("[INFO] Dest IK cache stale (IK seed changed — human_targets updated) — recomputing.")
+                cached = None
+        if cached is not None:
+            # Strip internal metadata key before returning
+            cached = {k: v for k, v in cached.items() if not k.startswith("__")}
             print(f"\nDestination cone IK loaded from cache ({len(cached)} cones).")
             print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
             print("  " + "-" * 52)
@@ -436,6 +449,8 @@ def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
 
     current_tool = robot.getLink(ITEM_TYPE_TOOL)
     print(f"[IK] Tool in use: '{current_tool.Name() if current_tool.Valid() else 'None'}'")
+    if seed is not None:
+        print(f"[IK] Seeding from last human_target joints: {[round(v,1) for v in seed]}")
     print("\nComputing IK for destination cones (OptimAxes, j7 free) ...")
     print("  (robot will move internally — screen updates suppressed)")
     print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
@@ -448,8 +463,8 @@ def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
             grab_pose = target.PoseAbs()
             app_pose  = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-            grab_j, grab_ok = solve_ik_free_j7(robot, grab_pose, f"{name} grab")
-            app_j,  app_ok  = solve_ik_free_j7(robot, app_pose,  f"{name} approach")
+            grab_j, grab_ok = solve_ik_free_j7(robot, grab_pose, f"{name} grab",  seed=seed)
+            app_j,  app_ok  = solve_ik_free_j7(robot, app_pose,  f"{name} approach", seed=seed)
 
             gs  = "SUCCESS" if grab_ok else "FAIL"
             as_ = "SUCCESS" if app_ok  else "FAIL"
@@ -471,8 +486,11 @@ def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
         robot.setJoints(HOME_SEED)
         RDK.Render(True)
 
+    # Store seed fingerprint so we can detect staleness on next load
+    results["__seed__"] = seed_key
     save_dest_ik_cache(results, APPROACH_OFFSET_MM, tpk)
-    return results
+    # Return without the internal key
+    return {k: v for k, v in results.items() if not k.startswith("__")}
 
 
 
@@ -559,7 +577,42 @@ def load_latest_base_cone_ik():
     return result
 
 
-# ── Human targets traversal ───────────────────────────────────────────────────
+# ── Human targets helpers ─────────────────────────────────────────────────────
+
+def get_last_human_target_joints(RDK):
+    """Return the joint list of the last (natural-sort) target under human_targets.
+
+    Used to seed dest cone IK so solutions minimise arm travel from the
+    end of the human waypoint sequence (DHR-style optimization approach).
+    Returns None if the frame or targets are missing.
+    """
+    frame = RDK.Item("human_targets", ITEM_TYPE_FRAME)
+    if not frame.Valid():
+        return None
+
+    def _natural_key(t):
+        parts = re.split(r'(\d+)', t.Name())
+        return [int(p) if p.isdigit() else p.lower() for p in parts]
+
+    targets = sorted(
+        [t for t in frame.Childs() if t.Type() == ITEM_TYPE_TARGET],
+        key=_natural_key,
+    )
+    if not targets:
+        return None
+
+    last = targets[-1]
+    try:
+        raw = last.Joints()
+        joints = raw.list() if hasattr(raw, "list") else list(raw)
+        if len(joints) >= 6:
+            print(f"[INFO] Dest IK seed: last human_target '{last.Name()}' "
+                  f"joints {[round(v,1) for v in joints]}")
+            return joints
+    except Exception:
+        pass
+    return None
+
 
 def run_human_targets(RDK, robot):
     """MoveJ through every target inside the 'human_targets' frame, sorted by name."""
@@ -724,7 +777,9 @@ def main():
     else:
         print(f"[WARN] 'pickup_closed' not found — dest IK will use current tool.")
         pickup_closed_tool = tool
-    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, pickup_closed_tool, recompute=args.recompute_dest)
+    dest_seed = get_last_human_target_joints(RDK)
+    dest_ik_map = compute_dest_ik(RDK, robot, dest_cones, pickup_closed_tool,
+                                  recompute=args.recompute_dest, seed=dest_seed)
     robot.setTool(tool)   # restore pickup_open for base cone approach
 
     # ── Step 3: prompt for base and destination cone numbers ──────────────────
