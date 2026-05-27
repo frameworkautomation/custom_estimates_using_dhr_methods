@@ -519,24 +519,29 @@ def load_latest_base_cone_ik():
           f"approach offset={data.get('approach_offset_mm', '?')} mm)")
 
     solutions = data.get("solutions", [])
-    result = {}
 
-    for s in solutions if isinstance(solutions, list) else solutions.values():
-        name = s["name"] if isinstance(s, dict) and "name" in s else s
+    # Dict format written by compute_all_offsets / save_solutions — return directly
+    if isinstance(solutions, dict):
+        return solutions
+
+    # Legacy list formats
+    result = {}
+    for s in solutions:
+        if not isinstance(s, dict):
+            continue
+        name = s.get("name", "")
+        if not name:
+            continue
 
         if "poses" in s:
-            # New nested format from refactored checker
             grab = s["poses"].get("grab", {})
             app  = s["poses"].get("approach", {})
-
             grab_ok = grab.get("native_ok", False) or grab.get("swept_ok", False)
             grab_j  = (grab.get("native_joints") if grab.get("native_ok")
                        else grab.get("best_joints")) or [0.0] * 7
-
             app_ok = app.get("native_ok", False) or app.get("swept_ok", False)
             app_j  = (app.get("native_joints") if app.get("native_ok")
                       else app.get("best_joints")) or [0.0] * 7
-
             result[name] = {
                 "grab_ok":      grab_ok,
                 "grab_joints":  grab_j,
@@ -548,7 +553,6 @@ def load_latest_base_cone_ik():
                 "app_angle":    0.0,
             }
         else:
-            # Old flat format — use as-is
             result[name] = s
 
     return result
@@ -563,9 +567,13 @@ def run_human_targets(RDK, robot):
         print("[WARN] 'human_targets' frame not found in station — skipping.")
         return
 
+    def _natural_key(t):
+        parts = re.split(r'(\d+)', t.Name())
+        return [int(p) if p.isdigit() else p.lower() for p in parts]
+
     targets = sorted(
         [t for t in frame.Childs() if t.Type() == ITEM_TYPE_TARGET],
-        key=lambda t: t.Name(),
+        key=_natural_key,
     )
 
     if not targets:
