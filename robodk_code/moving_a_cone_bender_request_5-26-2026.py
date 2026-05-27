@@ -575,15 +575,7 @@ def run_human_targets(RDK, robot):
     print(f"\n[human_targets] Running through {len(targets)} target(s) ...")
     for tgt in targets:
         print(f"  MoveJ -> {tgt.Name()}")
-        # Seed IK from current joints so the solver stays in the same arm
-        # configuration rather than flipping through a home-like via-point.
-        joints_sol = robot.SolveIK(tgt.PoseAbs(), robot.Joints())
-        j_list = joints_sol.list()
-        if len(j_list) >= 6:
-            robot.MoveJ(joints_sol)
-        else:
-            print(f"  [WARN] SolveIK failed for {tgt.Name()} — falling back to target item")
-            robot.MoveJ(tgt)
+        robot.MoveJ(tgt)
     print("[human_targets] Done.")
 
 
