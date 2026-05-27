@@ -290,10 +290,14 @@ def find_base_cones(RDK):
     def _is_base_grab(t):
         return t.Name().startswith("base_cone_grab_") and not t.Name().endswith("_approach")
 
+    def _nat(t):
+        parts = re.split(r'(\d+)', t.Name())
+        return [int(p) if p.isdigit() else p.lower() for p in parts]
+
     targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_base_grab(t)]
     if not targets:
         targets = [t for t in _targets_under_waypoint_frame(RDK) if _is_base_grab(t)]
-    return sorted(targets, key=lambda t: t.Name())
+    return sorted(targets, key=_nat)
 
 
 def find_destination_cones(RDK):
@@ -302,10 +306,14 @@ def find_destination_cones(RDK):
     def _is_dest(t):
         return t.Name().startswith("cone_grab_") and not t.Name().endswith("_approach")
 
+    def _nat(t):
+        parts = re.split(r'(\d+)', t.Name())
+        return [int(p) if p.isdigit() else p.lower() for p in parts]
+
     targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_dest(t)]
     if not targets:
         targets = [t for t in _targets_under_waypoint_frame(RDK) if _is_dest(t)]
-    return sorted(targets, key=lambda t: t.Name())
+    return sorted(targets, key=_nat)
 
 
 def compute_all_offsets(RDK, robot, cone_targets):
