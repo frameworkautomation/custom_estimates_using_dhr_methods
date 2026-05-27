@@ -55,10 +55,11 @@ OPT_AXES_FREE_J7 = {
     "Algorithm": 3,
     "MaxIter":  500,
     "Tol":      0.001,
+    # j7 (rail) has NO relative weight — free to move wherever needed
     "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
-    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 0,
     "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
-    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+    "RelW_5": 50, "RelW_6": 50,
 }
 
 OPT_AXES_STATIC_J7 = {
