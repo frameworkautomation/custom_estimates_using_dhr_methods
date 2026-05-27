@@ -5,6 +5,7 @@ robo_dk_output/
 !robo_dk_output/path_config.yaml
 !robo_dk_output/waypoint_sources.json
 !robo_dk_output/viewer_config.yaml
+!robo_dk_output/import_waypoints_cache.json
 robo_dk_saves/
 !robo_dk_saves/TestStationFanuc_v4_bender_request*
 extracted_assets/

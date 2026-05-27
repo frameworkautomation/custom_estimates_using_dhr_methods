@@ -20,6 +20,7 @@ import json
 import re
 import math
 import argparse
+import hashlib
 
 sys.path.append("C:/RoboDK/Python")  # silently ignored in WSL; works on Windows
 
@@ -34,7 +35,8 @@ ROBOT_NAME     = "Fanuc R2000iC 125L"
 DEFAULT_PARENT = "WaypointTargets"
 DEFAULT_IP     = "172.23.208.1"
 
-DEFAULT_YAML = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
+DEFAULT_YAML  = os.path.join(REPO_ROOT, "robo_dk_output", "path_config.yaml")
+CACHE_PATH    = os.path.join(REPO_ROOT, "robo_dk_output", "import_waypoints_cache.json")
 
 # Target colours (R, G, B) — RoboDK uses 0-255 per channel packed as 0xRRGGBB
 COLOR_MOVEJ = 0x4444FF   # blue
@@ -142,6 +144,25 @@ def color_for_move_type(move_type):
     return COLOR_OTHER
 
 
+# ── CACHE HELPERS ──────────────────────────────────────────────────────────────
+
+def waypoint_hash(wp):
+    """Stable hash of the fields that define a target's pose and type."""
+    key = json.dumps({k: wp[k] for k in ("x","y","z","rx","ry","rz","frame","move_type","j7")}, sort_keys=True)
+    return hashlib.md5(key.encode()).hexdigest()
+
+def load_cache():
+    if os.path.isfile(CACHE_PATH):
+        with open(CACHE_PATH) as f:
+            return json.load(f)
+    return {}
+
+def save_cache(cache):
+    os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
+    with open(CACHE_PATH, "w") as f:
+        json.dump(cache, f, indent=2)
+
+
 # ── MAIN ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -159,6 +180,10 @@ def main():
     parser.add_argument(
         "--parent-name", default=DEFAULT_PARENT,
         help=f"Name of the parent frame group in RoboDK (default: {DEFAULT_PARENT})"
+    )
+    parser.add_argument(
+        "--force", action="store_true",
+        help="Re-import all targets even if unchanged."
     )
     args = parser.parse_args()
 
@@ -199,20 +224,26 @@ def main():
         parent_frame.setPose(eye(4))
 
     # ── Import targets ────────────────────────────────────────────────────────
+    cache = {} if args.force else load_cache()
     created = 0
+    skipped = 0
     replaced = 0
     failed = 0
 
     for wp in waypoints:
         name = wp["name"]
+        h = waypoint_hash(wp)
+
+        # Skip if unchanged and already in station
+        if not args.force and cache.get(name) == h:
+            existing = RDK.Item(name, ITEM_TYPE_TARGET)
+            if existing.Valid():
+                skipped += 1
+                continue
+
         try:
-            local_pose = build_pose(wp)
+            world_pose = build_pose(wp)
 
-            # Use YAML coords directly as world coords — same as GH visualizer
-            # which applies no offset when base_origin is at world origin.
-            world_pose = local_pose
-
-            # Delete existing target with the same name if present
             existing = RDK.Item(name, ITEM_TYPE_TARGET)
             if existing.Valid():
                 existing.Delete()
@@ -222,7 +253,6 @@ def main():
             target.setAsCartesianTarget()
             target.setPose(world_pose)
 
-            # Colour by move type (best-effort — not all RoboDK versions expose setColor on targets)
             try:
                 color = color_for_move_type(wp["move_type"])
                 target.setColor([
@@ -232,21 +262,24 @@ def main():
                     1.0,
                 ])
             except Exception:
-                pass  # color is cosmetic — don't fail the import
+                pass
 
             note_str = f"  [{wp['move_type']}  j7={wp['j7']}  frame={wp['frame']}]"
             if wp.get("note"):
                 note_str += f"  # {wp['note']}"
             print(f"  + {name}{note_str}")
+            cache[name] = h
             created += 1
 
         except Exception as exc:
             print(f"  FAILED {name}: {exc}")
             failed += 1
 
+    save_cache(cache)
+
     # ── Summary ───────────────────────────────────────────────────────────────
     print()
-    print(f"Done.  Created: {created}  (replaced existing: {replaced})  Failed: {failed}")
+    print(f"Done.  Created: {created}  Skipped (unchanged): {skipped}  (replaced existing: {replaced})  Failed: {failed}")
     if edges:
         print(f"Note: {len(edges)} edge(s) defined in the YAML — "
               "edges are not imported as RoboDK items (use check_collision_free_paths.py to test them).")
