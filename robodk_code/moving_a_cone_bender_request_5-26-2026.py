@@ -631,28 +631,43 @@ def get_last_human_target_joints(RDK):
     return None
 
 
-def run_human_targets(RDK, robot):
-    """MoveJ through every target inside the 'human_targets' frame, sorted by name."""
+def _get_human_targets(RDK):
+    """Return human_targets sorted in natural order, or empty list if frame missing."""
     frame = RDK.Item("human_targets", ITEM_TYPE_FRAME)
     if not frame.Valid():
-        print("[WARN] 'human_targets' frame not found in station — skipping.")
-        return
+        return []
 
     def _natural_key(t):
         parts = re.split(r'(\d+)', t.Name())
         return [int(p) if p.isdigit() else p.lower() for p in parts]
 
-    targets = sorted(
+    return sorted(
         [t for t in frame.Childs() if t.Type() == ITEM_TYPE_TARGET],
         key=_natural_key,
     )
 
-    if not targets:
-        print("[WARN] No targets found under 'human_targets' — skipping.")
-        return
 
+def run_human_targets(RDK, robot):
+    """MoveJ through every target inside 'human_targets' in natural order."""
+    targets = _get_human_targets(RDK)
+    if not targets:
+        print("[WARN] 'human_targets' frame missing or empty — skipping.")
+        return
     print(f"\n[human_targets] Running through {len(targets)} target(s) ...")
     for tgt in targets:
+        print(f"  MoveJ -> {tgt.Name()}")
+        robot.MoveJ(tgt)
+    print("[human_targets] Done.")
+
+
+def run_human_targets_reverse(RDK, robot):
+    """MoveJ through every target inside 'human_targets' in reverse natural order."""
+    targets = _get_human_targets(RDK)
+    if not targets:
+        print("[WARN] 'human_targets' frame missing or empty — skipping.")
+        return
+    print(f"\n[human_targets] Running in reverse through {len(targets)} target(s) ...")
+    for tgt in reversed(targets):
         print(f"  MoveJ -> {tgt.Name()}")
         robot.MoveJ(tgt)
     print("[human_targets] Done.")
@@ -985,6 +1000,9 @@ def main():
             cone_mesh.setParentStatic(world_frame)
             RDK.Render(True)
             _log("[INFO] Cone mesh placed at destination.")
+
+        # Retrace human targets in reverse back to start position
+        run_human_targets_reverse(RDK, robot)
 
         # Return home
         if not proceed(
