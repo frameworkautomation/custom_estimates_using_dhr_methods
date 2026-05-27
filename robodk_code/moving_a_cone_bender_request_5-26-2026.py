@@ -479,7 +479,7 @@ def compute_dest_ik(RDK, robot, dest_cones, tool, recompute=False):
 def save_solutions(all_results):
     os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = os.path.join(IK_SOLUTIONS_DIR, f"moving_a_cone_ik_{timestamp}.json")
+    out_path = os.path.join(IK_SOLUTIONS_DIR, f"base_cone_ik_{timestamp}.json")
     with open(out_path, "w") as f:
         json.dump({
             "generated": timestamp,
@@ -575,7 +575,15 @@ def run_human_targets(RDK, robot):
     print(f"\n[human_targets] Running through {len(targets)} target(s) ...")
     for tgt in targets:
         print(f"  MoveJ -> {tgt.Name()}")
-        robot.MoveJ(tgt)
+        # Seed IK from current joints so the solver stays in the same arm
+        # configuration rather than flipping through a home-like via-point.
+        joints_sol = robot.SolveIK(tgt.PoseAbs(), robot.Joints())
+        j_list = joints_sol.list()
+        if len(j_list) >= 6:
+            robot.MoveJ(joints_sol)
+        else:
+            print(f"  [WARN] SolveIK failed for {tgt.Name()} — falling back to target item")
+            robot.MoveJ(tgt)
     print("[human_targets] Done.")
 
 
@@ -600,6 +608,9 @@ def main():
                     help="Delete the gripper axis_offset cache. Use this when the "
                          "gripper has been manually returned to its rest/import position "
                          "so the cache is recomputed from the current pose.")
+    ap.add_argument("--no-pause", action="store_true",
+                    help="Skip all confirmation pauses (same effect as --mode ai but "
+                         "can be combined with --mode human for prompts without pauses).")
     args = ap.parse_args()
 
     if args.reset_gripper:
@@ -610,7 +621,7 @@ def main():
         else:
             print(f"[INFO] No gripper cache found — nothing to reset.")
 
-    if args.mode == "ai":
+    if args.mode == "ai" or args.no_pause:
         _NO_POPUPS = True
         if args.base is None:
             args.base = 0
@@ -833,6 +844,14 @@ def main():
 
         # Retract to base approach after pickup
         if not do_move(robot, base_app_joints, f"base retract ({base_name})"):
+            return
+
+        if not proceed(
+            "Retracted to approach — ready to move home",
+            "Cone is attached and robot is at the approach offset position.\n\n"
+            "Click OK to move home, Cancel to abort."
+        ):
+            _log("[ABORT] User cancelled after retract.")
             return
 
         # Move to home — cone follows since it's attached to the tool
