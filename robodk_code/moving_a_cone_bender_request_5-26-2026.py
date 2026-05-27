@@ -202,10 +202,12 @@ def solve_ik_free_j7(robot, pose, label, seed=None):
     Returns (joints, converged).
     """
     if seed is not None:
-        # Enable j7 relative penalty so solver stays near seed's rail position
+        # Lock j7 absolutely to seed's rail position (DHR pattern: AbsJnt_7 + AbsW_7)
+        # so the solver is forced to reach the target with the arm only.
         params = dict(OPT_AXES_FREE_J7)
-        params["RelOn_7"] = 1
-        params["RelW_7"]  = 50
+        params["AbsOn_7"]  = 1
+        params["AbsJnt_7"] = float(seed[6])
+        params["AbsW_7"]   = 100
     else:
         params = OPT_AXES_FREE_J7
     robot.setParam("OptimAxes", params)
