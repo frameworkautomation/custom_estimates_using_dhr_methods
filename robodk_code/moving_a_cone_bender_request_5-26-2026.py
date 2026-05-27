@@ -746,6 +746,10 @@ def main():
     robot.setSpeed(speed_linear=SPEED_MM_S, speed_joints=SPEED_J_DEG_S)
 
     try:
+        # Step 0: move to home (all joints 0)
+        if not do_move(robot, HOME_SEED, "home"):
+            return
+
         # Step 1/4: base cone approach
         if not proceed(
             "Step 1/4 — Move to base approach",
@@ -771,12 +775,8 @@ def main():
         if not do_move(robot, base_grab_joints, f"base grab ({base_name})"):
             return
 
-        # Move cone to TCP then attach to tool so it follows the robot
+        # Attach cone to tool so it follows the robot — setParentStatic preserves world position
         if cone_mesh is not None:
-            tcp_pose = robot.Pose()
-            # Compute local pose: TCP world → local in cone's current parent frame
-            parent_abs = cone_mesh_orig_parent.PoseAbs() if (cone_mesh_orig_parent and cone_mesh_orig_parent.Valid()) else eye(4)
-            cone_mesh.setPose(invH(parent_abs) * tcp_pose)
             _attach_to = tool if tool.Valid() else robot
             cone_mesh.setParentStatic(_attach_to)
             RDK.Render(True)
