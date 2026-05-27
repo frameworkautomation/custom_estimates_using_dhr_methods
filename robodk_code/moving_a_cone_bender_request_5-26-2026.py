@@ -785,7 +785,17 @@ def main():
         # Retract to base approach after pickup
         if not do_move(robot, base_app_joints, f"base retract ({base_name})"):
             return
-        raise RuntimeError("Stopping here — retract complete. Fix next phase before continuing.")
+
+        # Move to home — cone follows since it's attached to the tool
+        if not do_move(robot, HOME_SEED, "home"):
+            return
+
+        # Close gripper — cone moves with it
+        if moving is not None:
+            set_gripper_angle(RDK, moving, axis_offset, import_angle, closed_angle)
+            print(f"[INFO] Gripper closed to {closed_angle} deg.")
+
+        raise RuntimeError("Stopping here — gripper closed at home. Fix next phase before continuing.")
 
         # Step 3/4: target cone approach
         if not proceed(
