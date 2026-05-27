@@ -272,24 +272,37 @@ def set_gripper_angle(RDK, moving, axis_offset, import_angle, delta_deg):
     RDK.Render()
 
 
+def _targets_under_waypoint_frame(RDK):
+    """Return all targets nested under the WaypointTargets frame."""
+    parent = RDK.Item("WaypointTargets", ITEM_TYPE_FRAME)
+    if not parent.Valid():
+        return []
+    return [t for t in parent.Childs() if t.Type() == ITEM_TYPE_TARGET]
+
+
 def find_base_cones(RDK):
     """Return sorted list of all base_cone_grab_* targets (pickup sources).
-    Excludes _approach suffixed targets which are computed offsets, not grab poses."""
-    return sorted(
-        [t for t in RDK.ItemList(ITEM_TYPE_TARGET)
-         if t.Name().startswith("base_cone_grab_") and not t.Name().endswith("_approach")],
-        key=lambda t: t.Name(),
-    )
+    Excludes _approach suffixed targets which are computed offsets, not grab poses.
+    Falls back to searching under WaypointTargets frame if global ItemList finds nothing."""
+    def _is_base_grab(t):
+        return t.Name().startswith("base_cone_grab_") and not t.Name().endswith("_approach")
+
+    targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_base_grab(t)]
+    if not targets:
+        targets = [t for t in _targets_under_waypoint_frame(RDK) if _is_base_grab(t)]
+    return sorted(targets, key=lambda t: t.Name())
 
 
 def find_destination_cones(RDK):
     """Return sorted list of all cone_grab_* targets (placement destinations).
-    These live under Cones > Cone_<N> > cone_grab_<N> in the station tree."""
-    return sorted(
-        [t for t in RDK.ItemList(ITEM_TYPE_TARGET)
-         if t.Name().startswith("cone_grab_")],
-        key=lambda t: t.Name(),
-    )
+    Falls back to searching under WaypointTargets frame if global ItemList finds nothing."""
+    def _is_dest(t):
+        return t.Name().startswith("cone_grab_")
+
+    targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_dest(t)]
+    if not targets:
+        targets = [t for t in _targets_under_waypoint_frame(RDK) if _is_dest(t)]
+    return sorted(targets, key=lambda t: t.Name())
 
 
 def compute_all_offsets(RDK, robot, cone_targets):
