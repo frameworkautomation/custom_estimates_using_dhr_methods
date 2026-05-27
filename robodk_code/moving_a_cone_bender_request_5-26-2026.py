@@ -790,10 +790,21 @@ def main():
         if not do_move(robot, HOME_SEED, "home"):
             return
 
-        # Close gripper — cone moves with it
+        # Close gripper — then move cone to same relative pose on pickup_closed
         if moving is not None:
             set_gripper_angle(RDK, moving, axis_offset, import_angle, closed_angle)
             print(f"[INFO] Gripper closed to {closed_angle} deg.")
+
+        if cone_mesh is not None:
+            pickup_closed_tool = RDK.Item("pickup_closed", ITEM_TYPE_TOOL)
+            if pickup_closed_tool.Valid():
+                local_pose = cone_mesh.Pose()   # local pose relative to pickup_open
+                cone_mesh.setParent(pickup_closed_tool)
+                cone_mesh.setPose(local_pose)   # same offset, now in pickup_closed frame
+                robot.setTool(pickup_closed_tool)
+                print(f"[INFO] Cone re-attached to pickup_closed with same relative pose. Tool switched to pickup_closed.")
+            else:
+                print("[WARN] pickup_closed tool not found — cone stays on pickup_open.")
 
         raise RuntimeError("Stopping here — gripper closed at home. Fix next phase before continuing.")
 
