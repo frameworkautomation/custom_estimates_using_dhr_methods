@@ -201,7 +201,14 @@ def solve_ik_free_j7(robot, pose, label, seed=None):
     arm configuration, minimising z-axis travel from the end of the human sequence.
     Returns (joints, converged).
     """
-    robot.setParam("OptimAxes", OPT_AXES_FREE_J7)
+    if seed is not None:
+        # Enable j7 relative penalty so solver stays near seed's rail position
+        params = dict(OPT_AXES_FREE_J7)
+        params["RelOn_7"] = 1
+        params["RelW_7"]  = 50
+    else:
+        params = OPT_AXES_FREE_J7
+    robot.setParam("OptimAxes", params)
     robot.setJoints(seed if seed is not None else HOME_SEED)
     try:
         robot.MoveJ(pose)
