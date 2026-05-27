@@ -554,6 +554,31 @@ def load_latest_base_cone_ik():
     return result
 
 
+# ── Human targets traversal ───────────────────────────────────────────────────
+
+def run_human_targets(RDK, robot):
+    """MoveJ through every target inside the 'human_targets' frame, sorted by name."""
+    frame = RDK.Item("human_targets", ITEM_TYPE_FRAME)
+    if not frame.Valid():
+        print("[WARN] 'human_targets' frame not found in station — skipping.")
+        return
+
+    targets = sorted(
+        [t for t in frame.Childs() if t.Type() == ITEM_TYPE_TARGET],
+        key=lambda t: t.Name(),
+    )
+
+    if not targets:
+        print("[WARN] No targets found under 'human_targets' — skipping.")
+        return
+
+    print(f"\n[human_targets] Running through {len(targets)} target(s) ...")
+    for tgt in targets:
+        print(f"  MoveJ -> {tgt.Name()}")
+        robot.MoveJ(tgt)
+    print("[human_targets] Done.")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -830,7 +855,8 @@ def main():
             else:
                 print("[WARN] pickup_closed tool not found — cone stays on pickup_open.")
 
-        raise RuntimeError("Stopping here — gripper closed at home. Fix next phase before continuing.")
+        # Run through human-defined waypoints in RoboDK
+        run_human_targets(RDK, robot)
 
         # Step 3/4: target cone approach
         if not proceed(
