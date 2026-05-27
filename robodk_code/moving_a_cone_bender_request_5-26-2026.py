@@ -980,10 +980,9 @@ def main():
                        expected_pose=tgt_grab_pose):
             return
 
-        # Detach cone to world frame and snap to exact destination
+        # Detach cone to world frame — setParentStatic preserves world position
         if cone_mesh is not None:
             cone_mesh.setParentStatic(world_frame)
-            cone_mesh.setPose(tgt_grab_pose)   # world_frame is at origin, so local = world
             RDK.Render(True)
             _log("[INFO] Cone mesh placed at destination.")
 
