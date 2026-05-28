@@ -692,6 +692,9 @@ def main():
                          "forces recompute regardless).")
     ap.add_argument("--recompute-base", action="store_true",
                     help="Delete saved base cone IK and recompute from scratch.")
+    ap.add_argument("--base-tool", default=None, metavar="TOOL",
+                    help="Tool to use when computing base cone IK (default: pickup_open). "
+                         "E.g. --base-tool pickup_closed")
     ap.add_argument("--reset-gripper", action="store_true",
                     help="Delete the gripper axis_offset cache. Use this when the "
                          "gripper has been manually returned to its rest/import position "
@@ -756,6 +759,14 @@ def main():
         print(f"\nBase cones (pickup sources) — {len(base_cones)} found in station:")
         for i, t in enumerate(base_cones):
             print(f"  [{i}] {t.Name()}")
+
+        if args.base_tool:
+            _bt = RDK.Item(args.base_tool, ITEM_TYPE_TOOL)
+            if _bt.Valid():
+                robot.setTool(_bt)
+                print(f"[INFO] Base IK tool overridden to '{args.base_tool}'")
+            else:
+                print(f"[WARN] --base-tool '{args.base_tool}' not found — using current tool.")
 
         base_ik_map = load_latest_base_cone_ik()
         if base_ik_map is not None:
