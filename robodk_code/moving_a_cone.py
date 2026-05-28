@@ -558,6 +558,8 @@ def main():
                     help="Ignore cached dest cone IK and recompute from scratch "
                          "(tool pose change is detected automatically; this flag "
                          "forces recompute regardless).")
+    ap.add_argument("--recompute-base", action="store_true",
+                    help="Ignore cached base cone IK and recompute from scratch.")
     ap.add_argument("--reset-gripper", action="store_true",
                     help="Delete the gripper axis_offset cache. Use this when the "
                          "gripper has been manually returned to its rest/import position "
@@ -632,7 +634,9 @@ def main():
         for i, t in enumerate(base_cones):
             print(f"  [{i}] {t.Name()}")
 
-        base_ik_map = load_latest_base_cone_ik()
+        base_ik_map = None if args.recompute_base else load_latest_base_cone_ik()
+        if args.recompute_base:
+            print("[INFO] --recompute-base: ignoring cached IK, recomputing all base cones.")
         if base_ik_map is not None:
             missing = [t for t in base_cones if t.Name() not in base_ik_map]
             if missing:
