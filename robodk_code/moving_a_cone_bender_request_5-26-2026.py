@@ -690,6 +690,8 @@ def main():
                     help="Ignore cached dest cone IK and recompute from scratch "
                          "(tool pose change is detected automatically; this flag "
                          "forces recompute regardless).")
+    ap.add_argument("--recompute-base", action="store_true",
+                    help="Delete saved base cone IK and recompute from scratch.")
     ap.add_argument("--reset-gripper", action="store_true",
                     help="Delete the gripper axis_offset cache. Use this when the "
                          "gripper has been manually returned to its rest/import position "
@@ -742,6 +744,12 @@ def main():
         print(f"[INFO] Moving part set to open_angle={open_angle} deg.")
 
     # ── Step 1: find base cones, load or compute IK ──────────────────────────
+    if args.recompute_base and os.path.isdir(IK_SOLUTIONS_DIR):
+        for f in os.listdir(IK_SOLUTIONS_DIR):
+            if f.startswith("base_cone_ik_") and f.endswith(".json"):
+                os.remove(os.path.join(IK_SOLUTIONS_DIR, f))
+        print("[INFO] Base cone IK cache cleared — will recompute.")
+
     base_cones = find_base_cones(RDK)
 
     if base_cones:
