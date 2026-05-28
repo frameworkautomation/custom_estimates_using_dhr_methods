@@ -20,6 +20,7 @@ import sys
 import os
 import json
 import datetime
+import argparse
 
 sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -193,7 +194,7 @@ def print_grid(results, pose_label, angles, name_w):
         print(row)
 
 
-def save_summary_txt(results, angles, timestamp, out_path):
+def save_summary_txt(results, angles, timestamp, out_path, tool_name=TOOL_NAME):
     """Write a human-readable summary txt to out_path."""
     step_deg = angles[1] - angles[0] if len(angles) > 1 else 360.0
     name_w   = max(len(r["name"]) for r in results)
@@ -203,7 +204,7 @@ def save_summary_txt(results, angles, timestamp, out_path):
     lines.append("BASE CONE REACHABILITY SUMMARY")
     lines.append(f"Generated    : {timestamp}")
     lines.append(f"Robot        : {ROBOT_NAME}")
-    lines.append(f"Tool         : {TOOL_NAME}")
+    lines.append(f"Tool         : {tool_name}")
     lines.append(f"j7 locked    : {J7_LOCKED} mm")
     lines.append(f"Sweep steps  : {ORIENT_SWEEP_STEPS} ({step_deg:.0f}° per step)")
     lines.append(f"Pose configs : {', '.join(label for label, _ in POSE_CONFIGS)}")
@@ -252,16 +253,23 @@ def save_summary_txt(results, angles, timestamp, out_path):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tool", default=TOOL_NAME,
+                    help=f"RoboDK tool name to mount during IK solve (default: {TOOL_NAME})")
+    args = ap.parse_args()
+
+    tool_name = args.tool
+
     RDK = connect()
 
     robot = RDK.Item(ROBOT_NAME, ITEM_TYPE_ROBOT)
     if not robot.Valid():
         raise RuntimeError(f"Robot '{ROBOT_NAME}' not found.")
 
-    tool = RDK.Item(TOOL_NAME, ITEM_TYPE_TOOL)
+    tool = RDK.Item(tool_name, ITEM_TYPE_TOOL)
     if not tool.Valid():
         all_tools = [i.Name() for i in RDK.ItemList(ITEM_TYPE_TOOL)]
-        raise RuntimeError(f"Tool '{TOOL_NAME}' not found. Available: {all_tools}")
+        raise RuntimeError(f"Tool '{tool_name}' not found. Available: {all_tools}")
     robot.setTool(tool)
 
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
@@ -395,7 +403,7 @@ def main():
             "approach_offset_mm": APPROACH_OFFSET_MM,
             "orient_sweep_steps": ORIENT_SWEEP_STEPS,
             "solver":            "OptimAxes Algorithm 3 DLS",
-            "tool":              TOOL_NAME,
+            "tool":              tool_name,
             "robot":             ROBOT_NAME,
             "pose_configs":      [l for l, _ in POSE_CONFIGS],
             "solutions":         results,
@@ -403,7 +411,7 @@ def main():
     print(f"\nIK solutions (JSON) : {json_path}")
 
     txt_path = os.path.join(IK_SOLUTIONS_DIR, f"base_cone_summary_{timestamp}.txt")
-    save_summary_txt(results, angles, timestamp, txt_path)
+    save_summary_txt(results, angles, timestamp, txt_path, tool_name=tool_name)
     print(f"Summary (txt)       : {txt_path}")
 
 
