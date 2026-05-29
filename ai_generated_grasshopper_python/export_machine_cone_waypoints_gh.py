@@ -8,6 +8,7 @@
 #   string_grab_points     : flat list of Planes — string grab planes
 #   string_approach_points : flat list of Planes — string approach planes (pre-computed in GH)
 #   strings                : geometry (flat list)
+#   names                  : flat list of str — one name per cone; used for RoboDK items and YAML (optional, defaults to "cone_0", "cone_1", ...)
 #   cone_color             : Colour (optional, default red)
 #   string_color           : Colour (optional, default green)
 #   trigger                : Boolean (default True)
@@ -40,6 +41,11 @@ try:
     string_approach_points
 except NameError:
     string_approach_points = None
+
+try:
+    names
+except NameError:
+    names = None
 
 YAML_PATH = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\machine_cone_waypoints.yaml"
 
@@ -219,6 +225,12 @@ print("=========================")
 cone_rgba   = resolve_color(cone_color   if 'cone_color'   in dir() else None, [1.0, 0.0, 0.0, 1.0])
 string_rgba = resolve_color(string_color if 'string_color' in dir() else None, [0.0, 1.0, 0.0, 1.0])
 
+raw_names = flatten_input(names) if names is not None else []
+def cone_name(i):
+    if i < len(raw_names) and raw_names[i]:
+        return str(raw_names[i])
+    return f"cone_{i}"
+
 cone_branches = []
 if hasattr(cones, 'Branches') and len(cones.Branches) > 1:
     for branch in cones.Branches:
@@ -246,10 +258,10 @@ if trigger:
     os.makedirs("C:/temp/cones", exist_ok=True)
     cone_stl_paths = []
     for i, branch_geos in enumerate(cone_branches):
-        path = f"C:/temp/cones/cone_{i}.stl"
+        path = f"C:/temp/cones/{cone_name(i)}.stl"
         tris = build_and_write_stl(branch_geos, path)
         cone_stl_paths.append(path)
-        print(f"  cone_{i}: {tris} triangles -> {path}")
+        print(f"  {cone_name(i)}: {tris} triangles -> {path}")
 
     strings_stl_path = "C:/temp/strings.stl"
     string_tris = build_and_write_stl(strings_list, strings_stl_path)
@@ -266,8 +278,8 @@ if trigger:
         ap = cone_approach_planes[i] if i < len(cone_approach_planes) else None
         if ap is None:
             print(f"  WARNING: cone_grab_{i} approach plane is None — skipping YAML entry")
-        grab_name     = f"cone_grab_{i}"
-        approach_name = f"cone_grab_{i}_approach"
+        grab_name     = f"{cone_name(i)}_grab"
+        approach_name = f"{cone_name(i)}_grab_approach"
         x,y,z,rx,ry,rz = plane_to_xyzrpw(pl)
         waypoints.append({"name": grab_name, "x":x,"y":y,"z":z,"rx":rx,"ry":ry,"rz":rz,
                           "move_type":"MoveL","note":"machine cone place"})
@@ -283,8 +295,8 @@ if trigger:
             print(f"  WARNING: str_grab_{i} plane is None — skipping")
             continue
         ap = str_approach_planes[i] if i < len(str_approach_planes) else None
-        grab_name     = f"string_grab_{i}"
-        approach_name = f"string_grab_{i}_approach"
+        grab_name     = f"{cone_name(i)}_string_grab"
+        approach_name = f"{cone_name(i)}_string_grab_approach"
         x,y,z,rx,ry,rz = plane_to_xyzrpw(pl)
         waypoints.append({"name": grab_name, "x":x,"y":y,"z":z,"rx":rx,"ry":ry,"rz":rz,
                           "move_type":"MoveL","note":"machine string grab"})
@@ -353,13 +365,9 @@ if trigger:
             t2.setRobot(robot)
             print(f"    {name}: parent='{t2.Parent().Name()}' valid={t2.Valid()}")
 
-        # Purge old items
+        # Purge only items added by previous runs of this script.
+        # Deleting the "Cones" frame removes all cone frames and targets under it.
         purge_all("strings")
-        for i in range(200):
-            purge_all(f"cone_grab_{i}")
-            purge_all(f"string_grab_{i}")
-            purge_all(f"Cone_{i}")
-            purge_all(f"cone_{i}")
         purge_all("Cones")
 
         # Rebuild
@@ -376,26 +384,27 @@ if trigger:
             print("WARNING: strings item not valid")
 
         for i in range(num_cones):
-            cone_frame = RDK.AddFrame(f"Cone_{i}", cones_frame)
+            cn = cone_name(i)
+            cone_frame = RDK.AddFrame(cn, cones_frame)
             cone_frame.setPose(identity())
 
             cone_obj = add_file_and_get_item(cone_stl_paths[i])
             if cone_obj.Valid():
                 cone_obj.setColor(cone_rgba)
                 cone_obj.setParentStatic(cone_frame)
-                print(f"  Cone_{i}: STL ok")
+                print(f"  {cn}: STL ok")
             else:
-                print(f"  WARNING: Cone_{i} STL not valid")
+                print(f"  WARNING: {cn} STL not valid")
 
             if i < len(cone_grab_planes) and cone_grab_planes[i] is not None:
-                make_target(f"cone_grab_{i}", cone_grab_planes[i], RDK.Item(f"Cone_{i}"))
+                make_target(f"{cn}_grab", cone_grab_planes[i], RDK.Item(cn))
             else:
-                print(f"  WARNING: Cone_{i} missing cone_grab plane")
+                print(f"  WARNING: {cn} missing cone_grab plane")
 
             if i < len(str_grab_planes) and str_grab_planes[i] is not None:
-                make_target(f"string_grab_{i}", str_grab_planes[i], RDK.Item(f"Cone_{i}"))
+                make_target(f"{cn}_string_grab", str_grab_planes[i], RDK.Item(cn))
             else:
-                print(f"  WARNING: Cone_{i} missing string_grab plane")
+                print(f"  WARNING: {cn} missing string_grab plane")
 
         print(f"Done -- {num_cones} cones in tree")
         a = cone_stl_paths[0] if cone_stl_paths else ""
