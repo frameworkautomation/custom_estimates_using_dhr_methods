@@ -47,6 +47,11 @@ try:
 except NameError:
     names = None
 
+try:
+    update_and_amalgamate_waypoints
+except NameError:
+    update_and_amalgamate_waypoints = False
+
 YAML_PATH = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\machine_cone_waypoints.yaml"
 
 # ── Output default ─────────────────────────────────────────────────────────────
@@ -413,3 +418,22 @@ if trigger:
         print(f"RoboDK error: {e}")
         import traceback
         traceback.print_exc()
+
+    # ── Amalgamate waypoints + re-import to RoboDK ────────────────────────────
+    if update_and_amalgamate_waypoints:
+        import subprocess
+        REPO = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+        amalgamate_script  = os.path.join(REPO, "robodk_code", "amalgamate_waypoints.py")
+        import_script      = os.path.join(REPO, "robodk_code", "import_waypoints_to_robodk.py")
+
+        print("\n--- amalgamate_waypoints ---")
+        r1 = subprocess.run([sys.executable, amalgamate_script], capture_output=True, text=True)
+        print(r1.stdout)
+        if r1.returncode != 0:
+            print(f"[ERROR] amalgamate_waypoints failed (rc={r1.returncode}):\n{r1.stderr}")
+        else:
+            print("\n--- import_waypoints_to_robodk ---")
+            r2 = subprocess.run([sys.executable, import_script], capture_output=True, text=True)
+            print(r2.stdout)
+            if r2.returncode != 0:
+                print(f"[ERROR] import_waypoints_to_robodk failed (rc={r2.returncode}):\n{r2.stderr}")
