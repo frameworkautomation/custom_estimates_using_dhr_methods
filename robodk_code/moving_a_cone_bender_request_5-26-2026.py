@@ -907,10 +907,17 @@ def main():
         print(f"[WARN] Base cone mesh '{_mesh_name}' not found in station — pick-and-place animation skipped.")
 
     # ── Motion sequence ───────────────────────────────────────────────────────
+    from robodk.robolink import RUNMODE_SIMULATE
+    RDK.setRunMode(RUNMODE_SIMULATE)
+    print("[INFO] RunMode set to SIMULATE")
+
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    print(f"[INFO] WorldFrame valid: {world_frame.Valid()}")
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
+    print("[INFO] PoseFrame set")
     robot.setSpeed(speed_linear=SPEED_MM_S, speed_joints=SPEED_J_DEG_S)
+    print("[INFO] Speed set — starting motion")
 
     try:
         # Step 0: move to home (all joints 0)
