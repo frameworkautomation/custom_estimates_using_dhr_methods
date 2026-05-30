@@ -1,5 +1,5 @@
 # GhPython component (Rhino 8 / CPython 3)
-# Export base cone grab points + approach offsets to YAML. No RoboDK connection.
+# Export base cone grab points + approach offsets to YAML and import STLs into RoboDK.
 #
 # GH Inputs:
 #   cones               : geometry (DataTree one branch per cone, or flat list)
@@ -8,11 +8,14 @@
 #   string_grab_points  : flat list of Planes, one per cone
 #   string_approach_points : flat list of Planes, one per cone — string approach planes (pre-computed in GH)
 #   bins                : geometry (flat list or DataTree, one branch per bin)
+#   cone_names          : flat list of str — one name per cone; used for RoboDK items and YAML (optional, defaults to "base_cone_0", ...)
+#   bin_names           : flat list of str — one name per bin; used for RoboDK items (optional, defaults to "bin_0", ...)
 #   base_origin         : Point — robot base origin in Rhino model space
 #   yaml_path           : str   — output YAML path (default: repo/robo_dk_output/base_cone_waypoints.yaml)
 #   cone_color          : Colour (optional, default orange)
 #   string_color        : Colour (optional, default yellow)
 #   bin_color           : Colour (optional, default blue)
+#   update_and_amalgamate_waypoints : Boolean — if True, runs amalgamate_waypoints.py then import_waypoints_to_robodk.py after export
 #   trigger             : Boolean
 #
 # GH Outputs:
@@ -52,6 +55,20 @@ try:
 except NameError:
     strings = None
 
+try:
+    cone_names
+except NameError:
+    cone_names = None
+
+try:
+    bin_names
+except NameError:
+    bin_names = None
+
+try:
+    update_and_amalgamate_waypoints
+except NameError:
+    update_and_amalgamate_waypoints = False
 
 if yaml_path is None or yaml_path == "":
     yaml_path = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robo_dk_output\base_cone_waypoints.yaml"
@@ -294,6 +311,17 @@ diagnose_tree("strings",                 strings)
 diagnose_tree("bins",                    bins if 'bins' in dir() else None)
 print("=========================")
 
+raw_cone_names = flatten_input(cone_names) if cone_names is not None else []
+raw_bin_names  = flatten_input(bin_names)  if bin_names  is not None else []
+def cone_name(i):
+    if i < len(raw_cone_names) and raw_cone_names[i]:
+        return str(raw_cone_names[i])
+    return f"base_cone_{i}"
+def bin_name(i):
+    if i < len(raw_bin_names) and raw_bin_names[i]:
+        return str(raw_bin_names[i])
+    return f"bin_{i}"
+
 # Collect inputs
 cone_branches = []
 if hasattr(cones, 'Branches') and len(cones.Branches) > 1:
@@ -353,24 +381,24 @@ if trigger:
 
     # Write STLs
     for i, branch_geos in enumerate(cone_branches):
-        path = f"C:/temp/base_cones/base_cone_{i}.stl"
+        path = f"C:/temp/base_cones/{cone_name(i)}.stl"
         tris = build_and_write_stl(branch_geos, path)
         stl_paths.append(path)
-        print(f"  base_cone_{i}: {tris} triangles -> {path}")
+        print(f"  {cone_name(i)}: {tris} triangles -> {path}")
 
     bin_stl_paths = []
     for i, branch_geos in enumerate(bin_branches):
-        path = f"C:/temp/bins/bin_{i}.stl"
+        path = f"C:/temp/bins/{bin_name(i)}.stl"
         tris = build_and_write_stl(branch_geos, path)
         bin_stl_paths.append(path)
-        print(f"  bin_{i}: {tris} triangles -> {path}")
+        print(f"  {bin_name(i)}: {tris} triangles -> {path}")
 
     string_stl_paths = []
     for i, branch_geos in enumerate(string_branches):
-        path = f"C:/temp/base_strings/base_str_{i}.stl"
+        path = f"C:/temp/base_strings/{cone_name(i)}_string.stl"
         tris = build_and_write_stl(branch_geos, path)
         string_stl_paths.append(path)
-        print(f"  base_str_{i}: {tris} triangles -> {path}")
+        print(f"  {cone_name(i)}_string: {tris} triangles -> {path}")
 
     # Build output planes and YAML entries
     waypoints = []
@@ -386,8 +414,8 @@ if trigger:
             print(f"  WARNING: cone_grab_{i} approach plane is None — skipping")
             continue
 
-        grab_name     = f"base_cone_grab_{i}"
-        approach_name = f"base_cone_grab_{i}_approach"
+        grab_name     = f"{cone_name(i)}_grab"
+        approach_name = f"{cone_name(i)}_grab_approach"
 
         x,y,z,rx,ry,rz      = plane_to_xyzrpw_robot_local(pl, base_orig)
         ax,ay,az,arx,ary,arz = plane_to_xyzrpw_robot_local(ap, base_orig)
@@ -417,8 +445,8 @@ if trigger:
             print(f"  WARNING: str_grab_{i} approach plane is None — skipping")
             continue
 
-        grab_name     = f"base_str_grab_{i}"
-        approach_name = f"base_str_grab_{i}_approach"
+        grab_name     = f"{cone_name(i)}_string_grab"
+        approach_name = f"{cone_name(i)}_string_grab_approach"
 
         x,y,z,rx,ry,rz      = plane_to_xyzrpw_robot_local(pl, base_orig)
         ax,ay,az,arx,ary,arz = plane_to_xyzrpw_robot_local(ap, base_orig)
@@ -444,55 +472,104 @@ if trigger:
     # ── Import STLs into RoboDK ───────────────────────────────────────────────
     try:
         sys.path.append("C:/RoboDK/Python")
-        from robodk.robolink import Robolink, ITEM_TYPE_OBJECT
+        from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_ROBOT
+        from robodk.robomath import Mat
         RDK = Robolink()
         RDK.Item("")  # ping
 
-        # Resolve colors (RGBA 0-1) from GH inputs
         _cone_rgba   = resolve_color(cone_color   if 'cone_color'   in dir() else None, [1.0, 0.5, 0.0, 1.0])
         _string_rgba = resolve_color(string_color if 'string_color' in dir() else None, [1.0, 1.0, 0.0, 1.0])
         _bin_rgba    = resolve_color(bin_color    if 'bin_color'    in dir() else None, [0.5, 0.5, 0.5, 1.0])
 
-        # Find robot — cones and bins are parented to the robot base so they
-        # move with the rail (j7 linear axis)
-        from robodk.robolink import ITEM_TYPE_ROBOT
         robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
         robot_base = robot.Parent() if robot.Valid() else None
         if robot_base is not None and robot_base.Valid():
-            print(f"  RoboDK: parenting objects under '{robot_base.Name()}'")
+            print(f"  RoboDK: parenting under '{robot_base.Name()}'")
         else:
             robot_base = None
-            print("  RoboDK: robot base not found, objects will be at world level")
+            print("  RoboDK: robot base not found, objects at world level")
 
-        # Remove any previously imported base cone / bin / string objects
-        for item in RDK.ItemList(ITEM_TYPE_OBJECT):
-            if (item.Name().startswith("base_cone_") or
-                    item.Name().startswith("bin_") or
-                    item.Name().startswith("base_str_")):
+        station = RDK.Item("", 1)
+
+        def identity():
+            return Mat([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
+
+        def purge_all(name):
+            for _ in range(50):
+                item = RDK.Item(name)
+                if not item.Valid(): break
                 item.Delete()
 
-        def _import_stl(path, rgba):
-            item = RDK.AddFile(path)
-            if not item.Valid():
-                print(f"  RoboDK: FAILED to import {os.path.basename(path)}")
-                return
-            if robot_base is not None:
-                item.setParentStatic(robot_base)
-            try:
-                item.setColor(rgba)
-                print(f"  RoboDK: imported {os.path.basename(path)} color={rgba}")
-            except Exception as ce:
-                print(f"  RoboDK: imported {os.path.basename(path)} but setColor failed: {ce}")
+        def add_file_and_get_item(stl_path):
+            before = set(it.item for it in RDK.ItemList(ITEM_TYPE_OBJECT, False))
+            RDK.AddFile(stl_path)
+            for it in RDK.ItemList(ITEM_TYPE_OBJECT, False):
+                if it.item not in before:
+                    return it
+            return RDK.Item(os.path.splitext(os.path.basename(stl_path))[0])
 
-        for path in stl_paths:
-            _import_stl(path, _cone_rgba)
+        # Purge only items added by previous runs — delete parent frames
+        purge_all("BaseCones")
+        purge_all("BaseBins")
 
-        for path in bin_stl_paths:
-            _import_stl(path, _bin_rgba)
+        # BaseCones frame parented to robot_base so it moves with the rail
+        parent = robot_base if robot_base is not None else station
+        base_cones_frame = RDK.AddFrame("BaseCones", parent)
+        base_cones_frame.setPose(identity())
 
-        for path in string_stl_paths:
-            _import_stl(path, _string_rgba)
+        base_bins_frame = RDK.AddFrame("BaseBins", parent)
+        base_bins_frame.setPose(identity())
+
+        for i, path in enumerate(stl_paths):
+            obj = add_file_and_get_item(path)
+            if obj.Valid():
+                obj.setName(cone_name(i))
+                obj.setParentStatic(base_cones_frame)
+                obj.setColor(_cone_rgba)
+                print(f"  RoboDK: {cone_name(i)} imported")
+            else:
+                print(f"  RoboDK: FAILED {os.path.basename(path)}")
+
+        for i, path in enumerate(string_stl_paths):
+            obj = add_file_and_get_item(path)
+            if obj.Valid():
+                obj.setName(f"{cone_name(i)}_string")
+                obj.setParentStatic(base_cones_frame)
+                obj.setColor(_string_rgba)
+                print(f"  RoboDK: {cone_name(i)}_string imported")
+            else:
+                print(f"  RoboDK: FAILED {os.path.basename(path)}")
+
+        for i, path in enumerate(bin_stl_paths):
+            obj = add_file_and_get_item(path)
+            if obj.Valid():
+                obj.setName(bin_name(i))
+                obj.setParentStatic(base_bins_frame)
+                obj.setColor(_bin_rgba)
+                print(f"  RoboDK: {bin_name(i)} imported")
+            else:
+                print(f"  RoboDK: FAILED {os.path.basename(path)}")
 
         print("[OK] STLs imported into RoboDK")
     except Exception as e:
         print(f"[WARN] RoboDK import skipped: {e}")
+
+    # ── Amalgamate waypoints + re-import to RoboDK ────────────────────────────
+    if update_and_amalgamate_waypoints:
+        import subprocess
+        REPO   = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+        PYTHON = r"C:\Users\samst\.rhinocode\py39-rh8\python.exe"
+        amalgamate_script = os.path.join(REPO, "robodk_code", "amalgamate_waypoints.py")
+        import_script     = os.path.join(REPO, "robodk_code", "import_waypoints_to_robodk.py")
+
+        print("\n--- amalgamate_waypoints ---")
+        r1 = subprocess.run([PYTHON, amalgamate_script], capture_output=True, text=True)
+        print(r1.stdout)
+        if r1.returncode != 0:
+            print(f"[ERROR] amalgamate_waypoints failed (rc={r1.returncode}):\n{r1.stderr}")
+        else:
+            print("\n--- import_waypoints_to_robodk ---")
+            r2 = subprocess.run([PYTHON, import_script], capture_output=True, text=True)
+            print(r2.stdout)
+            if r2.returncode != 0:
+                print(f"[ERROR] import_waypoints_to_robodk failed (rc={r2.returncode}):\n{r2.stderr}")
