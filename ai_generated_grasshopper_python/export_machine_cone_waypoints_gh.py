@@ -324,23 +324,9 @@ if trigger:
         def identity():
             return Mat([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 
-        def plane_to_pose(pl):
-            x, y, z, o = pl.XAxis, pl.YAxis, pl.ZAxis, pl.Origin
-            return Mat([[x.X,y.X,z.X,o.X],[x.Y,y.Y,z.Y,o.Y],[x.Z,y.Z,z.Z,o.Z],[0,0,0,1]])
-
         RDK = Robolink()
         station = RDK.Item("", 1)
         print(f"Station: {station.Name()}")
-
-        robot = RDK.Item("Fanuc R2000iC 125L")
-        if not robot.Valid(): robot = RDK.Item("", 4)
-        print(f"Robot: {robot.Name()}")
-
-        world_frame = RDK.Item("WorldFrame")
-        if not world_frame.Valid():
-            world_frame = RDK.AddFrame("WorldFrame", station)
-            world_frame.setPose(identity())
-            print("Created WorldFrame")
 
         def purge_all(name):
             count = 0
@@ -360,15 +346,6 @@ if trigger:
                     return it
             stem = os.path.splitext(os.path.basename(stl_path))[0]
             return RDK.Item(stem)
-
-        def make_target(name, pl, parent_frame):
-            t = RDK.AddTarget(name, world_frame, robot)
-            t.setAsCartesianTarget()
-            t.setPoseAbs(plane_to_pose(pl))
-            t.setParent(parent_frame)
-            t2 = RDK.Item(name)
-            t2.setRobot(robot)
-            print(f"    {name}: parent='{t2.Parent().Name()}' valid={t2.Valid()}")
 
         # Purge only items added by previous runs of this script.
         # Deleting the "Cones" frame removes all cone frames and targets under it.
@@ -401,15 +378,6 @@ if trigger:
             else:
                 print(f"  WARNING: {cn} STL not valid")
 
-            if i < len(cone_grab_planes) and cone_grab_planes[i] is not None:
-                make_target(f"{cn}_grab", cone_grab_planes[i], RDK.Item(cn))
-            else:
-                print(f"  WARNING: {cn} missing cone_grab plane")
-
-            if i < len(str_grab_planes) and str_grab_planes[i] is not None:
-                make_target(f"{cn}_string_grab", str_grab_planes[i], RDK.Item(cn))
-            else:
-                print(f"  WARNING: {cn} missing string_grab plane")
 
         print(f"Done -- {num_cones} cones in tree")
         a = cone_stl_paths[0] if cone_stl_paths else ""
