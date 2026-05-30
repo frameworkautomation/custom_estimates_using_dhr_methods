@@ -251,6 +251,9 @@ def write_waypoints_yaml(waypoints, edges, path):
         lines.append(f"    j7: {'null' if j7_val is None else j7_val}")
         if w.get('z_axis_free'):
             lines.append(f"    z_axis_free: true")
+        if w.get('special_conditions'):
+            conds = ", ".join(w['special_conditions'])
+            lines.append(f"    special_conditions: [{conds}]")
         lines.append(f"    source: grasshopper")
         if w.get('note'):
             lines.append(f"    note: \"{w['note']}\"")
@@ -391,9 +394,11 @@ if trigger:
 
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
                           "move_type":"MoveJ","j7":None,"z_axis_free":True,
+                          "special_conditions":["attached_to_base"],
                           "note":"cone approach — robot-relative, j7 free, rotation around cone Z axis free"})
         waypoints.append({"name": grab_name,     "x":x, "y":y, "z":z, "rx":rx, "ry":ry, "rz":rz,
                           "move_type":"MoveL","j7":None,
+                          "special_conditions":["attached_to_base"],
                           "note":"cone grab — robot-relative, j7 free"})
 
         # Bidirectional edges — enter (approach→grab) and exit (grab→approach)
@@ -420,9 +425,11 @@ if trigger:
 
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
                           "move_type":"MoveJ","j7":None,"z_axis_free":True,
+                          "special_conditions":["attached_to_base"],
                           "note":"string grab approach — robot-relative, j7 free, rotation around cone Z axis free"})
         waypoints.append({"name": grab_name,     "x":x, "y":y, "z":z, "rx":rx, "ry":ry, "rz":rz,
                           "move_type":"MoveL","j7":None,
+                          "special_conditions":["attached_to_base"],
                           "note":"string grab — robot-relative, j7 free"})
 
         edges.append({"from": approach_name, "to": grab_name})
