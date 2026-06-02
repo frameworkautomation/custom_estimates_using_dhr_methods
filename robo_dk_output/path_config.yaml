@@ -413,6 +413,810 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+  Back_1_grab:
+    x: 2453.8476
+    y: 1649.4514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_1_grab_approach:
+    x: 2453.8476
+    y: 1649.4514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_1_grab:
+    x: 2771.0476
+    y: 1819.2514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_1_grab_approach:
+    x: 2771.0476
+    y: 1819.2514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_1_string_grab:
+    x: 2453.8476
+    y: 1649.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_1_string_grab_approach:
+    x: 2253.8476
+    y: 1649.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_1_string_grab:
+    x: 2771.0476
+    y: 1819.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_1_string_grab_approach:
+    x: 2971.0476
+    y: 1819.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Base_Right_0_grab_approach:
+    x: 959.1044
+    y: -368.0
+    z: 1388.2739
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Right_0_grab:
+    x: 1220.0816
+    y: -368.0
+    z: 1015.5597
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Right_1_grab_approach:
+    x: 808.3804
+    y: -368.0
+    z: 1282.7359
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Right_1_grab:
+    x: 1069.3577
+    y: -368.0
+    z: 910.0217
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Right_2_grab_approach:
+    x: 657.6564
+    y: -368.0
+    z: 1177.1978
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Right_2_grab:
+    x: 918.6337
+    y: -368.0
+    z: 804.4836
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Left_0_grab_approach:
+    x: 959.1044
+    y: -152.0
+    z: 1388.2739
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Left_0_grab:
+    x: 1220.0816
+    y: -152.0
+    z: 1015.5597
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Left_1_grab_approach:
+    x: 808.3804
+    y: -152.0
+    z: 1282.7359
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Left_1_grab:
+    x: 1069.3577
+    y: -152.0
+    z: 910.0217
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Left_2_grab_approach:
+    x: 657.6564
+    y: -152.0
+    z: 1177.1978
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Left_2_grab:
+    x: 918.6337
+    y: -152.0
+    z: 804.4836
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Right_0_string_grab_approach:
+    x: 959.1044
+    y: -368.0
+    z: 1388.2739
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Right_0_string_grab:
+    x: 1220.0816
+    y: -368.0
+    z: 1015.5597
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Right_1_string_grab_approach:
+    x: 808.3804
+    y: -368.0
+    z: 1282.7359
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Right_1_string_grab:
+    x: 1069.3577
+    y: -368.0
+    z: 910.0217
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Right_2_string_grab_approach:
+    x: 657.6564
+    y: -368.0
+    z: 1177.1978
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Right_2_string_grab:
+    x: 918.6337
+    y: -368.0
+    z: 804.4836
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Left_0_string_grab_approach:
+    x: 959.1044
+    y: -152.0
+    z: 1388.2739
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Left_0_string_grab:
+    x: 1220.0816
+    y: -152.0
+    z: 1015.5597
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Left_1_string_grab_approach:
+    x: 808.3804
+    y: -152.0
+    z: 1282.7359
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Left_1_string_grab:
+    x: 1069.3577
+    y: -152.0
+    z: 910.0217
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Base_Left_2_string_grab_approach:
+    x: 657.6564
+    y: -152.0
+    z: 1177.1978
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+    z_axis_free: true
+  Base_Left_2_string_grab:
+    x: 918.6337
+    y: -152.0
+    z: 804.4836
+    rx: -35.0
+    ry: -0.0
+    rz: 90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_2_grab:
+    x: 2453.8476
+    y: 1989.0514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 15.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_2_grab_approach:
+    x: 2453.8476
+    y: 1989.0514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 15.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_3_grab:
+    x: 2453.8476
+    y: 2328.6514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 22.5
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_3_grab_approach:
+    x: 2453.8476
+    y: 2328.6514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 22.5
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_4_grab:
+    x: 2453.8476
+    y: 2668.2514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 30.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_4_grab_approach:
+    x: 2453.8476
+    y: 2668.2514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 30.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_5_grab:
+    x: 2453.8476
+    y: 3007.8514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 37.5
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_5_grab_approach:
+    x: 2453.8476
+    y: 3007.8514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 37.5
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_6_grab:
+    x: 2453.8476
+    y: 3347.4514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 45.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_6_grab_approach:
+    x: 2453.8476
+    y: 3347.4514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 45.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_2_grab:
+    x: 2771.0476
+    y: 2158.8514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 15.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_2_grab_approach:
+    x: 2771.0476
+    y: 2158.8514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 15.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_3_grab:
+    x: 2771.0476
+    y: 2498.4514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 22.5
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_3_grab_approach:
+    x: 2771.0476
+    y: 2498.4514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 22.5
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_4_grab:
+    x: 2771.0476
+    y: 2838.0514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 30.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_4_grab_approach:
+    x: 2771.0476
+    y: 2838.0514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 30.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_5_grab:
+    x: 2771.0476
+    y: 3177.6514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 37.5
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_5_grab_approach:
+    x: 2771.0476
+    y: 3177.6514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 37.5
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_6_grab:
+    x: 2771.0476
+    y: 3517.2514
+    z: 1539.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 45.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_6_grab_approach:
+    x: 2771.0476
+    y: 3517.2514
+    z: 1639.1057
+    rx: 0.0
+    ry: -0.0
+    rz: 45.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_2_string_grab:
+    x: 2453.8476
+    y: 1989.0514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_2_string_grab_approach:
+    x: 2253.8476
+    y: 1989.0514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_3_string_grab:
+    x: 2453.8476
+    y: 2328.6514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_3_string_grab_approach:
+    x: 2253.8476
+    y: 2328.6514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_4_string_grab:
+    x: 2453.8476
+    y: 2668.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_4_string_grab_approach:
+    x: 2253.8476
+    y: 2668.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_5_string_grab:
+    x: 2453.8476
+    y: 3007.8514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_5_string_grab_approach:
+    x: 2253.8476
+    y: 3007.8514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Back_6_string_grab:
+    x: 2453.8476
+    y: 3347.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Back_6_string_grab_approach:
+    x: 2253.8476
+    y: 3347.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_2_string_grab:
+    x: 2771.0476
+    y: 2158.8514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_2_string_grab_approach:
+    x: 2971.0476
+    y: 2158.8514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_3_string_grab:
+    x: 2771.0476
+    y: 2498.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_3_string_grab_approach:
+    x: 2971.0476
+    y: 2498.4514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_4_string_grab:
+    x: 2771.0476
+    y: 2838.0514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_4_string_grab_approach:
+    x: 2971.0476
+    y: 2838.0514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_5_string_grab:
+    x: 2771.0476
+    y: 3177.6514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_5_string_grab_approach:
+    x: 2971.0476
+    y: 3177.6514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
+  Front_6_string_grab:
+    x: 2771.0476
+    y: 3517.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveL
+    j7: null
+    source: grasshopper
+  Front_6_string_grab_approach:
+    x: 2971.0476
+    y: 3517.2514
+    z: 1941.4137
+    rx: 0.0
+    ry: -0.0
+    rz: 0.0
+    frame: world
+    move_type: MoveJ
+    j7: null
+    source: grasshopper
 routing_candidates:
 
 # Destination cone groups. Human-defined by machine/zone.
@@ -539,4 +1343,220 @@ edges:
     tested: null
   - from: Front_0_string_grab
     to:   Front_0_string_grab_approach
+    tested: null
+  - from: Back_1_grab_approach
+    to:   Back_1_grab
+    tested: null
+  - from: Back_1_grab
+    to:   Back_1_grab_approach
+    tested: null
+  - from: Front_1_grab_approach
+    to:   Front_1_grab
+    tested: null
+  - from: Front_1_grab
+    to:   Front_1_grab_approach
+    tested: null
+  - from: Back_1_string_grab_approach
+    to:   Back_1_string_grab
+    tested: null
+  - from: Back_1_string_grab
+    to:   Back_1_string_grab_approach
+    tested: null
+  - from: Front_1_string_grab_approach
+    to:   Front_1_string_grab
+    tested: null
+  - from: Front_1_string_grab
+    to:   Front_1_string_grab_approach
+    tested: null
+  - from: Base_Right_0_grab_approach
+    to:   Base_Right_0_grab
+    tested: null
+  - from: Base_Right_0_grab
+    to:   Base_Right_0_grab_approach
+    tested: null
+  - from: Base_Right_1_grab_approach
+    to:   Base_Right_1_grab
+    tested: null
+  - from: Base_Right_1_grab
+    to:   Base_Right_1_grab_approach
+    tested: null
+  - from: Base_Right_2_grab_approach
+    to:   Base_Right_2_grab
+    tested: null
+  - from: Base_Right_2_grab
+    to:   Base_Right_2_grab_approach
+    tested: null
+  - from: Base_Left_0_grab_approach
+    to:   Base_Left_0_grab
+    tested: null
+  - from: Base_Left_0_grab
+    to:   Base_Left_0_grab_approach
+    tested: null
+  - from: Base_Left_1_grab_approach
+    to:   Base_Left_1_grab
+    tested: null
+  - from: Base_Left_1_grab
+    to:   Base_Left_1_grab_approach
+    tested: null
+  - from: Base_Left_2_grab_approach
+    to:   Base_Left_2_grab
+    tested: null
+  - from: Base_Left_2_grab
+    to:   Base_Left_2_grab_approach
+    tested: null
+  - from: Base_Right_0_string_grab_approach
+    to:   Base_Right_0_string_grab
+    tested: null
+  - from: Base_Right_0_string_grab
+    to:   Base_Right_0_string_grab_approach
+    tested: null
+  - from: Base_Right_1_string_grab_approach
+    to:   Base_Right_1_string_grab
+    tested: null
+  - from: Base_Right_1_string_grab
+    to:   Base_Right_1_string_grab_approach
+    tested: null
+  - from: Base_Right_2_string_grab_approach
+    to:   Base_Right_2_string_grab
+    tested: null
+  - from: Base_Right_2_string_grab
+    to:   Base_Right_2_string_grab_approach
+    tested: null
+  - from: Base_Left_0_string_grab_approach
+    to:   Base_Left_0_string_grab
+    tested: null
+  - from: Base_Left_0_string_grab
+    to:   Base_Left_0_string_grab_approach
+    tested: null
+  - from: Base_Left_1_string_grab_approach
+    to:   Base_Left_1_string_grab
+    tested: null
+  - from: Base_Left_1_string_grab
+    to:   Base_Left_1_string_grab_approach
+    tested: null
+  - from: Base_Left_2_string_grab_approach
+    to:   Base_Left_2_string_grab
+    tested: null
+  - from: Base_Left_2_string_grab
+    to:   Base_Left_2_string_grab_approach
+    tested: null
+  - from: Back_2_grab_approach
+    to:   Back_2_grab
+    tested: null
+  - from: Back_2_grab
+    to:   Back_2_grab_approach
+    tested: null
+  - from: Back_3_grab_approach
+    to:   Back_3_grab
+    tested: null
+  - from: Back_3_grab
+    to:   Back_3_grab_approach
+    tested: null
+  - from: Back_4_grab_approach
+    to:   Back_4_grab
+    tested: null
+  - from: Back_4_grab
+    to:   Back_4_grab_approach
+    tested: null
+  - from: Back_5_grab_approach
+    to:   Back_5_grab
+    tested: null
+  - from: Back_5_grab
+    to:   Back_5_grab_approach
+    tested: null
+  - from: Back_6_grab_approach
+    to:   Back_6_grab
+    tested: null
+  - from: Back_6_grab
+    to:   Back_6_grab_approach
+    tested: null
+  - from: Front_2_grab_approach
+    to:   Front_2_grab
+    tested: null
+  - from: Front_2_grab
+    to:   Front_2_grab_approach
+    tested: null
+  - from: Front_3_grab_approach
+    to:   Front_3_grab
+    tested: null
+  - from: Front_3_grab
+    to:   Front_3_grab_approach
+    tested: null
+  - from: Front_4_grab_approach
+    to:   Front_4_grab
+    tested: null
+  - from: Front_4_grab
+    to:   Front_4_grab_approach
+    tested: null
+  - from: Front_5_grab_approach
+    to:   Front_5_grab
+    tested: null
+  - from: Front_5_grab
+    to:   Front_5_grab_approach
+    tested: null
+  - from: Front_6_grab_approach
+    to:   Front_6_grab
+    tested: null
+  - from: Front_6_grab
+    to:   Front_6_grab_approach
+    tested: null
+  - from: Back_2_string_grab_approach
+    to:   Back_2_string_grab
+    tested: null
+  - from: Back_2_string_grab
+    to:   Back_2_string_grab_approach
+    tested: null
+  - from: Back_3_string_grab_approach
+    to:   Back_3_string_grab
+    tested: null
+  - from: Back_3_string_grab
+    to:   Back_3_string_grab_approach
+    tested: null
+  - from: Back_4_string_grab_approach
+    to:   Back_4_string_grab
+    tested: null
+  - from: Back_4_string_grab
+    to:   Back_4_string_grab_approach
+    tested: null
+  - from: Back_5_string_grab_approach
+    to:   Back_5_string_grab
+    tested: null
+  - from: Back_5_string_grab
+    to:   Back_5_string_grab_approach
+    tested: null
+  - from: Back_6_string_grab_approach
+    to:   Back_6_string_grab
+    tested: null
+  - from: Back_6_string_grab
+    to:   Back_6_string_grab_approach
+    tested: null
+  - from: Front_2_string_grab_approach
+    to:   Front_2_string_grab
+    tested: null
+  - from: Front_2_string_grab
+    to:   Front_2_string_grab_approach
+    tested: null
+  - from: Front_3_string_grab_approach
+    to:   Front_3_string_grab
+    tested: null
+  - from: Front_3_string_grab
+    to:   Front_3_string_grab_approach
+    tested: null
+  - from: Front_4_string_grab_approach
+    to:   Front_4_string_grab
+    tested: null
+  - from: Front_4_string_grab
+    to:   Front_4_string_grab_approach
+    tested: null
+  - from: Front_5_string_grab_approach
+    to:   Front_5_string_grab
+    tested: null
+  - from: Front_5_string_grab
+    to:   Front_5_string_grab_approach
+    tested: null
+  - from: Front_6_string_grab_approach
+    to:   Front_6_string_grab
+    tested: null
+  - from: Front_6_string_grab
+    to:   Front_6_string_grab_approach
     tested: null
