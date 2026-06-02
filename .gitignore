@@ -22,3 +22,6 @@ tests/__pycache__/
 
 waypoint_viewer/node_modules/
 waypoint_viewer/dist/
+
+.viewer_logs/
+.superpowers/
