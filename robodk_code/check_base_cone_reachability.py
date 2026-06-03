@@ -252,10 +252,80 @@ def save_summary_txt(results, angles, timestamp, out_path, tool_name=TOOL_NAME):
         f.write("\n".join(lines))
 
 
+def run_regular_ik(robot, RDK, cone_targets, world_frame, group):
+    """--regular_IK mode: solve grab + approach for each cone (no orientation sweep),
+    move the robot to each solved position, and pause for inspection.
+
+    Uses the same OptimAxes solver as compute_all_offsets in moving_a_cone.
+    Prints the same verbose diagnostics as solve_pose.
+    """
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+
+    print(f"\nRegular IK mode — no orientation sweep.")
+    print(f"  j7 locked at {J7_LOCKED} mm  |  approach offset {APPROACH_OFFSET_MM} mm")
+    print(f"  Solver: RoboDK OptimAxes Algorithm 3 (DLS), MaxIter=500")
+    print("=" * 72)
+
+    summary = []
+
+    try:
+        for target in cone_targets:
+            name      = target.Name()
+            grab_pose = target.PoseAbs()
+            app_pose  = grab_pose * transl(0, 0, APPROACH_OFFSET_MM)
+
+            pos, z = pos_and_z(grab_pose)
+            print(f"\n{name}")
+            print(f"  Grab pos : X={pos[0]:.1f}  Y={pos[1]:.1f}  Z={pos[2]:.1f}")
+            print(f"  Grab Z   : ({z[0]:.4f}, {z[1]:.4f}, {z[2]:.4f})")
+
+            print(f"  [grab]")
+            grab_joints, grab_err, grab_ok = solve_pose(
+                robot, grab_pose, J7_LOCKED, f"{name} grab"
+            )
+            if grab_ok:
+                robot.MoveJ(grab_joints)
+                input("    ↳ Robot at GRAB position.  Press Enter to continue ...")
+                robot.setJoints(HOME_SEED)
+
+            print(f"  [approach]")
+            app_joints, app_err, app_ok = solve_pose(
+                robot, app_pose, J7_LOCKED, f"{name} approach"
+            )
+            if app_ok:
+                robot.MoveJ(app_joints)
+                input("    ↳ Robot at APPROACH position.  Press Enter to continue ...")
+                robot.setJoints(HOME_SEED)
+
+            gs  = "SUCCESS" if grab_ok else "FAIL"
+            as_ = "SUCCESS" if app_ok  else "FAIL"
+            summary.append((name, gs, as_))
+
+            add_frame(RDK, f"viz_grab_{name}",     grab_pose, group)
+            add_frame(RDK, f"viz_approach_{name}", app_pose,  group)
+
+    finally:
+        if saved_frame.Valid():
+            robot.setPoseFrame(saved_frame)
+        robot.setJoints(HOME_SEED)
+
+    print("\n" + "=" * 60)
+    print("SUMMARY")
+    print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
+    print("  " + "-" * 52)
+    for name, gs, as_ in summary:
+        print(f"  {name:<28} {gs:>8}   {as_:>9}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tool", default=TOOL_NAME,
                     help=f"RoboDK tool name to mount during IK solve (default: {TOOL_NAME})")
+    ap.add_argument("--regular_IK", action="store_true",
+                    help="Solve grab + approach per cone (no orientation sweep) using "
+                         "the same OptimAxes method as moving_a_cone. Moves the robot "
+                         "to each solved position and pauses for inspection.")
     args = ap.parse_args()
 
     tool_name = args.tool
@@ -292,10 +362,15 @@ def main():
     if not cone_targets:
         raise RuntimeError("No base_cone_grab_* targets found in station.")
 
+    print(f"\nFound {len(cone_targets)} cone targets.")
+
+    if args.regular_IK:
+        run_regular_ik(robot, RDK, cone_targets, world_frame, group)
+        return
+
     step_deg = 360.0 / ORIENT_SWEEP_STEPS
     angles   = [i * step_deg for i in range(ORIENT_SWEEP_STEPS)]
 
-    print(f"\nFound {len(cone_targets)} cone targets.")
     print(f"Poses           : {', '.join(l for l, _ in POSE_CONFIGS)}")
     print(f"j7 locked at    : {J7_LOCKED} mm")
     print(f"Approach offset : {APPROACH_OFFSET_MM} mm along grab Z-axis")
