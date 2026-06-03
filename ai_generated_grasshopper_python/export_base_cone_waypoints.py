@@ -482,12 +482,31 @@ if trigger:
         _bin_rgba    = resolve_color(bin_color    if 'bin_color'    in dir() else None, [0.5, 0.5, 0.5, 1.0])
 
         robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
-        robot_base = robot.Parent() if robot.Valid() else None
-        if robot_base is not None and robot_base.Valid():
-            print(f"  RoboDK: parenting under '{robot_base.Name()}'")
+        if not robot.Valid():
+            # Robot was replaced — find the first robot in the station
+            all_robots = RDK.ItemList(ITEM_TYPE_ROBOT, False)
+            robot = all_robots[0] if all_robots else None
+            if robot and robot.Valid():
+                print(f"  RoboDK: 'Fanuc R2000iC 125L' not found, using '{robot.Name()}' instead")
+            else:
+                robot = None
+        # Parent cones to the moving rail carriage so they travel with j7.
+        # Try "RailMechanism" by name first (the moving part), then fall back
+        # to the robot's direct parent.
+        rail_mech = RDK.Item("RailMechanism")
+        if rail_mech.Valid():
+            robot_base = rail_mech
+            print(f"  RoboDK: parenting under 'RailMechanism' (moving carriage)")
+        elif robot is not None and robot.Valid():
+            robot_base = robot.Parent()
+            if robot_base is not None and robot_base.Valid():
+                print(f"  RoboDK: 'RailMechanism' not found, parenting under '{robot_base.Name()}'")
+            else:
+                robot_base = None
+                print("  RoboDK: robot base not found, objects at world level")
         else:
             robot_base = None
-            print("  RoboDK: robot base not found, objects at world level")
+            print("  RoboDK: no robot or rail found, objects at world level")
 
         station = RDK.Item("", 1)
 

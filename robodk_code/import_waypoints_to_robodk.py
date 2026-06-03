@@ -209,8 +209,13 @@ def main():
 
     robot = RDK.Item(ROBOT_NAME, ITEM_TYPE_ROBOT)
     if not robot.Valid():
-        print(f"ERROR: Robot '{ROBOT_NAME}' not found in the station.")
-        sys.exit(1)
+        all_robots = RDK.ItemList(ITEM_TYPE_ROBOT, False)
+        if all_robots:
+            robot = all_robots[0]
+            print(f"WARNING: '{ROBOT_NAME}' not found, using '{robot.Name()}' instead")
+        else:
+            print(f"ERROR: No robot found in the station.")
+            sys.exit(1)
 
     station = RDK.ActiveStation()
 
