@@ -199,6 +199,19 @@ delete edge, filter by source/move_type.
 
 Run: `uvicorn robodk_code.waypoint_server:app` (WSL) → open browser on Windows.
 
+## ── TODO: Fix update_clones.sh timeout ──────────────────────────────────────
+
+`update_clones.sh` uses `git remote show origin` to detect each repo's default branch.
+This makes a live network call per repo and times out (~8 min for 13 repos).
+
+**Fix:** Replace with a local lookup:
+```bash
+git -C "$repo_dir" rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||'
+```
+This reads the locally-cached HEAD ref without a network call. Requires that
+`git remote set-head origin --auto` was run at clone time (git clone does this by default).
+Fallback: if empty, try `git -C "$repo_dir" symbolic-ref refs/remotes/origin/HEAD`.
+
 ## ── TODO (medium priority) ───────────────────────────────────────────────────
 
 - **[MEDIUM] Waypoint coloring in viewer** — currently all waypoints are green.

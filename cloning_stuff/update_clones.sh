@@ -11,6 +11,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLONES_DIR="$SCRIPT_DIR/../clones"
 LOG_FILE="$SCRIPT_DIR/update_clones.log"
 
+export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes"
+
 timestamp() {
     date '+%Y-%m-%d %H:%M:%S'
 }
@@ -30,9 +32,15 @@ for repo_dir in "$CLONES_DIR"/*/; do
         continue
     fi
 
-    echo "[$repo_name] Pulling from main..." | tee -a "$LOG_FILE"
+    default_branch=$(git -C "$repo_dir" remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}')
+    if [[ -z "$default_branch" || "$default_branch" == "(unknown)" ]]; then
+        echo "[$repo_name] Could not detect default branch — skipping" | tee -a "$LOG_FILE"
+        continue
+    fi
 
-    pull_output=$(git -C "$repo_dir" pull origin main 2>&1) && status="OK" || status="FAILED"
+    echo "[$repo_name] Pulling from $default_branch..." | tee -a "$LOG_FILE"
+
+    pull_output=$(git -C "$repo_dir" pull --autostash origin "$default_branch" 2>&1) && status="OK" || status="FAILED"
 
     echo "$pull_output" | while IFS= read -r line; do
         echo "[$repo_name]   $line" | tee -a "$LOG_FILE"
