@@ -19,6 +19,7 @@ To add a new YAML source, edit waypoint_sources.json:
 
 import os
 import json
+import re
 import sys
 
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -130,28 +131,66 @@ def _update_path_config(waypoints, edges):
     existing_names = set((existing.get("waypoints") or {}).keys())
 
     # ── Waypoints ─────────────────────────────────────────────────────────────
-    to_add = [wp for wp in waypoints if "x" in wp and wp["name"] not in existing_names]
+    # Separate into: new waypoints to add, and grasshopper waypoints to update
+    existing_wps = existing.get("waypoints") or {}
+    to_add = []
+    to_update = []
+    for wp in waypoints:
+        if "x" not in wp:
+            continue
+        name = wp["name"]
+        if name not in existing_names:
+            to_add.append(wp)
+        elif existing_wps.get(name, {}).get("source") == "grasshopper":
+            # Check if coordinates actually changed
+            old = existing_wps[name]
+            changed = any(
+                abs(float(wp.get(k, 0.0)) - float(old.get(k, 0.0))) > 1e-6
+                for k in ("x", "y", "z", "rx", "ry", "rz")
+            )
+            if changed:
+                to_update.append(wp)
+
+    def _wp_yaml_lines(wp):
+        lines = [f"  {wp['name']}:"]
+        for key in ("x", "y", "z", "rx", "ry", "rz"):
+            lines.append(f"    {key}: {wp.get(key, 0.0)}")
+        lines.append(f"    frame: {wp.get('frame', 'robot_local')}")
+        lines.append(f"    move_type: {wp.get('move_type', 'MoveJ')}")
+        j7 = wp.get("j7")
+        lines.append(f"    j7: {'null' if j7 is None else j7}")
+        lines.append(f"    source: {wp.get('source', 'grasshopper')}")
+        if wp.get("z_axis_free"):
+            lines.append(f"    z_axis_free: true")
+        return lines
+
+    # Update existing grasshopper waypoints in-place
+    for wp in to_update:
+        name = wp["name"]
+        new_block = "\n".join(_wp_yaml_lines(wp))
+        # Find the existing block in text and replace it
+        pattern = re.compile(
+            rf"^  {re.escape(name)}:\n(?:    .+\n)*",
+            re.MULTILINE,
+        )
+        text = pattern.sub(new_block + "\n", text)
+
+    if to_update:
+        print(f"[OK] path_config.yaml: updated {len(to_update)} grasshopper waypoints")
+
+    # Add new waypoints
     if to_add:
         new_lines = []
         for wp in to_add:
-            new_lines.append(f"  {wp['name']}:")
-            for key in ("x", "y", "z", "rx", "ry", "rz"):
-                new_lines.append(f"    {key}: {wp.get(key, 0.0)}")
-            new_lines.append(f"    frame: {wp.get('frame', 'robot_local')}")
-            new_lines.append(f"    move_type: {wp.get('move_type', 'MoveJ')}")
-            j7 = wp.get("j7")
-            new_lines.append(f"    j7: {'null' if j7 is None else j7}")
-            new_lines.append(f"    source: {wp.get('source', 'grasshopper')}")
-            if wp.get("z_axis_free"):
-                new_lines.append(f"    z_axis_free: true")
-
+            new_lines.extend(_wp_yaml_lines(wp))
         insert_block = "\n".join(new_lines) + "\n"
         marker = "routing_candidates:"
         idx = text.find(marker)
         text = (text[:idx] + insert_block + text[idx:]) if idx != -1 else (text.rstrip("\n") + "\n" + insert_block)
         print(f"[OK] path_config.yaml: added {len(to_add)} Cartesian waypoints")
-    else:
-        print("[OK] path_config.yaml: no new Cartesian waypoints to add")
+
+    if not to_add and not to_update:
+        print("[OK] path_config.yaml: no new or changed Cartesian waypoints")
 
     # ── Edges ─────────────────────────────────────────────────────────────────
     # Merge existing (in-file) edges with newly collected ones, dedup by (from, to)

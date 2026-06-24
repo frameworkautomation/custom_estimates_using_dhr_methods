@@ -50,7 +50,7 @@ waypoints:
     source: human
 
   Base_Right_0_grab_approach:
-    x: 527.3756
+    x: 1074.3756
     y: -462.036
     z: 1398.183
     rx: -25.0
@@ -62,7 +62,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Right_0_grab:
-    x: 719.6669
+    x: 1266.6669
     y: -462.036
     z: 985.8129
     rx: -25.0
@@ -73,7 +73,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Right_1_grab_approach:
-    x: 360.615
+    x: 907.615
     y: -462.036
     z: 1320.4212
     rx: -25.0
@@ -85,7 +85,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Right_1_grab:
-    x: 552.9063
+    x: 1099.9063
     y: -462.036
     z: 908.0512
     rx: -25.0
@@ -96,7 +96,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Right_2_grab_approach:
-    x: 193.8543
+    x: 740.8543
     y: -462.036
     z: 1242.6594
     rx: -25.0
@@ -108,7 +108,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Right_2_grab:
-    x: 386.1456
+    x: 933.1456
     y: -462.036
     z: 830.2894
     rx: -25.0
@@ -119,7 +119,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Left_0_grab_approach:
-    x: 527.3756
+    x: 1074.3756
     y: -246.036
     z: 1398.183
     rx: -25.0
@@ -131,7 +131,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Left_0_grab:
-    x: 719.6669
+    x: 1266.6669
     y: -246.036
     z: 985.8129
     rx: -25.0
@@ -142,7 +142,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Left_1_grab_approach:
-    x: 360.615
+    x: 907.615
     y: -246.036
     z: 1320.4212
     rx: -25.0
@@ -154,7 +154,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Left_1_grab:
-    x: 552.9063
+    x: 1099.9063
     y: -246.036
     z: 908.0512
     rx: -25.0
@@ -165,7 +165,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Left_2_grab_approach:
-    x: 193.8543
+    x: 740.8543
     y: -246.036
     z: 1242.6594
     rx: -25.0
@@ -177,7 +177,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Left_2_grab:
-    x: 386.1456
+    x: 933.1456
     y: -246.036
     z: 830.2894
     rx: -25.0
@@ -188,7 +188,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Right_0_string_grab_approach:
-    x: 527.3756
+    x: 1074.3756
     y: -462.036
     z: 1398.183
     rx: -25.0
@@ -200,7 +200,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Right_0_string_grab:
-    x: 719.6669
+    x: 1266.6669
     y: -462.036
     z: 985.8129
     rx: -25.0
@@ -211,7 +211,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Right_1_string_grab_approach:
-    x: 360.615
+    x: 907.615
     y: -462.036
     z: 1320.4212
     rx: -25.0
@@ -223,7 +223,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Right_1_string_grab:
-    x: 552.9063
+    x: 1099.9063
     y: -462.036
     z: 908.0512
     rx: -25.0
@@ -234,7 +234,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Right_2_string_grab_approach:
-    x: 193.8543
+    x: 740.8543
     y: -462.036
     z: 1242.6594
     rx: -25.0
@@ -246,7 +246,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Right_2_string_grab:
-    x: 386.1456
+    x: 933.1456
     y: -462.036
     z: 830.2894
     rx: -25.0
@@ -257,7 +257,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Left_0_string_grab_approach:
-    x: 527.3756
+    x: 1074.3756
     y: -246.036
     z: 1398.183
     rx: -25.0
@@ -269,7 +269,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Left_0_string_grab:
-    x: 719.6669
+    x: 1266.6669
     y: -246.036
     z: 985.8129
     rx: -25.0
@@ -280,7 +280,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Left_1_string_grab_approach:
-    x: 360.615
+    x: 907.615
     y: -246.036
     z: 1320.4212
     rx: -25.0
@@ -292,7 +292,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Left_1_string_grab:
-    x: 552.9063
+    x: 1099.9063
     y: -246.036
     z: 908.0512
     rx: -25.0
@@ -303,7 +303,7 @@ waypoints:
     j7: null
     source: grasshopper
   Base_Left_2_string_grab_approach:
-    x: 193.8543
+    x: 740.8543
     y: -246.036
     z: 1242.6594
     rx: -25.0
@@ -315,7 +315,7 @@ waypoints:
     source: grasshopper
     z_axis_free: true
   Base_Left_2_string_grab:
-    x: 386.1456
+    x: 933.1456
     y: -246.036
     z: 830.2894
     rx: -25.0
