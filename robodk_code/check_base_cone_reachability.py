@@ -1,59 +1,48 @@
 """
-Reachability checker for all base_cone_grab_* targets.
+Reachability checker for all base_cone_grab_* and cone_grab_* targets.
 
-For each cone and each configured pose (grab, approach, …):
-  1. Tests the native orientation with OptimAxes (j7 locked at J7_LOCKED)
-  2. Sweeps ORIENT_SWEEP_STEPS orientations around the pose's local Z-axis
-  3. Adds RoboDK reference frames for visualization
-  4. Prints a reachability grid (cones × angles) per pose type
-  5. Saves a human-readable summary txt and a machine-readable JSON to ik_solutions/
+Runs the IK computation from moving_a_cone_bender_request (OptimAxes Algorithm 3
+DLS) for both base cones (j7 locked) and destination cones (j7 free), prints a
+summary table, then offers an interactive mode to examine individual positions.
 
-To add a new pose type, append an entry to POSE_CONFIGS:
-    ("label", lambda grab_pose: <derived pose Mat>)
-The label appears in the output and filenames.
-
-J7_LOCKED: rail position held fixed during all IK solves.
-ORIENT_SWEEP_STEPS: number of orientations to test (360 / steps = degrees each).
+Usage:
+    python robodk_code/check_base_cone_reachability.py
+    python robodk_code/check_base_cone_reachability.py --tool pickup_closed
+    python robodk_code/check_base_cone_reachability.py --recompute
 """
 
 import sys
 import os
 import json
+import re
 import datetime
 import argparse
+import math
 
 sys.path.append("C:/RoboDK/Python")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_TARGET, ITEM_TYPE_FRAME
-from robodk.robomath import eye, transl, rotz
+from robodk.robomath import transl, invH, rotz, Pose_2_TxyzRxyz, eye
 
-from test_reach_base_cone import pos_and_z, fmt_joints
+from test_reach_base_cone import fmt_joints
 
 pi = 3.141592653589793
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-APPROACH_OFFSET_MM = 200.0    # offset from grab point along grab Z-axis
-J7_LOCKED          = 0.0      # rail position held fixed during all solves (mm)
-HOME_SEED          = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-VIZ_GROUP_NAME     = "ReachabilityCheck"
 ROBOT_NAME         = "Fanuc R2000iC 125L"
-TOOL_NAME          = "pickup_closed"
+TOOL_NAME          = "pickup_open"
+APPROACH_OFFSET_MM = 200.0
+J7_LOCKED          = 0.0
+HOME_SEED          = [0.0] * 7
 IK_SOLUTIONS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ik_solutions")
-ORIENT_SWEEP_STEPS = 12       # 360 / 12 = 30° per step
+ROBODK_OUTPUT_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "robo_dk_output")
 
-# Poses to check for each cone.  Add more entries here as needed.
-# Each entry: (label, function(grab_pose) -> pose Mat)
-POSE_CONFIGS = [
-    ("grab",     lambda gp: gp),
-    ("approach", lambda gp: gp * transl(0, 0, APPROACH_OFFSET_MM)),
-]
+J7_TOL_MM = 10.0
 
-# OptimAxes parameters — mirrors DHR's OptimizationKinematicsModel.
-# Algorithm 3 = damped least squares (numerical).  RoboDK's solver natively
-# respects all coupled joint limits (e.g. the R2000iC J2/J3 interference zone).
+# OptimAxes — j7 constrained (base cones)
 OPT_AXES_STATIC_J7 = {
-    "AbsJnt_7": 0,    # overridden per call with J7_LOCKED
+    "AbsJnt_7": 0,
     "AbsOn_7":  1,
     "AbsW_7":   100,
     "Algorithm": 3,
@@ -65,7 +54,16 @@ OPT_AXES_STATIC_J7 = {
     "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
 }
 
-J7_TOL_MM = 10.0  # j7 must stay within this of J7_LOCKED to count as SUCCESS
+# OptimAxes — j7 free (destination cones)
+OPT_AXES_FREE_J7 = {
+    "Algorithm": 3,
+    "MaxIter":  500,
+    "Tol":      0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 0,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50,
+}
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -80,13 +78,19 @@ def connect():
         return Robolink(robodk_ip="172.23.208.1")
 
 
-def solve_pose(robot, pose, j7_locked, label):
-    """Solve IK for one pose via OptimAxes.  Reports FAIL if j7 drifts.
+def _pose_xyz(pose):
+    xyzrpw = Pose_2_TxyzRxyz(pose)
+    return xyzrpw[0], xyzrpw[1], xyzrpw[2]
 
-    Returns (joints, pos_err, ok).
-    """
+
+def make_approach_pose(grab_pose, offset_mm):
+    return grab_pose * transl(0, 0, offset_mm)
+
+
+def solve_ik_static_j7(robot, pose, label):
+    """Solve IK with j7 constrained to J7_LOCKED. Returns (joints, converged)."""
     props = dict(OPT_AXES_STATIC_J7)
-    props["AbsJnt_7"] = j7_locked
+    props["AbsJnt_7"] = J7_LOCKED
     robot.setParam("OptimAxes", props)
     robot.setJoints(HOME_SEED)
     try:
@@ -96,239 +100,311 @@ def solve_pose(robot, pose, j7_locked, label):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-
         j7_actual = joints[6]
-        if abs(j7_actual - j7_locked) > J7_TOL_MM:
+        if abs(j7_actual - J7_LOCKED) > J7_TOL_MM:
             robot.setJoints(HOME_SEED)
-            print(f"    [FAIL   ] {label:35s}  j7={j7_actual:.0f}mm (drifted — unreachable with rail fixed)")
-            return [0.0] * 7, 999.0, False
-
-        achieved = robot.Pose()
-        tp = [pose[0,3], pose[1,3], pose[2,3]]
-        ap = [achieved[0,3], achieved[1,3], achieved[2,3]]
-        pos_err = (sum((t-a)**2 for t,a in zip(tp, ap)))**0.5
-        print(f"    [SUCCESS] {label:35s}  pos_err={pos_err:.2f}mm  j7={j7_actual:.1f}mm")
-        print(f"           target  XYZ: ({tp[0]:.1f}, {tp[1]:.1f}, {tp[2]:.1f})")
-        print(f"           achieved XYZ: ({ap[0]:.1f}, {ap[1]:.1f}, {ap[2]:.1f})")
-        print(f"           joints: {fmt_joints(joints)}")
+            return [0.0] * 7, False
         robot.setJoints(HOME_SEED)
-        return joints, pos_err, True
-    except Exception as e:
+        return joints, True
+    except Exception:
         robot.setJoints(HOME_SEED)
-        print(f"    [FAIL   ] {label:35s}  ({e})")
-        return [0.0] * 7, 999.0, False
+        return [0.0] * 7, False
 
 
-def sweep_orientations(robot, pose, j7_locked, n_steps):
-    """Rotate pose around its local Z-axis in n_steps equal increments and
-    test each with OptimAxes + j7 drift check.
-
-    Returns:
-      sweep: list of (angle_deg, ok, detail_str, joints_or_None)
-      best_joints: joints from first successful orientation, or None
-    """
-    step_deg = 360.0 / n_steps
-    props = dict(OPT_AXES_STATIC_J7)
-    props["AbsJnt_7"] = j7_locked
-
-    sweep = []
-    best_joints = None
-
-    for i in range(n_steps):
-        angle_deg = i * step_deg
-        rotated   = pose * rotz(angle_deg * pi / 180.0)
-
-        robot.setParam("OptimAxes", props)
-        robot.setJoints(HOME_SEED)
-        try:
-            robot.MoveJ(rotated)
-            raw = robot.Joints()
-            try:
-                joints = raw.list()
-            except AttributeError:
-                joints = list(raw)
-
-            j7_actual = joints[6]
-            if abs(j7_actual - j7_locked) > J7_TOL_MM:
-                sweep.append((angle_deg, False, f"j7={j7_actual:.0f}mm (drifted)", None))
-            else:
-                achieved = robot.Pose()
-                tp    = [pose[0,3], pose[1,3], pose[2,3]]
-                ap    = [achieved[0,3], achieved[1,3], achieved[2,3]]
-                pos_err = (sum((t-a)**2 for t,a in zip(tp, ap)))**0.5
-                sweep.append((angle_deg, True, f"j7={j7_actual:.1f}mm  pos_err={pos_err:.2f}mm", joints))
-                if best_joints is None:
-                    best_joints = joints
-        except Exception as e:
-            sweep.append((angle_deg, False, f"exception ({e})", None))
-
-        robot.setJoints(HOME_SEED)
-
-    return sweep, best_joints
-
-
-def add_frame(RDK, name, pose, parent):
-    existing = RDK.Item(name, ITEM_TYPE_FRAME)
-    if existing.Valid():
-        existing.Delete()
-    frame = RDK.AddFrame(name, parent)
-    frame.setPose(pose)
-    return frame
-
-
-def print_grid(results, pose_label, angles, name_w):
-    """Print one orientation sweep grid for a given pose label."""
-    col_w = 5
-    print(f"\nPOSE: {pose_label}")
-    header = " " * (name_w + 4)
-    for a in angles:
-        header += f"{int(a):>{col_w}}°"
-    print(header)
-    print("  " + "-" * (name_w + 2 + len(angles) * (col_w + 1)))
-    for r in results:
-        pd = r["poses"][pose_label]
-        row = f"  {r['name']:<{name_w}}  "
-        for a in angles:
-            cell = "  OK" if a in pd["reachable_angles"] else "   ."
-            row += f"{cell:>{col_w}} "
-        print(row)
-
-
-def save_summary_txt(results, angles, timestamp, out_path, tool_name=TOOL_NAME):
-    """Write a human-readable summary txt to out_path."""
-    step_deg = angles[1] - angles[0] if len(angles) > 1 else 360.0
-    name_w   = max(len(r["name"]) for r in results)
-    col_w    = 5
-
-    lines = []
-    lines.append("BASE CONE REACHABILITY SUMMARY")
-    lines.append(f"Generated    : {timestamp}")
-    lines.append(f"Robot        : {ROBOT_NAME}")
-    lines.append(f"Tool         : {tool_name}")
-    lines.append(f"j7 locked    : {J7_LOCKED} mm")
-    lines.append(f"Sweep steps  : {ORIENT_SWEEP_STEPS} ({step_deg:.0f}° per step)")
-    lines.append(f"Pose configs : {', '.join(label for label, _ in POSE_CONFIGS)}")
-    lines.append("")
-
-    for pose_label, _ in POSE_CONFIGS:
-        lines.append("=" * (name_w + 4 + len(angles) * (col_w + 1)))
-        lines.append(f"POSE: {pose_label}")
-        lines.append("  OK = reachable at j7={}mm   . = not reachable".format(J7_LOCKED))
-        lines.append("")
-
-        header = " " * (name_w + 4)
-        for a in angles:
-            header += f"{int(a):>{col_w}}°"
-        lines.append(header)
-        lines.append("  " + "-" * (name_w + 2 + len(angles) * (col_w + 1)))
-
-        for r in results:
-            pd  = r["poses"][pose_label]
-            row = f"  {r['name']:<{name_w}}  "
-            for a in angles:
-                cell = "  OK" if a in pd["reachable_angles"] else "   ."
-                row += f"{cell:>{col_w}} "
-            native = "OK" if pd["native_ok"] else "FAIL"
-            row += f"   native={native}  pos_err={pd['native_pos_err']:.2f}mm"
-            lines.append(row)
-        lines.append("")
-
-    # Common reachable angles across ALL cones and ALL poses
-    lines.append("=" * 60)
-    lines.append("ANGLES REACHABLE FOR ALL CONES AT ALL POSES")
-    all_sets = []
-    for r in results:
-        for pose_label, _ in POSE_CONFIGS:
-            s = set(r["poses"][pose_label]["reachable_angles"])
-            all_sets.append(s)
-    if all_sets:
-        common = sorted(all_sets[0].intersection(*all_sets[1:]))
+def solve_ik_free_j7(robot, pose, label, seed=None):
+    """Solve IK with j7 free. Returns (joints, converged)."""
+    if seed is not None:
+        params = dict(OPT_AXES_FREE_J7)
+        params["AbsOn_7"]  = 1
+        params["AbsJnt_7"] = float(seed[6])
+        params["AbsW_7"]   = 100
     else:
-        common = []
-    lines.append(f"  {common if common else 'None'}")
-    lines.append("")
+        params = OPT_AXES_FREE_J7
+    robot.setParam("OptimAxes", params)
+    robot.setJoints(seed if seed is not None else HOME_SEED)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
+        try:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        robot.setJoints(seed if seed is not None else HOME_SEED)
+        return joints, True
+    except Exception:
+        robot.setJoints(seed if seed is not None else HOME_SEED)
+        return [0.0] * 7, False
 
-    with open(out_path, "w") as f:
-        f.write("\n".join(lines))
+
+def _nat_key(t):
+    parts = re.split(r'(\d+)', t.Name())
+    return [int(p) if p.isdigit() else p.lower() for p in parts]
 
 
-def run_regular_ik(robot, RDK, cone_targets, world_frame, group):
-    """--regular_IK mode: solve grab + approach for each cone (no orientation sweep),
-    move the robot to each solved position, and pause for inspection.
+def _targets_under_waypoint_frame(RDK):
+    parent = RDK.Item("WaypointTargets", ITEM_TYPE_FRAME)
+    if not parent.Valid():
+        return []
+    return [t for t in parent.Childs() if t.Type() == ITEM_TYPE_TARGET]
 
-    Uses the same OptimAxes solver as compute_all_offsets in moving_a_cone.
-    Prints the same verbose diagnostics as solve_pose.
-    """
+
+def find_base_cones(RDK):
+    """Return sorted base_cone_grab_* targets (excluding _approach)."""
+    def _is_base_grab(t):
+        return t.Name().startswith("base_cone_grab_") and not t.Name().endswith("_approach")
+
+    targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_base_grab(t)]
+    if not targets:
+        targets = [t for t in _targets_under_waypoint_frame(RDK) if _is_base_grab(t)]
+    return sorted(targets, key=_nat_key)
+
+
+def find_destination_cones(RDK):
+    """Return sorted cone_grab_* targets (excluding _approach)."""
+    def _is_dest(t):
+        return t.Name().startswith("cone_grab_") and not t.Name().endswith("_approach")
+
+    targets = [t for t in RDK.ItemList(ITEM_TYPE_TARGET) if _is_dest(t)]
+    if not targets:
+        targets = [t for t in _targets_under_waypoint_frame(RDK) if _is_dest(t)]
+    return sorted(targets, key=_nat_key)
+
+
+def get_last_human_target_joints(RDK):
+    """Return joints of last target under human_targets frame (for dest IK seed)."""
+    frame = RDK.Item("human_targets", ITEM_TYPE_FRAME)
+    if not frame.Valid():
+        return None
+    targets = sorted(
+        [t for t in frame.Childs() if t.Type() == ITEM_TYPE_TARGET],
+        key=_nat_key,
+    )
+    if not targets:
+        return None
+    last = targets[-1]
+    try:
+        raw = last.Joints()
+        joints = raw.list() if hasattr(raw, "list") else list(raw)
+        if len(joints) >= 6:
+            return joints
+    except Exception:
+        pass
+    return None
+
+
+def compute_base_cone_ik(RDK, robot, cone_targets):
+    """Compute IK for base cones (j7 locked). Returns dict of results."""
+    current_tool = robot.getLink(ITEM_TYPE_TOOL)
+    print(f"\n[IK] Tool: '{current_tool.Name() if current_tool.Valid() else 'None'}'")
+    print(f"[IK] j7 locked at {J7_LOCKED} mm, approach offset {APPROACH_OFFSET_MM} mm")
+    print(f"[IK] Solver: OptimAxes Algorithm 3 (DLS)")
+
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
+    RDK.Render(False)
 
-    print(f"\nRegular IK mode — no orientation sweep.")
-    print(f"  j7 locked at {J7_LOCKED} mm  |  approach offset {APPROACH_OFFSET_MM} mm")
-    print(f"  Solver: RoboDK OptimAxes Algorithm 3 (DLS), MaxIter=500")
-    print("=" * 72)
-
-    summary = []
-
+    results = {}
     try:
         for target in cone_targets:
-            name      = target.Name()
+            name = target.Name()
             grab_pose = target.PoseAbs()
-            app_pose  = grab_pose * transl(0, 0, APPROACH_OFFSET_MM)
+            app_pose = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
 
-            pos, z = pos_and_z(grab_pose)
-            print(f"\n{name}")
-            print(f"  Grab pos : X={pos[0]:.1f}  Y={pos[1]:.1f}  Z={pos[2]:.1f}")
-            print(f"  Grab Z   : ({z[0]:.4f}, {z[1]:.4f}, {z[2]:.4f})")
+            grab_j, grab_ok = solve_ik_static_j7(robot, grab_pose, f"{name} grab")
+            app_j,  app_ok  = solve_ik_static_j7(robot, app_pose,  f"{name} approach")
 
-            print(f"  [grab]")
-            grab_joints, grab_err, grab_ok = solve_pose(
-                robot, grab_pose, J7_LOCKED, f"{name} grab"
-            )
-            if grab_ok:
-                robot.MoveJ(grab_joints)
-                input("    ↳ Robot at GRAB position.  Press Enter to continue ...")
-                robot.setJoints(HOME_SEED)
-
-            print(f"  [approach]")
-            app_joints, app_err, app_ok = solve_pose(
-                robot, app_pose, J7_LOCKED, f"{name} approach"
-            )
-            if app_ok:
-                robot.MoveJ(app_joints)
-                input("    ↳ Robot at APPROACH position.  Press Enter to continue ...")
-                robot.setJoints(HOME_SEED)
-
-            gs  = "SUCCESS" if grab_ok else "FAIL"
-            as_ = "SUCCESS" if app_ok  else "FAIL"
-            summary.append((name, gs, as_))
-
-            add_frame(RDK, f"viz_grab_{name}",     grab_pose, group)
-            add_frame(RDK, f"viz_approach_{name}", app_pose,  group)
-
+            results[name] = {
+                "grab_ok": grab_ok, "grab_joints": [float(v) for v in grab_j],
+                "app_ok":  app_ok,  "app_joints":  [float(v) for v in app_j],
+            }
     finally:
         if saved_frame.Valid():
             robot.setPoseFrame(saved_frame)
         robot.setJoints(HOME_SEED)
+        RDK.Render(True)
 
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print(f"  {'Cone':<28} {'Grab':>8}   {'Approach':>9}")
-    print("  " + "-" * 52)
-    for name, gs, as_ in summary:
-        print(f"  {name:<28} {gs:>8}   {as_:>9}")
+    return results
+
+
+def compute_dest_cone_ik(RDK, robot, dest_cones, seed=None):
+    """Compute IK for destination cones (j7 free). Returns dict of results."""
+    current_tool = robot.getLink(ITEM_TYPE_TOOL)
+    print(f"\n[IK] Tool: '{current_tool.Name() if current_tool.Valid() else 'None'}'")
+    if seed is not None:
+        print(f"[IK] Seeding from last human_target: {[round(v,1) for v in seed]}")
+    print(f"[IK] j7 free, approach offset {APPROACH_OFFSET_MM} mm")
+
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+    RDK.Render(False)
+
+    results = {}
+    try:
+        for target in dest_cones:
+            name = target.Name()
+            grab_pose = target.PoseAbs()
+            app_pose = make_approach_pose(grab_pose, APPROACH_OFFSET_MM)
+
+            grab_j, grab_ok = solve_ik_free_j7(robot, grab_pose, f"{name} grab", seed=seed)
+            app_j,  app_ok  = solve_ik_free_j7(robot, app_pose,  f"{name} approach", seed=seed)
+
+            results[name] = {
+                "grab_ok": grab_ok, "grab_joints": [float(v) for v in grab_j],
+                "app_ok":  app_ok,  "app_joints":  [float(v) for v in app_j],
+            }
+    finally:
+        if saved_frame.Valid():
+            robot.setPoseFrame(saved_frame)
+        robot.setJoints(HOME_SEED)
+        RDK.Render(True)
+
+    return results
+
+
+def print_table(title, targets, ik_map, show_j7=False):
+    """Print a summary table of IK results."""
+    print(f"\n{'=' * 70}")
+    print(f"  {title}")
+    print(f"{'=' * 70}")
+
+    if show_j7:
+        print(f"  {'#':<4} {'Name':<30} {'Grab':>8} {'Approach':>9} {'j7(grab)':>10}")
+        print("  " + "-" * 65)
+    else:
+        print(f"  {'#':<4} {'Name':<30} {'Grab':>8} {'Approach':>9}")
+        print("  " + "-" * 55)
+
+    for i, t in enumerate(targets):
+        name = t.Name()
+        r = ik_map.get(name, {})
+        gs  = "OK" if r.get("grab_ok") else "FAIL"
+        as_ = "OK" if r.get("app_ok")  else "FAIL"
+        if show_j7 and r.get("grab_ok"):
+            j7_val = r["grab_joints"][6]
+            print(f"  {i:<4} {name:<30} {gs:>8} {as_:>9} {j7_val:>9.1f}mm")
+        else:
+            print(f"  {i:<4} {name:<30} {gs:>8} {as_:>9}")
+
+    n_both = sum(1 for t in targets
+                 if ik_map.get(t.Name(), {}).get("grab_ok")
+                 and ik_map.get(t.Name(), {}).get("app_ok"))
+    print(f"\n  {n_both}/{len(targets)} fully reachable (grab + approach)")
+
+
+def interactive_examine(RDK, robot, all_entries, all_ik):
+    """Let user pick positions to examine by number. Moves robot and pauses."""
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+
+    print(f"\n{'=' * 70}")
+    print("  INTERACTIVE EXAMINATION")
+    print(f"{'=' * 70}")
+    print("  Enter a number to move the robot to that position.")
+    print("  Type 'q' to quit.\n")
+
+    # Build a flat numbered list of all positions (grab + approach for each)
+    menu = []
+    for target, section in all_entries:
+        name = target.Name()
+        r = all_ik.get(name, {})
+        if r.get("grab_ok"):
+            menu.append({
+                "label": f"{name} (grab)",
+                "joints": r["grab_joints"],
+                "pose": target.PoseAbs(),
+                "section": section,
+            })
+        if r.get("app_ok"):
+            menu.append({
+                "label": f"{name} (approach)",
+                "joints": r["app_joints"],
+                "pose": make_approach_pose(target.PoseAbs(), APPROACH_OFFSET_MM),
+                "section": section,
+            })
+
+    if not menu:
+        print("  No reachable positions to examine.")
+        return
+
+    for i, entry in enumerate(menu):
+        print(f"  ({i:>3}) {entry['label']}")
+
+    print()
+    try:
+        while True:
+            ans = input("  Position number (or 'q' to quit): ").strip()
+            if ans.lower() in ('q', 'quit', 'exit', ''):
+                break
+            try:
+                idx = int(ans)
+            except ValueError:
+                print("  Enter a number or 'q'.")
+                continue
+            if not (0 <= idx < len(menu)):
+                print(f"  Out of range (0–{len(menu)-1}).")
+                continue
+
+            entry = menu[idx]
+            joints = entry["joints"]
+            print(f"\n  Moving to: {entry['label']}")
+            print(f"  Joints: {fmt_joints(joints)}")
+
+            px, py, pz = _pose_xyz(entry["pose"])
+            print(f"  Target XYZ: ({px:.1f}, {py:.1f}, {pz:.1f}) mm")
+
+            try:
+                robot.MoveJ(joints)
+                achieved = robot.Pose()
+                ax, ay, az = _pose_xyz(achieved)
+                err = math.sqrt((px-ax)**2 + (py-ay)**2 + (pz-az)**2)
+                print(f"  Achieved XYZ: ({ax:.1f}, {ay:.1f}, {az:.1f}) mm  (err={err:.2f}mm)")
+            except Exception as e:
+                print(f"  [ERROR] MoveJ failed: {e}")
+
+            input("  Press Enter to return to home ...")
+            robot.setJoints(HOME_SEED)
+    finally:
+        robot.setJoints(HOME_SEED)
+        if saved_frame.Valid():
+            robot.setPoseFrame(saved_frame)
+
+
+def save_results(base_ik, dest_ik, tool_name):
+    """Save combined results to ik_solutions/."""
+    os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_path = os.path.join(IK_SOLUTIONS_DIR, f"reachability_check_{timestamp}.json")
+    with open(out_path, "w") as f:
+        json.dump({
+            "generated": timestamp,
+            "robot": ROBOT_NAME,
+            "tool": tool_name,
+            "j7_locked": J7_LOCKED,
+            "approach_offset_mm": APPROACH_OFFSET_MM,
+            "base_cones": base_ik,
+            "dest_cones": dest_ik,
+        }, f, indent=2)
+    print(f"\n[INFO] Results saved to: {out_path}")
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description="Check reachability of base and destination cone targets.")
     ap.add_argument("--tool", default=TOOL_NAME,
-                    help=f"RoboDK tool name to mount during IK solve (default: {TOOL_NAME})")
-    ap.add_argument("--regular_IK", action="store_true",
-                    help="Solve grab + approach per cone (no orientation sweep) using "
-                         "the same OptimAxes method as moving_a_cone. Moves the robot "
-                         "to each solved position and pauses for inspection.")
+                    help=f"Tool for base cone IK (default: {TOOL_NAME})")
+    ap.add_argument("--dest-tool", default="pickup_closed",
+                    help="Tool for destination cone IK (default: pickup_closed)")
+    ap.add_argument("--recompute", action="store_true",
+                    help="Force recompute (ignore any cached IK solutions)")
+    ap.add_argument("--no-examine", action="store_true",
+                    help="Skip interactive examination after printing the table")
+    ap.add_argument("--base-only", action="store_true",
+                    help="Only check base cones, skip destination cones")
+    ap.add_argument("--dest-only", action="store_true",
+                    help="Only check destination cones, skip base cones")
     args = ap.parse_args()
-
-    tool_name = args.tool
 
     RDK = connect()
 
@@ -336,158 +412,65 @@ def main():
     if not robot.Valid():
         raise RuntimeError(f"Robot '{ROBOT_NAME}' not found.")
 
-    tool = RDK.Item(tool_name, ITEM_TYPE_TOOL)
-    if not tool.Valid():
-        all_tools = [i.Name() for i in RDK.ItemList(ITEM_TYPE_TOOL)]
-        raise RuntimeError(f"Tool '{tool_name}' not found. Available: {all_tools}")
-    robot.setTool(tool)
+    # ── Base cones (j7 locked) ────────────────────────────────────────────────
+    base_cones = []
+    base_ik = {}
+    if not args.dest_only:
+        tool = RDK.Item(args.tool, ITEM_TYPE_TOOL)
+        if tool.Valid():
+            robot.setTool(tool)
+            print(f"[INFO] Tool set to '{args.tool}'")
+        else:
+            all_tools = [i.Name() for i in RDK.ItemList(ITEM_TYPE_TOOL)]
+            print(f"[WARN] Tool '{args.tool}' not found. Available: {all_tools}")
 
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    if not world_frame.Valid():
-        raise RuntimeError("'WorldFrame' not found.")
+        base_cones = find_base_cones(RDK)
+        if base_cones:
+            print(f"\nFound {len(base_cones)} base cone target(s).")
+            base_ik = compute_base_cone_ik(RDK, robot, base_cones)
+            print_table("BASE CONES (j7 locked at {:.0f}mm)".format(J7_LOCKED),
+                        base_cones, base_ik)
+        else:
+            print("\n[WARN] No base_cone_grab_* targets found.")
 
-    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
-    robot.setPoseFrame(world_frame)
+    # ── Destination cones (j7 free) ───────────────────────────────────────────
+    dest_cones = []
+    dest_ik = {}
+    if not args.base_only:
+        dest_tool = RDK.Item(args.dest_tool, ITEM_TYPE_TOOL)
+        if dest_tool.Valid():
+            robot.setTool(dest_tool)
+            print(f"\n[INFO] Tool switched to '{args.dest_tool}' for dest cone IK")
+        else:
+            print(f"\n[WARN] Dest tool '{args.dest_tool}' not found — using current tool.")
 
-    group = RDK.Item(VIZ_GROUP_NAME, ITEM_TYPE_FRAME)
-    if not group.Valid():
-        group = RDK.AddFrame(VIZ_GROUP_NAME, world_frame)
-        group.setPose(eye(4))
+        dest_cones = find_destination_cones(RDK)
+        if dest_cones:
+            print(f"Found {len(dest_cones)} destination cone target(s).")
+            dest_seed = get_last_human_target_joints(RDK)
+            dest_ik = compute_dest_cone_ik(RDK, robot, dest_cones, seed=dest_seed)
+            print_table("DESTINATION CONES (j7 free)", dest_cones, dest_ik, show_j7=True)
+        else:
+            print("[WARN] No cone_grab_* targets found.")
 
-    cone_targets = sorted(
-        [t for t in RDK.ItemList(ITEM_TYPE_TARGET)
-         if t.Name().startswith("base_cone_grab_")],
-        key=lambda t: t.Name(),
-    )
-    if not cone_targets:
-        raise RuntimeError("No base_cone_grab_* targets found in station.")
+    # ── Save results ──────────────────────────────────────────────────────────
+    if base_ik or dest_ik:
+        save_results(base_ik, dest_ik, args.tool)
 
-    print(f"\nFound {len(cone_targets)} cone targets.")
+    # ── Interactive examination ───────────────────────────────────────────────
+    if not args.no_examine and (base_ik or dest_ik):
+        all_entries = []
+        for t in base_cones:
+            all_entries.append((t, "base"))
+        for t in dest_cones:
+            all_entries.append((t, "dest"))
 
-    if args.regular_IK:
-        run_regular_ik(robot, RDK, cone_targets, world_frame, group)
-        return
+        # Merge IK maps
+        combined_ik = {}
+        combined_ik.update(base_ik)
+        combined_ik.update(dest_ik)
 
-    step_deg = 360.0 / ORIENT_SWEEP_STEPS
-    angles   = [i * step_deg for i in range(ORIENT_SWEEP_STEPS)]
-
-    print(f"Poses           : {', '.join(l for l, _ in POSE_CONFIGS)}")
-    print(f"j7 locked at    : {J7_LOCKED} mm")
-    print(f"Approach offset : {APPROACH_OFFSET_MM} mm along grab Z-axis")
-    print(f"Sweep           : {ORIENT_SWEEP_STEPS} orientations ({step_deg:.0f}° steps)")
-    print(f"Solver          : RoboDK OptimAxes Algorithm 3 (DLS), MaxIter=500")
-    print("=" * 72)
-
-    results = []
-
-    try:
-        for target in cone_targets:
-            name      = target.Name()
-            grab_pose = target.PoseAbs()
-
-            pos, z = pos_and_z(grab_pose)
-            print(f"\n{name}")
-            print(f"  Grab pos : X={pos[0]:.1f}  Y={pos[1]:.1f}  Z={pos[2]:.1f}")
-            print(f"  Grab Z   : ({z[0]:.4f}, {z[1]:.4f}, {z[2]:.4f})")
-
-            pose_results = {}
-
-            for pose_label, pose_fn in POSE_CONFIGS:
-                pose = pose_fn(grab_pose)
-                print(f"  [{pose_label}]")
-
-                # Native solve (0° — no rotation applied)
-                joints, pos_err, native_ok = solve_pose(
-                    robot, pose, J7_LOCKED, pose_label
-                )
-
-                # Orientation sweep — always run for every pose
-                print(f"    Sweeping {ORIENT_SWEEP_STEPS} orientations ({int(step_deg)}° steps) ...")
-                sweep, best_joints = sweep_orientations(
-                    robot, pose, J7_LOCKED, ORIENT_SWEEP_STEPS
-                )
-                reachable_angles = [a for a, ok, _, _ in sweep if ok]
-                for angle_deg, ok, detail, _ in sweep:
-                    status = "SUCCESS" if ok else "  FAIL "
-                    print(f"      [{status}] {angle_deg:5.1f}°  {detail}")
-                n_ok = len(reachable_angles)
-                print(f"    => {n_ok}/{ORIENT_SWEEP_STEPS} orientations reachable: {reachable_angles}")
-
-                # Use best swept joints if native failed
-                best = joints if native_ok else (best_joints if best_joints is not None else joints)
-
-                pose_results[pose_label] = {
-                    "native_ok":        native_ok,
-                    "native_joints":    [float(v) for v in joints],
-                    "native_pos_err":   pos_err,
-                    "reachable_angles": reachable_angles,
-                    "best_joints":      [float(v) for v in best] if best else [],
-                    "swept_ok":         best_joints is not None,
-                }
-
-                # Viz frame for this pose
-                add_frame(RDK, f"viz_{pose_label}_{name}", pose, group)
-
-            results.append({"name": name, "poses": pose_results})
-
-    finally:
-        if saved_frame.Valid():
-            robot.setPoseFrame(saved_frame)
-        robot.setJoints(HOME_SEED)
-
-    # ── Print grids ───────────────────────────────────────────────────────────
-    name_w = max(len(r["name"]) for r in results)
-
-    print("\n" + "=" * 80)
-    print("ORIENTATION SWEEP GRIDS")
-    print(f"  OK = reachable at j7={J7_LOCKED}mm    . = not reachable")
-    for pose_label, _ in POSE_CONFIGS:
-        print_grid(results, pose_label, angles, name_w)
-
-    # ── Summary counts ────────────────────────────────────────────────────────
-    print("\n" + "=" * 80)
-    print("REACHABILITY COUNTS")
-    for pose_label, _ in POSE_CONFIGS:
-        n = len(results)
-        n_native = sum(1 for r in results if r["poses"][pose_label]["native_ok"])
-        n_swept  = sum(1 for r in results if not r["poses"][pose_label]["native_ok"]
-                       and r["poses"][pose_label]["swept_ok"])
-        n_none   = sum(1 for r in results if not r["poses"][pose_label]["native_ok"]
-                       and not r["poses"][pose_label]["swept_ok"])
-        print(f"  {pose_label:<12}  native={n_native}/{n}  swept={n_swept}/{n}  unreachable={n_none}/{n}")
-
-    # Common angles across all cones and all poses
-    all_sets = []
-    for r in results:
-        for pose_label, _ in POSE_CONFIGS:
-            all_sets.append(set(r["poses"][pose_label]["reachable_angles"]))
-    common = sorted(all_sets[0].intersection(*all_sets[1:])) if all_sets else []
-    print(f"\n  Angles reachable for ALL cones at ALL poses: {common if common else 'None'}")
-
-    print(f"\nVisualization frames added under '{VIZ_GROUP_NAME}' in the station tree.")
-
-    # ── Save files ────────────────────────────────────────────────────────────
-    os.makedirs(IK_SOLUTIONS_DIR, exist_ok=True)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    json_path = os.path.join(IK_SOLUTIONS_DIR, f"base_cone_ik_{timestamp}.json")
-    with open(json_path, "w") as f:
-        json.dump({
-            "generated":         timestamp,
-            "j7_locked":         J7_LOCKED,
-            "approach_offset_mm": APPROACH_OFFSET_MM,
-            "orient_sweep_steps": ORIENT_SWEEP_STEPS,
-            "solver":            "OptimAxes Algorithm 3 DLS",
-            "tool":              tool_name,
-            "robot":             ROBOT_NAME,
-            "pose_configs":      [l for l, _ in POSE_CONFIGS],
-            "solutions":         results,
-        }, f, indent=2)
-    print(f"\nIK solutions (JSON) : {json_path}")
-
-    txt_path = os.path.join(IK_SOLUTIONS_DIR, f"base_cone_summary_{timestamp}.txt")
-    save_summary_txt(results, angles, timestamp, txt_path, tool_name=tool_name)
-    print(f"Summary (txt)       : {txt_path}")
+        interactive_examine(RDK, robot, all_entries, combined_ik)
 
 
 if __name__ == "__main__":
