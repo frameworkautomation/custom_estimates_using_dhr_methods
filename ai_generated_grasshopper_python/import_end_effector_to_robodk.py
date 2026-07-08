@@ -297,31 +297,25 @@ else:
             purge_all(name)
 
         # --- Find the actual 6-axis robot arm, not the rail mechanism ---
-        robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
-        if not robot.Valid():
-            # Look for the arm inside RailMechanism
-            rail = RDK.Item("RailMechanism", ITEM_TYPE_ROBOT)
-            if rail.Valid():
-                children = rail.Childs()
-                for child in children:
-                    if child.Type() == ITEM_TYPE_ROBOT and child.Name() != "RailMechanism":
-                        robot = child
-                        print(f"  Found robot arm '{robot.Name()}' inside RailMechanism")
-                        break
-        if not robot.Valid():
-            # Last resort: find any robot that isn't the mechanism
+        robot = None
+        for rname in ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]:
+            r = RDK.Item(rname, ITEM_TYPE_ROBOT)
+            if r.Valid():
+                robot = r
+                break
+        if robot is None:
+            # Last resort: find any robot that isn't a mechanism
             for r in RDK.ItemList(ITEM_TYPE_ROBOT, False):
-                if r.Name() != "RailMechanism":
+                if "mechanism" not in r.Name().lower() and "door" not in r.Name().lower():
                     robot = r
                     print(f"  Using robot '{robot.Name()}' (fallback)")
                     break
-        if not robot.Valid():
-            # Absolute last resort — use whatever we can find
+        if robot is None:
             robot = RDK.Item("", ITEM_TYPE_ROBOT)
             print(f"  WARNING: using '{robot.Name()}' as robot (may be mechanism)")
         print(f"Robot: {robot.Name()}")
 
-        ee_parent = robot if robot.Valid() else station
+        ee_parent = robot if (robot is not None and robot.Valid()) else station
 
         # EE organisational frame
         ee_frame = RDK.AddFrame("EndEffector", ee_parent)
