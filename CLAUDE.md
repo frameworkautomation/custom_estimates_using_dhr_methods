@@ -1,5 +1,18 @@
 # Project Context for Claude
 
+## ── BRANCH: positioning_robert_end_effector_etc ──────────────────────────────
+
+**Goal:** Evaluate end-effector mounting and reachability for Robert's tool in simulation.
+
+**Tasks:**
+1. Mount Robert's end effector in the RoboDK simulation
+2. Test whether the end effector can reach into the box (cone holder) from its
+   mounted position
+3. Determine if additional degrees of freedom are needed to manoeuvre the end
+   effector adequately
+4. Check the cutting operation in simulation — verify the tool can perform the
+   cut motion without collisions or reachability issues
+
 ## ── RULES: Never remove data from path_config.yaml ───────────────────────────
 
 **`path_config.yaml` is the single source of truth for ALL robot configuration.**

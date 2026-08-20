@@ -353,7 +353,7 @@ waypoints:
     z: 1539.1057
     rx: 0.0
     ry: -0.0
-    rz: 5.625
+    rz: 45.0
     frame: world
     move_type: MoveL
     j7: null
@@ -364,7 +364,7 @@ waypoints:
     z: 1639.1057
     rx: 0.0
     ry: -0.0
-    rz: 5.625
+    rz: 45.0
     frame: world
     move_type: MoveJ
     j7: null
@@ -397,7 +397,7 @@ waypoints:
     z: 1539.1057
     rx: 0.0
     ry: -0.0
-    rz: 5.625
+    rz: 45.0
     frame: world
     move_type: MoveL
     j7: null
@@ -408,7 +408,7 @@ waypoints:
     z: 1639.1057
     rx: 0.0
     ry: -0.0
-    rz: 5.625
+    rz: 45.0
     frame: world
     move_type: MoveJ
     j7: null
