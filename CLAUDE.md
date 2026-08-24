@@ -14,6 +14,91 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
+## ── robert_checker_stuff architecture ────────────────────────────────────────
+
+**Folder:** `robert_checker_stuff/`
+
+**Files:**
+- `robert_end_checker.py` — CLI script, checks reachability for each end effector
+- `robert_end_shower.py` — CLI script, visualises results
+- `robert_end_checker_config.json` — shared config (populated by Grasshopper scripts)
+
+**Rules:**
+- Both scripts are CLI Python, interact with the config JSON and RoboDK only — no
+  other data sources.
+
+### Config JSON schema
+
+```json
+{
+  "end_effectors": [
+    {
+      "end_effector_name": "SomeTool",
+      "paths_and_points_to_check": [
+        {
+          "name": "cone_holder_slot_0",
+          "type": "point",
+          "name_path": "Station/Robot/ConeHolder/Slot0",
+          "special_track_conditions": {
+            "type": "None"
+          }
+        },
+        {
+          "name": "base_cone_grab_0",
+          "type": "point",
+          "name_path": "Station/Robot/BaseCones/Cone0",
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "creel_cone_5",
+          "type": "point",
+          "name_path": "Station/Creel/Cone5",
+          "special_track_conditions": {
+            "type": "Locked_at_j7_pt",
+            "j7_value": 1500.0
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### paths_and_points_to_check element fields
+
+- **name** — identifier for this check
+- **type** — `"point"` or `"path"` (path not implemented yet, point only for now)
+- **name_path** — location in the RoboDK station tree (how to find the item)
+- **special_track_conditions** — how to handle j7 during IK solve:
+  - `type: "None"` — free j7, let solver pick whatever
+  - `type: "Locked_at_j7_0"` — lock j7 to 0 when solving
+  - `type: "Locked_at_j7_pt"` — lock j7 to a specific value; requires additional
+    `j7_value` field specifying the locked position
+
+### Notes
+- Config JSON is populated by modified Grasshopper scripts (not hand-written)
+- `type: "path"` is future work — only `"point"` for now
+
+### robert_end_checker.py behaviour
+1. Read `end_effectors` list from config JSON
+2. For each end effector, iterate through its `paths_and_points_to_check`
+3. Find each item in RoboDK via `name_path`
+4. Solve IK with appropriate j7 constraints per `special_track_conditions`
+5. Report reachability results
+6. Write/cache IK solutions to a file for `robert_end_shower.py` to consume
+
+### robert_end_shower.py behaviour
+- Reads cached IK solutions produced by `robert_end_checker.py` — does NOT
+  solve IK itself or query RoboDK for solutions
+- Visualises the results in RoboDK (details TBD)
+
+### Grasshopper → config JSON pipeline
+- A GhPython component populates `robert_end_checker_config.json` with points
+- GH writes name, type, name_path, and special_track_conditions for each point
+- This replaces hand-editing the config JSON
+
 ## ── RULES: Never remove data from path_config.yaml ───────────────────────────
 
 **`path_config.yaml` is the single source of truth for ALL robot configuration.**
