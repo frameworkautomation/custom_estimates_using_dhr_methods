@@ -14,6 +14,11 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
+**TODO (cutting):**
+- Implement cutting points in the config JSON and GH export script
+- Implement cutting paths (`type: "path"`) — these are not just single IK checks
+  but need to verify the tool can follow a cut trajectory
+
 ## ── robert_checker_stuff architecture ────────────────────────────────────────
 
 **Folder:** `robert_checker_stuff/`
