@@ -81,6 +81,9 @@
   - `type: "Locked_at_j7_0"` — lock j7 to 0 when solving
   - `type: "Locked_at_j7_pt"` — lock j7 to a specific value; requires additional
     `j7_value` field specifying the locked position
+  - `type: "Optimized_for_j7_at"` — optimizer tries to keep j7 close to the given
+    `j7_value` but does not error if it ends up far away; soft preference, not a
+    hard constraint
 
 ### Notes
 - Config JSON is populated by modified Grasshopper scripts (not hand-written)
