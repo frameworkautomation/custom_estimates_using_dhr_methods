@@ -134,25 +134,26 @@ def _update_path_config(waypoints, edges):
     existing_names = set((existing.get("waypoints") or {}).keys())
 
     # ── Waypoints ─────────────────────────────────────────────────────────────
-    # Separate into: new waypoints to add, and grasshopper waypoints to update
+    # Remove all grasshopper-sourced waypoints from existing, then write current set fresh.
+    # This ensures renamed/deleted waypoints don't persist.
     existing_wps = existing.get("waypoints") or {}
-    to_add = []
-    to_update = []
-    for wp in waypoints:
-        if "x" not in wp:
-            continue
-        name = wp["name"]
-        if name not in existing_names:
-            to_add.append(wp)
-        elif existing_wps.get(name, {}).get("source") == "grasshopper":
-            # Check if coordinates actually changed
-            old = existing_wps[name]
-            changed = any(
-                abs(float(wp.get(k, 0.0)) - float(old.get(k, 0.0))) > 1e-6
-                for k in ("x", "y", "z", "rx", "ry", "rz")
-            )
-            if changed:
-                to_update.append(wp)
+    stale_gh_names = set()
+    for name, attrs in existing_wps.items():
+        if isinstance(attrs, dict) and attrs.get("source") == "grasshopper":
+            stale_gh_names.add(name)
+
+    # Remove stale grasshopper waypoint blocks from text
+    for name in stale_gh_names:
+        pattern = re.compile(
+            rf"^  {re.escape(name)}:\n(?:    .+\n)*",
+            re.MULTILINE,
+        )
+        text = pattern.sub("", text)
+    if stale_gh_names:
+        print(f"[OK] path_config.yaml: removed {len(stale_gh_names)} stale grasshopper waypoints")
+
+    # All source YAML waypoints are now "to add"
+    to_add = [wp for wp in waypoints if "x" in wp]
 
     def _wp_yaml_lines(wp):
         lines = [f"  {wp['name']}:"]
@@ -167,21 +168,7 @@ def _update_path_config(waypoints, edges):
             lines.append(f"    z_axis_free: true")
         return lines
 
-    # Update existing grasshopper waypoints in-place
-    for wp in to_update:
-        name = wp["name"]
-        new_block = "\n".join(_wp_yaml_lines(wp))
-        # Find the existing block in text and replace it
-        pattern = re.compile(
-            rf"^  {re.escape(name)}:\n(?:    .+\n)*",
-            re.MULTILINE,
-        )
-        text = pattern.sub(new_block + "\n", text)
-
-    if to_update:
-        print(f"[OK] path_config.yaml: updated {len(to_update)} grasshopper waypoints")
-
-    # Add new waypoints
+    # Add waypoints
     if to_add:
         new_lines = []
         for wp in to_add:
@@ -192,22 +179,13 @@ def _update_path_config(waypoints, edges):
         text = (text[:idx] + insert_block + text[idx:]) if idx != -1 else (text.rstrip("\n") + "\n" + insert_block)
         print(f"[OK] path_config.yaml: added {len(to_add)} Cartesian waypoints")
 
-    if not to_add and not to_update:
-        print("[OK] path_config.yaml: no new or changed Cartesian waypoints")
+    if not to_add:
+        print("[OK] path_config.yaml: no Cartesian waypoints to add")
 
     # ── Edges ─────────────────────────────────────────────────────────────────
-    # Merge existing (in-file) edges with newly collected ones, dedup by (from, to)
-    existing_edges = existing.get("edges") or []
-    existing_edge_keys = {(e.get("from", ""), e.get("to", "")) for e in existing_edges}
-    merged_edges = list(existing_edges)
-    for e in edges:
-        key = (e.get("from", ""), e.get("to", ""))
-        if key not in existing_edge_keys:
-            existing_edge_keys.add(key)
-            merged_edges.append(e)
-
+    # Replace all edges with the current collected set (no merging with stale edges)
     edge_lines = [_EDGES_MARKER + "edges:"]
-    for e in merged_edges:
+    for e in edges:
         edge_lines.append(f"  - from: {e['from']}")
         edge_lines.append(f"    to:   {e['to']}")
         tested = e.get("tested")
