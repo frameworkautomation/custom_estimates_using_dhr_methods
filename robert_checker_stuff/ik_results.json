@@ -1,0 +1,1650 @@
+{
+  "generated": "20260825_110013",
+  "robot": "Fanuc R-2000iC/125L",
+  "end_effectors": {
+    "pickup": {
+      "Base_Right_0_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_0_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_1_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_1_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_2_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_2_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_0_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_0_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_1_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_1_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_2_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_2_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "F0_grab": {
+        "reachable": true,
+        "joints": [
+          53.354008058485825,
+          -45.3879015063877,
+          214.9999998644851,
+          0.0,
+          -124.9999998644857,
+          -126.64599194151413,
+          3720.7437024743354
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F0_grab_approach": {
+        "reachable": true,
+        "joints": [
+          56.675467611217904,
+          -39.07610032906375,
+          214.09710028184907,
+          0.0,
+          -124.09710028184973,
+          -123.32453238878233,
+          3600.000029708599
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F1_grab": {
+        "reachable": true,
+        "joints": [
+          60.52517180727116,
+          -50.490636221446856,
+          211.9137113728066,
+          0.0,
+          -121.91371137280747,
+          -119.47482819272926,
+          3600.000029708608
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F1_grab_approach": {
+        "reachable": true,
+        "joints": [
+          60.52517180727154,
+          -47.13527174800776,
+          209.71337435720898,
+          0.0,
+          -119.71337435720977,
+          -119.47482819272888,
+          3600.0000297086217
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F2_grab": {
+        "reachable": true,
+        "joints": [
+          68.46600446145513,
+          -55.99999953550819,
+          208.4811133199051,
+          0.0,
+          -118.48111331990512,
+          -111.5339955385451,
+          3412.7577161547156
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F2_grab_approach": {
+        "reachable": true,
+        "joints": [
+          64.13698408356589,
+          -55.99999965064059,
+          204.52290994914438,
+          0.0,
+          -114.52290994914564,
+          -115.86301591643374,
+          3579.9040599218597
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F3_grab": {
+        "reachable": true,
+        "joints": [
+          -133.32322667083267,
+          68.93649245613072,
+          -34.99999958646093,
+          0.0,
+          124.99999958646313,
+          46.67677332916571,
+          4644.604078582688
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F3_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -132.3551212547733,
+          63.100573558432224,
+          -34.999999655010875,
+          0.0,
+          124.99999965500943,
+          47.6448787452243,
+          4579.183090539289
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F4_grab": {
+        "reachable": true,
+        "joints": [
+          -126.17360752986603,
+          68.93649185817212,
+          -34.99999997441856,
+          0.0,
+          124.999999974416,
+          53.82639247013388,
+          4370.25859040465
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F4_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -124.91719825774479,
+          63.100573162843126,
+          -34.99999990028864,
+          0.0,
+          124.99999990029033,
+          55.08280174225269,
+          4293.7442672922225
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F5_grab": {
+        "reachable": true,
+        "joints": [
+          -117.50508138141808,
+          68.93649192000211,
+          -34.999999934303425,
+          0.0,
+          124.99999993430447,
+          62.49491861858076,
+          4002.8411658274804
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F5_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -115.71322296075454,
+          63.10057312701676,
+          -34.99999992250243,
+          0.0,
+          124.99999992250234,
+          64.286777039246,
+          3903.536659004807
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F6_grab": {
+        "reachable": true,
+        "joints": [
+          -108.37117120828253,
+          72.48878551001758,
+          -32.6928760811269,
+          0.0,
+          122.69287608112715,
+          71.62882879171698,
+          3600.0000297086326
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F6_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -108.37117120828263,
+          69.28393646860084,
+          -31.133900287724853,
+          0.0,
+          121.13390028772514,
+          71.628828791717,
+          3600.0000297086
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F7_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F7_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -93.48290396224269,
+          75.99899991669204,
+          -26.887700404759123,
+          0.0,
+          116.88770040476021,
+          86.51709603775919,
+          2863.6272291753007
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F8_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F8_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F9_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F9_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B0_grab": {
+        "reachable": true,
+        "joints": [
+          60.209806027476944,
+          -45.387901290113824,
+          214.9999999929784,
+          0.0,
+          -124.99999999297776,
+          -119.79019397252333,
+          3791.5329522957018
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B0_grab_approach": {
+        "reachable": true,
+        "joints": [
+          65.97563717240158,
+          -38.3774963412677,
+          214.45772633453316,
+          0.0,
+          -124.45772633453427,
+          -114.02436282759874,
+          3600.000029708599
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B1_grab": {
+        "reachable": true,
+        "joints": [
+          68.83010204331029,
+          -50.42024390923237,
+          211.95696314520228,
+          0.0,
+          -121.95696314520306,
+          -111.1698979566894,
+          3600.000029708608
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B1_grab_approach": {
+        "reachable": true,
+        "joints": [
+          68.83010204331046,
+          -47.062985970142776,
+          209.7543075755573,
+          0.0,
+          -119.75430757555702,
+          -111.16989795668921,
+          3600.0000297086217
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B2_grab": {
+        "reachable": true,
+        "joints": [
+          80.91413297829813,
+          -55.99999987672869,
+          208.48111310473803,
+          0.0,
+          -118.481113104738,
+          -99.08586702170287,
+          3241.039324622071
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B2_grab_approach": {
+        "reachable": true,
+        "joints": [
+          72.78941918044352,
+          -55.999999853929474,
+          204.5229098267759,
+          0.0,
+          -114.52290982677602,
+          -107.2105808195562,
+          3535.8424806557605
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B3_grab": {
+        "reachable": true,
+        "joints": [
+          -129.88228016667088,
+          68.93649251278588,
+          -34.99999954970246,
+          0.0,
+          124.9999995497037,
+          50.117719833329915,
+          4761.126246203385
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B3_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -128.78685442004632,
+          63.100573517945044,
+          -34.999999680115245,
+          0.0,
+          124.99999968011232,
+          51.21314557995213,
+          4690.94835947362
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B4_grab": {
+        "reachable": true,
+        "joints": [
+          -122.10224550130633,
+          68.93649243362387,
+          -34.999999601063884,
+          0.0,
+          124.9999996010615,
+          57.89775449869429,
+          4447.004640978703
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B4_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -120.62964588915337,
+          63.10057337172687,
+          -34.99999977077413,
+          0.0,
+          124.99999977077259,
+          59.37035411084527,
+          4361.547854249469
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B5_grab": {
+        "reachable": true,
+        "joints": [
+          -112.05273184926754,
+          68.93649202136596,
+          -34.999999868538126,
+          0.0,
+          124.999999868539,
+          67.94726815073102,
+          4000.7126961569147
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B5_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -109.69918465458223,
+          63.10057301977817,
+          -34.99999998899446,
+          0.0,
+          124.99999998899499,
+          70.30081534541775,
+          3875.9049476516175
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B6_grab": {
+        "reachable": true,
+        "joints": [
+          -103.16366506909988,
+          75.75334707466192,
+          -30.571403002966864,
+          0.0,
+          120.57140300296675,
+          76.83633493089968,
+          3600.000029708625
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B6_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -103.16366506910005,
+          72.4725105716557,
+          -29.121541905435837,
+          0.0,
+          119.12154190543608,
+          76.8363349309,
+          3600.000029708608
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B7_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B7_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B8_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B8_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B9_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B9_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      }
+    },
+    "knotting": {
+      "Base_Right_0_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_0_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_1_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_1_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_2_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Right_2_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_0_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_0_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_1_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_1_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_2_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "Base_Left_2_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "F0_string_grab": {
+        "reachable": true,
+        "joints": [
+          56.67546761121794,
+          -29.244251609247492,
+          205.84258802525756,
+          0.0,
+          -115.842588025258,
+          -123.32453238878136,
+          3600.0000297086517
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F0_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          51.31787853664169,
+          -34.55253981138291,
+          203.79992119384494,
+          0.0,
+          -113.79992119384607,
+          -128.68212146335836,
+          3600.0000297086353
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F1_string_grab": {
+        "reachable": true,
+        "joints": [
+          60.52517180727116,
+          -38.1169358035477,
+          202.29047166286747,
+          0.0,
+          -112.29047166286699,
+          -119.47482819272848,
+          3600.0000297085835
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F1_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          55.46244050336822,
+          -43.199931964264245,
+          199.96806845167032,
+          0.0,
+          -109.96806845166985,
+          -124.53755949663116,
+          3600.0000297086444
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F2_string_grab": {
+        "reachable": true,
+        "joints": [
+          63.63611788594188,
+          -48.04844887095345,
+          197.58884227238283,
+          0.0,
+          -107.5888422723839,
+          -116.36388211405794,
+          3600.0000297086
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F2_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          58.88797687013894,
+          -53.327813788972264,
+          194.8423070352198,
+          0.0,
+          -104.84230703521911,
+          -121.11202312986124,
+          3600.0000297085876
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F3_string_grab": {
+        "reachable": true,
+        "joints": [
+          70.37561395215948,
+          -55.9999995055323,
+          193.39839202119424,
+          0.0,
+          -103.39839202119393,
+          -109.62438604784093,
+          3423.618749580627
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F3_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -126.45197288271929,
+          42.753060235086885,
+          -34.99999988444067,
+          0.0,
+          124.99999988443962,
+          53.54802711728127,
+          4019.0092571570676
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F4_string_grab": {
+        "reachable": true,
+        "joints": [
+          -116.80872751025834,
+          42.753060105180836,
+          -34.99999994575217,
+          0.0,
+          124.99999994575165,
+          63.19127248974194,
+          3848.583685013683
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F4_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -116.80872744490846,
+          42.7530600321803,
+          -34.99999998020619,
+          0.0,
+          124.99999998020607,
+          63.191272555091835,
+          3648.583681706475
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F5_string_grab": {
+        "reachable": true,
+        "joints": [
+          -109.89783087600362,
+          48.38805122704784,
+          -32.237126140599756,
+          0.0,
+          122.23712614060003,
+          70.10216912399653,
+          3600.0000297086326
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F5_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -113.78578476719649,
+          52.45194116472554,
+          -30.128461684582003,
+          0.0,
+          120.12846168458229,
+          66.21421523280345,
+          3600.000029708625
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F6_string_grab": {
+        "reachable": true,
+        "joints": [
+          -108.37117120828304,
+          61.24092068835978,
+          -25.297309521084205,
+          0.0,
+          115.29730952108397,
+          71.62882879171714,
+          3600.00002970861
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F6_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -112.01845826526231,
+          66.468621975709,
+          -22.283974349420987,
+          0.0,
+          112.28397434942123,
+          67.9815417347374,
+          3600.000029708614
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F7_string_grab": {
+        "reachable": true,
+        "joints": [
+          -103.3365421473861,
+          76.00099945777819,
+          -16.6016583582129,
+          0.0,
+          106.60165835821314,
+          76.66345785261416,
+          3391.2161081276868
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F7_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -103.3365422254838,
+          76.00099959063314,
+          -16.601658277746274,
+          0.0,
+          106.60165827774546,
+          76.66345777451687,
+          3191.216112438284
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F8_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F8_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F9_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "F9_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B0_string_grab": {
+        "reachable": true,
+        "joints": [
+          65.97563717240186,
+          -28.461779788165423,
+          206.12126053985753,
+          0.0,
+          -116.12126053985766,
+          -114.0243628275987,
+          3600.000029708563
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B0_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          69.3052645149357,
+          -26.72049103255252,
+          206.71949067749603,
+          0.0,
+          -116.71949067749675,
+          -110.69473548506426,
+          3697.274600142153
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B1_string_grab": {
+        "reachable": true,
+        "joints": [
+          68.83010204331045,
+          -38.038531790191136,
+          202.32477961196514,
+          0.0,
+          -112.32477961196518,
+          -111.16989795668935,
+          3600.0000297085835
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B1_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          74.76835889440773,
+          -35.144008741582255,
+          203.5567384590802,
+          0.0,
+          -113.5567384590807,
+          -105.23164110559145,
+          3600.0000297086353
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B2_string_grab": {
+        "reachable": true,
+        "joints": [
+          71.10074428205532,
+          -48.6306738562548,
+          197.29345810729907,
+          0.0,
+          -107.29345810729855,
+          -108.89925571794436,
+          3600.0000297086
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B2_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          76.465674447138,
+          -45.73251718947732,
+          198.74379496296626,
+          0.0,
+          -108.74379496296649,
+          -103.53432555286207,
+          3600.000029708603
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B3_string_grab": {
+        "reachable": true,
+        "joints": [
+          83.48098880882854,
+          -55.9999999952667,
+          193.39839175355647,
+          0.0,
+          -103.39839175355547,
+          -96.51901119117085,
+          3177.2942368691934
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B3_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          83.48098926974235,
+          -55.99999987141482,
+          193.39839182124058,
+          0.0,
+          -103.39839182124044,
+          -96.51901073025772,
+          3377.294218975305
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B4_string_grab": {
+        "reachable": true,
+        "joints": [
+          -110.51211403980176,
+          42.75306001856518,
+          -34.99999998663178,
+          0.0,
+          124.99999998663209,
+          69.48788596019794,
+          3833.215930436614
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B4_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -110.51211413778441,
+          42.75306009959983,
+          -34.99999994838618,
+          0.0,
+          124.99999994838662,
+          69.48788586221568,
+          4033.2159351617574
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B5_string_grab": {
+        "reachable": true,
+        "joints": [
+          -104.25173898258865,
+          50.380670666490694,
+          -31.214383407810708,
+          0.0,
+          121.21438340781037,
+          75.74826101741137,
+          3600.0000297086
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B5_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -100.12546376737441,
+          48.11976230930488,
+          -32.373106124351175,
+          0.0,
+          122.37310612435138,
+          79.87453623262574,
+          3600.0000297086326
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B6_string_grab": {
+        "reachable": true,
+        "joints": [
+          -103.16366506910005,
+          64.40662311487071,
+          -23.483013937197956,
+          0.0,
+          113.48301393719791,
+          76.83633493090012,
+          3600.0000297085835
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B6_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          -99.33807643894251,
+          61.53612736900079,
+          -25.12958500505113,
+          0.0,
+          115.12958500505104,
+          80.66192356105763,
+          3600.00002970861
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B7_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B7_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B8_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B8_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B9_string_grab": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      },
+      "B9_string_grab_approach": {
+        "reachable": false,
+        "joints": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "special_track_conditions": {
+          "type": "Optimized_for_j7_at",
+          "j7_value": 3600.0
+        }
+      }
+    }
+  }
+}

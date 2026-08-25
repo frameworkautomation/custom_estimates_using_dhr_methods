@@ -1,0 +1,168 @@
+======================================================================
+  REACHABILITY REPORT
+  Robot: Fanuc R-2000iC/125L
+  Generated: 20260825_110013
+======================================================================
+
+  End Effector: pickup  (29/52 reachable)
+  #    Name                                     Status j7 constraint              j7 actual
+  -------------------------------------------------------------------------------------
+  0    Base_Right_0_grab                          FAIL locked(0)                          —
+  1    Base_Right_0_grab_approach                 FAIL locked(0)                          —
+  2    Base_Right_1_grab                          FAIL locked(0)                          —
+  3    Base_Right_1_grab_approach                 FAIL locked(0)                          —
+  4    Base_Right_2_grab                          FAIL locked(0)                          —
+  5    Base_Right_2_grab_approach                 FAIL locked(0)                          —
+  6    Base_Left_0_grab                           FAIL locked(0)                          —
+  7    Base_Left_0_grab_approach                  FAIL locked(0)                          —
+  8    Base_Left_1_grab                           FAIL locked(0)                          —
+  9    Base_Left_1_grab_approach                  FAIL locked(0)                          —
+  10   Base_Left_2_grab                           FAIL locked(0)                          —
+  11   Base_Left_2_grab_approach                  FAIL locked(0)                          —
+  12   F0_grab                                      OK opt(3600.0)                   3720.7
+  13   F0_grab_approach                             OK opt(3600.0)                   3600.0
+  14   F1_grab                                      OK opt(3600.0)                   3600.0
+  15   F1_grab_approach                             OK opt(3600.0)                   3600.0
+  16   F2_grab                                      OK opt(3600.0)                   3412.8
+  17   F2_grab_approach                             OK opt(3600.0)                   3579.9
+  18   F3_grab                                      OK opt(3600.0)                   4644.6
+  19   F3_grab_approach                             OK opt(3600.0)                   4579.2
+  20   F4_grab                                      OK opt(3600.0)                   4370.3
+  21   F4_grab_approach                             OK opt(3600.0)                   4293.7
+  22   F5_grab                                      OK opt(3600.0)                   4002.8
+  23   F5_grab_approach                             OK opt(3600.0)                   3903.5
+  24   F6_grab                                      OK opt(3600.0)                   3600.0
+  25   F6_grab_approach                             OK opt(3600.0)                   3600.0
+  26   F7_grab                                    FAIL opt(3600.0)                        —
+  27   F7_grab_approach                             OK opt(3600.0)                   2863.6
+  28   F8_grab                                    FAIL opt(3600.0)                        —
+  29   F8_grab_approach                           FAIL opt(3600.0)                        —
+  30   F9_grab                                    FAIL opt(3600.0)                        —
+  31   F9_grab_approach                           FAIL opt(3600.0)                        —
+  32   B0_grab                                      OK opt(3600.0)                   3791.5
+  33   B0_grab_approach                             OK opt(3600.0)                   3600.0
+  34   B1_grab                                      OK opt(3600.0)                   3600.0
+  35   B1_grab_approach                             OK opt(3600.0)                   3600.0
+  36   B2_grab                                      OK opt(3600.0)                   3241.0
+  37   B2_grab_approach                             OK opt(3600.0)                   3535.8
+  38   B3_grab                                      OK opt(3600.0)                   4761.1
+  39   B3_grab_approach                             OK opt(3600.0)                   4690.9
+  40   B4_grab                                      OK opt(3600.0)                   4447.0
+  41   B4_grab_approach                             OK opt(3600.0)                   4361.5
+  42   B5_grab                                      OK opt(3600.0)                   4000.7
+  43   B5_grab_approach                             OK opt(3600.0)                   3875.9
+  44   B6_grab                                      OK opt(3600.0)                   3600.0
+  45   B6_grab_approach                             OK opt(3600.0)                   3600.0
+  46   B7_grab                                    FAIL opt(3600.0)                        —
+  47   B7_grab_approach                           FAIL opt(3600.0)                        —
+  48   B8_grab                                    FAIL opt(3600.0)                        —
+  49   B8_grab_approach                           FAIL opt(3600.0)                        —
+  50   B9_grab                                    FAIL opt(3600.0)                        —
+  51   B9_grab_approach                           FAIL opt(3600.0)                        —
+
+  UNREACHABLE (23):
+    - Base_Right_0_grab: IK failed
+    - Base_Right_0_grab_approach: IK failed
+    - Base_Right_1_grab: IK failed
+    - Base_Right_1_grab_approach: IK failed
+    - Base_Right_2_grab: IK failed
+    - Base_Right_2_grab_approach: IK failed
+    - Base_Left_0_grab: IK failed
+    - Base_Left_0_grab_approach: IK failed
+    - Base_Left_1_grab: IK failed
+    - Base_Left_1_grab_approach: IK failed
+    - Base_Left_2_grab: IK failed
+    - Base_Left_2_grab_approach: IK failed
+    - F7_grab: IK failed
+    - F8_grab: IK failed
+    - F8_grab_approach: IK failed
+    - F9_grab: IK failed
+    - F9_grab_approach: IK failed
+    - B7_grab: IK failed
+    - B7_grab_approach: IK failed
+    - B8_grab: IK failed
+    - B8_grab_approach: IK failed
+    - B9_grab: IK failed
+    - B9_grab_approach: IK failed
+
+  End Effector: knotting  (30/52 reachable)
+  #    Name                                     Status j7 constraint              j7 actual
+  -------------------------------------------------------------------------------------
+  0    Base_Right_0_string_grab                   FAIL locked(0)                          —
+  1    Base_Right_0_string_grab_approach          FAIL locked(0)                          —
+  2    Base_Right_1_string_grab                   FAIL locked(0)                          —
+  3    Base_Right_1_string_grab_approach          FAIL locked(0)                          —
+  4    Base_Right_2_string_grab                   FAIL locked(0)                          —
+  5    Base_Right_2_string_grab_approach          FAIL locked(0)                          —
+  6    Base_Left_0_string_grab                    FAIL locked(0)                          —
+  7    Base_Left_0_string_grab_approach           FAIL locked(0)                          —
+  8    Base_Left_1_string_grab                    FAIL locked(0)                          —
+  9    Base_Left_1_string_grab_approach           FAIL locked(0)                          —
+  10   Base_Left_2_string_grab                    FAIL locked(0)                          —
+  11   Base_Left_2_string_grab_approach           FAIL locked(0)                          —
+  12   F0_string_grab                               OK opt(3600.0)                   3600.0
+  13   F0_string_grab_approach                      OK opt(3600.0)                   3600.0
+  14   F1_string_grab                               OK opt(3600.0)                   3600.0
+  15   F1_string_grab_approach                      OK opt(3600.0)                   3600.0
+  16   F2_string_grab                               OK opt(3600.0)                   3600.0
+  17   F2_string_grab_approach                      OK opt(3600.0)                   3600.0
+  18   F3_string_grab                               OK opt(3600.0)                   3423.6
+  19   F3_string_grab_approach                      OK opt(3600.0)                   4019.0
+  20   F4_string_grab                               OK opt(3600.0)                   3848.6
+  21   F4_string_grab_approach                      OK opt(3600.0)                   3648.6
+  22   F5_string_grab                               OK opt(3600.0)                   3600.0
+  23   F5_string_grab_approach                      OK opt(3600.0)                   3600.0
+  24   F6_string_grab                               OK opt(3600.0)                   3600.0
+  25   F6_string_grab_approach                      OK opt(3600.0)                   3600.0
+  26   F7_string_grab                               OK opt(3600.0)                   3391.2
+  27   F7_string_grab_approach                      OK opt(3600.0)                   3191.2
+  28   F8_string_grab                             FAIL opt(3600.0)                        —
+  29   F8_string_grab_approach                    FAIL opt(3600.0)                        —
+  30   F9_string_grab                             FAIL opt(3600.0)                        —
+  31   F9_string_grab_approach                    FAIL opt(3600.0)                        —
+  32   B0_string_grab                               OK opt(3600.0)                   3600.0
+  33   B0_string_grab_approach                      OK opt(3600.0)                   3697.3
+  34   B1_string_grab                               OK opt(3600.0)                   3600.0
+  35   B1_string_grab_approach                      OK opt(3600.0)                   3600.0
+  36   B2_string_grab                               OK opt(3600.0)                   3600.0
+  37   B2_string_grab_approach                      OK opt(3600.0)                   3600.0
+  38   B3_string_grab                               OK opt(3600.0)                   3177.3
+  39   B3_string_grab_approach                      OK opt(3600.0)                   3377.3
+  40   B4_string_grab                               OK opt(3600.0)                   3833.2
+  41   B4_string_grab_approach                      OK opt(3600.0)                   4033.2
+  42   B5_string_grab                               OK opt(3600.0)                   3600.0
+  43   B5_string_grab_approach                      OK opt(3600.0)                   3600.0
+  44   B6_string_grab                               OK opt(3600.0)                   3600.0
+  45   B6_string_grab_approach                      OK opt(3600.0)                   3600.0
+  46   B7_string_grab                             FAIL opt(3600.0)                        —
+  47   B7_string_grab_approach                    FAIL opt(3600.0)                        —
+  48   B8_string_grab                             FAIL opt(3600.0)                        —
+  49   B8_string_grab_approach                    FAIL opt(3600.0)                        —
+  50   B9_string_grab                             FAIL opt(3600.0)                        —
+  51   B9_string_grab_approach                    FAIL opt(3600.0)                        —
+
+  UNREACHABLE (22):
+    - Base_Right_0_string_grab: IK failed
+    - Base_Right_0_string_grab_approach: IK failed
+    - Base_Right_1_string_grab: IK failed
+    - Base_Right_1_string_grab_approach: IK failed
+    - Base_Right_2_string_grab: IK failed
+    - Base_Right_2_string_grab_approach: IK failed
+    - Base_Left_0_string_grab: IK failed
+    - Base_Left_0_string_grab_approach: IK failed
+    - Base_Left_1_string_grab: IK failed
+    - Base_Left_1_string_grab_approach: IK failed
+    - Base_Left_2_string_grab: IK failed
+    - Base_Left_2_string_grab_approach: IK failed
+    - F8_string_grab: IK failed
+    - F8_string_grab_approach: IK failed
+    - F9_string_grab: IK failed
+    - F9_string_grab_approach: IK failed
+    - B7_string_grab: IK failed
+    - B7_string_grab_approach: IK failed
+    - B8_string_grab: IK failed
+    - B8_string_grab_approach: IK failed
+    - B9_string_grab: IK failed
+    - B9_string_grab_approach: IK failed
+
+======================================================================
