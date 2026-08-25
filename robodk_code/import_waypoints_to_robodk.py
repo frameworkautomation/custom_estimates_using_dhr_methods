@@ -234,8 +234,20 @@ def main():
         from robodk.robomath import eye
         parent_frame.setPose(eye(4))
 
+    # ── Purge all existing targets under parent frame ─────────────────────────
+    # This ensures stale targets from previous runs (renamed/removed waypoints)
+    # don't persist. All targets are recreated from the current YAML.
+    existing_targets = RDK.ItemList(ITEM_TYPE_TARGET, False)
+    purged = 0
+    for t in existing_targets:
+        if t.Parent().item == parent_frame.item:
+            t.Delete()
+            purged += 1
+    if purged:
+        print(f"  Purged {purged} existing targets under '{args.parent_name}'")
+
     # ── Import targets ────────────────────────────────────────────────────────
-    cache = {} if args.force else load_cache()
+    cache = {}  # always rebuild from scratch after purge
     created = 0
     skipped = 0
     replaced = 0
