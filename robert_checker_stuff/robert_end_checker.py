@@ -30,6 +30,7 @@ J7_TOL_MM   = 10.0
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "robert_end_checker_config.json")
 RESULTS_PATH = os.path.join(SCRIPT_DIR, "ik_results.json")
+REPORT_PATH  = os.path.join(SCRIPT_DIR, "reachability_report.txt")
 
 # OptimAxes — j7 locked to a specific value
 OPT_AXES_LOCKED_J7 = {
@@ -183,6 +184,51 @@ def solve_point(robot, pose, track_cond, label):
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
+def print_report(all_results, robot_name, timestamp):
+    """Build a human-readable report string, print it, and return it."""
+    lines = []
+    lines.append("=" * 70)
+    lines.append(f"  REACHABILITY REPORT")
+    lines.append(f"  Robot: {robot_name}")
+    lines.append(f"  Generated: {timestamp}")
+    lines.append("=" * 70)
+
+    for ee_name, points in all_results.items():
+        n_ok = sum(1 for r in points.values() if r["reachable"])
+        lines.append(f"\n  End Effector: {ee_name}  ({n_ok}/{len(points)} reachable)")
+        lines.append(f"  {'#':<4} {'Name':<40} {'Status':>6} {'j7 constraint':<25} {'j7 actual':>10}")
+        lines.append("  " + "-" * 85)
+
+        for i, (name, r) in enumerate(points.items()):
+            status = "OK" if r["reachable"] else "FAIL"
+            tc = r.get("special_track_conditions", {})
+            ctype = tc.get("type", "None")
+            if ctype == "Locked_at_j7_0":
+                j7_con = "locked(0)"
+            elif ctype == "Locked_at_j7_pt":
+                j7_con = f"locked({tc.get('j7_value', '?')})"
+            elif ctype == "Optimized_for_j7_at":
+                j7_con = f"opt({tc.get('j7_value', '?')})"
+            else:
+                j7_con = "free"
+
+            j7_act = f"{r['joints'][6]:.1f}" if r["reachable"] else "—"
+            lines.append(f"  {i:<4} {name:<40} {status:>6} {j7_con:<25} {j7_act:>10}")
+
+        # List failures separately
+        failures = [name for name, r in points.items() if not r["reachable"]]
+        if failures:
+            lines.append(f"\n  UNREACHABLE ({len(failures)}):")
+            for name in failures:
+                err = points[name].get("error", "IK failed")
+                lines.append(f"    - {name}: {err}")
+
+    lines.append("\n" + "=" * 70)
+    report = "\n".join(lines)
+    print(report)
+    return report
+
+
 def load_config():
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -288,14 +334,21 @@ def main():
         RDK.Render(True)
 
     # Save results
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     output = {
-        "generated": datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "generated": timestamp,
         "robot": robot.Name(),
         "end_effectors": all_results,
     }
     with open(RESULTS_PATH, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
     print(f"\n[OK] Results saved to {RESULTS_PATH}")
+
+    # Print and save report
+    report = print_report(all_results, robot.Name(), timestamp)
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
+        f.write(report)
+    print(f"[OK] Report saved to {REPORT_PATH}")
 
 
 if __name__ == "__main__":
