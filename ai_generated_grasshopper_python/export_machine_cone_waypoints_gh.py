@@ -343,7 +343,7 @@ if trigger:
         pickup_points.append({
             "name": grab_name,
             "type": "point",
-            "name_path": f"Cones/{cone_name(i)}",
+            "name_path": f"WaypointTargets/{grab_name}",
             "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
         })
         ap = cone_approach_planes[i] if i < len(cone_approach_planes) else None
@@ -351,7 +351,7 @@ if trigger:
             pickup_points.append({
                 "name": approach_name,
                 "type": "point",
-                "name_path": f"Cones/{cone_name(i)}",
+                "name_path": f"WaypointTargets/{approach_name}",
                 "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
             })
 
@@ -365,7 +365,7 @@ if trigger:
         knotting_points.append({
             "name": grab_name,
             "type": "point",
-            "name_path": f"Cones/{cone_name(i)}",
+            "name_path": f"WaypointTargets/{grab_name}",
             "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
         })
         ap = str_approach_planes[i] if i < len(str_approach_planes) else None
@@ -373,7 +373,7 @@ if trigger:
             knotting_points.append({
                 "name": approach_name,
                 "type": "point",
-                "name_path": f"Cones/{cone_name(i)}",
+                "name_path": f"WaypointTargets/{approach_name}",
                 "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
             })
 

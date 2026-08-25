@@ -14,6 +14,10 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
+**TODO (priority):**
+- Fix cone grab point positions and orientations in grasshopper
+- Fix waypoint export in GH scripts so JSON output is correct
+
 **TODO (cutting):**
 - Implement cutting points in the config JSON and GH export script
 - Implement cutting paths (`type: "path"`) — these are not just single IK checks
