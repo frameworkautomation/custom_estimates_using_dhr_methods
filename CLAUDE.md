@@ -19,7 +19,9 @@
 - Fix waypoint export in GH scripts so JSON output is correct
 
 **TODO (cutting):**
-- Implement cutting points in the config JSON and GH export script
+- ~~Implement cutting points in the config JSON and GH export script~~ DONE
+- Implement L-moves for cutting sequence (approach→top→bottom→pull_away should
+  use MoveL between top/bottom/pull_away, not MoveJ — deferred for now)
 - Implement cutting paths (`type: "path"`) — these are not just single IK checks
   but need to verify the tool can follow a cut trajectory
 
