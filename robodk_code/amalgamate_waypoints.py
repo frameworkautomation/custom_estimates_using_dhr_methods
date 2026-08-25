@@ -122,11 +122,14 @@ def _update_path_config(waypoints, edges):
     comment so it is easy to find and update on subsequent runs.
     """
     if not os.path.exists(PATH_CONFIG_PATH):
-        print(f"[WARN] path_config.yaml not found, skipping: {PATH_CONFIG_PATH}")
-        return
-
-    with open(PATH_CONFIG_PATH, "r", encoding="utf-8") as f:
-        text = f.read()
+        print(f"[INFO] path_config.yaml not found, creating: {PATH_CONFIG_PATH}")
+        os.makedirs(os.path.dirname(PATH_CONFIG_PATH), exist_ok=True)
+        text = "waypoints: {}\n\nedges: []\n"
+        with open(PATH_CONFIG_PATH, "w", encoding="utf-8") as f:
+            f.write(text)
+    else:
+        with open(PATH_CONFIG_PATH, "r", encoding="utf-8") as f:
+            text = f.read()
     existing = yaml.safe_load(text) or {}
     existing_names = set((existing.get("waypoints") or {}).keys())
 
