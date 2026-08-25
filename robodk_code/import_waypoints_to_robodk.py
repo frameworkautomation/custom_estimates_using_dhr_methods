@@ -64,7 +64,7 @@ def parse_waypoints_yaml(path):
         print(f"[INFO] {path} not found, creating empty skeleton.")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
-            fh.write("waypoints: {}\n\nedges: []\n")
+            fh.write("waypoints:\n\nedges: []\n")
 
     with open(path, "r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)

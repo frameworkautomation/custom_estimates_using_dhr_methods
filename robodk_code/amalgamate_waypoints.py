@@ -124,7 +124,7 @@ def _update_path_config(waypoints, edges):
     if not os.path.exists(PATH_CONFIG_PATH):
         print(f"[INFO] path_config.yaml not found, creating: {PATH_CONFIG_PATH}")
         os.makedirs(os.path.dirname(PATH_CONFIG_PATH), exist_ok=True)
-        text = "waypoints: {}\n\nedges: []\n"
+        text = "waypoints:\n\nedges: []\n"
         with open(PATH_CONFIG_PATH, "w", encoding="utf-8") as f:
             f.write(text)
     else:
