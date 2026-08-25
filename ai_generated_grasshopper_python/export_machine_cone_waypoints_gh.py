@@ -7,6 +7,10 @@
 #   approach_points        : flat list of Planes — cone approach planes (pre-computed in GH)
 #   string_grab_points     : flat list of Planes — string grab planes
 #   string_approach_points : flat list of Planes — string approach planes (pre-computed in GH)
+#   cut_approach_points    : flat list of Planes — cut approach planes
+#   cut_top_points         : flat list of Planes — cut top planes
+#   cut_bottom_points      : flat list of Planes — cut bottom planes
+#   cut_pull_away_points   : flat list of Planes — cut pull away planes
 #   strings                : geometry (flat list)
 #   names                  : flat list of str — one name per cone; used for RoboDK items and YAML (optional, defaults to "cone_0", "cone_1", ...)
 #   cone_color             : Colour (optional, default red)
@@ -30,6 +34,7 @@ import json
 # ── End effector names for robert_end_checker_config.json ──────────────────────
 PICKUP_END_EFFECTOR_NAME   = "pickup"
 KNOTTING_END_EFFECTOR_NAME = "knotting"
+CUTTING_END_EFFECTOR_NAME  = "cutting"
 MACHINE_CONE_J7_OPTIMIZE_VALUE = 3600.0
 SOURCE_SCRIPT = "export_machine_cone_waypoints_gh"
 
@@ -51,6 +56,26 @@ try:
     string_approach_points
 except NameError:
     string_approach_points = None
+
+try:
+    cut_approach_points
+except NameError:
+    cut_approach_points = None
+
+try:
+    cut_top_points
+except NameError:
+    cut_top_points = None
+
+try:
+    cut_bottom_points
+except NameError:
+    cut_bottom_points = None
+
+try:
+    cut_pull_away_points
+except NameError:
+    cut_pull_away_points = None
 
 try:
     names
@@ -262,10 +287,15 @@ cone_grab_planes       = [resolve_plane(p) for p in flatten_input(grab_points)]
 cone_approach_planes   = [resolve_plane(p) for p in flatten_input(approach_points)] if approach_points is not None else []
 str_grab_planes        = [resolve_plane(p) for p in flatten_input(string_grab_points)]
 str_approach_planes    = [resolve_plane(p) for p in flatten_input(string_approach_points)] if string_approach_points is not None else []
+cut_approach_planes    = [resolve_plane(p) for p in flatten_input(cut_approach_points)] if cut_approach_points is not None else []
+cut_top_planes         = [resolve_plane(p) for p in flatten_input(cut_top_points)] if cut_top_points is not None else []
+cut_bottom_planes      = [resolve_plane(p) for p in flatten_input(cut_bottom_points)] if cut_bottom_points is not None else []
+cut_pull_away_planes   = [resolve_plane(p) for p in flatten_input(cut_pull_away_points)] if cut_pull_away_points is not None else []
 
 num_cones = len(cone_branches)
 print(f"num_cones={num_cones}  cone_grabs={len(cone_grab_planes)}  cone_approaches={len(cone_approach_planes)}")
 print(f"str_grabs={len(str_grab_planes)}  str_approaches={len(str_approach_planes)}")
+print(f"cut: approach={len(cut_approach_planes)} top={len(cut_top_planes)} bottom={len(cut_bottom_planes)} pull_away={len(cut_pull_away_planes)}")
 
 if trigger:
     print("Rebuilding...")
@@ -321,6 +351,46 @@ if trigger:
                               "move_type":"MoveJ","note":"machine string approach"})
             edges.append({"from": approach_name, "to": grab_name})
             edges.append({"from": grab_name,     "to": approach_name})
+
+    # Cut points: approach → top → bottom → pull_away (sequential chain)
+    for i in range(len(cut_approach_planes)):
+        ca = cut_approach_planes[i] if i < len(cut_approach_planes) else None
+        ct = cut_top_planes[i] if i < len(cut_top_planes) else None
+        cb = cut_bottom_planes[i] if i < len(cut_bottom_planes) else None
+        cp = cut_pull_away_planes[i] if i < len(cut_pull_away_planes) else None
+
+        ca_name = f"{cone_name(i)}_cut_approach"
+        ct_name = f"{cone_name(i)}_cut_top"
+        cb_name = f"{cone_name(i)}_cut_bottom"
+        cp_name = f"{cone_name(i)}_cut_pull_away"
+
+        if ca is not None:
+            x,y,z,rx,ry,rz = plane_to_xyzrpw(ca)
+            waypoints.append({"name": ca_name, "x":x,"y":y,"z":z,"rx":rx,"ry":ry,"rz":rz,
+                              "move_type":"MoveJ","note":"cut approach"})
+        if ct is not None:
+            x,y,z,rx,ry,rz = plane_to_xyzrpw(ct)
+            waypoints.append({"name": ct_name, "x":x,"y":y,"z":z,"rx":rx,"ry":ry,"rz":rz,
+                              "move_type":"MoveJ","note":"cut top"})
+        if cb is not None:
+            x,y,z,rx,ry,rz = plane_to_xyzrpw(cb)
+            waypoints.append({"name": cb_name, "x":x,"y":y,"z":z,"rx":rx,"ry":ry,"rz":rz,
+                              "move_type":"MoveJ","note":"cut bottom"})
+        if cp is not None:
+            x,y,z,rx,ry,rz = plane_to_xyzrpw(cp)
+            waypoints.append({"name": cp_name, "x":x,"y":y,"z":z,"rx":rx,"ry":ry,"rz":rz,
+                              "move_type":"MoveJ","note":"cut pull away"})
+
+        # Edges: approach→top→bottom→pull_away (sequential, bidirectional)
+        if ca is not None and ct is not None:
+            edges.append({"from": ca_name, "to": ct_name})
+            edges.append({"from": ct_name, "to": ca_name})
+        if ct is not None and cb is not None:
+            edges.append({"from": ct_name, "to": cb_name})
+            edges.append({"from": cb_name, "to": ct_name})
+        if cb is not None and cp is not None:
+            edges.append({"from": cb_name, "to": cp_name})
+            edges.append({"from": cp_name, "to": cb_name})
 
     write_waypoints_yaml(waypoints, edges, YAML_PATH)
     print(f"[OK] {len(waypoints)} waypoints, {len(edges)} edges -> {YAML_PATH}")
@@ -395,12 +465,34 @@ if trigger:
             "paths_and_points_to_check": new_points
         })
 
+    # Build cutting points (cut_approach, cut_top, cut_bottom, cut_pull_away)
+    cutting_points = []
+    cut_names_map = [
+        (cut_approach_planes,  "cut_approach"),
+        (cut_top_planes,       "cut_top"),
+        (cut_bottom_planes,    "cut_bottom"),
+        (cut_pull_away_planes, "cut_pull_away"),
+    ]
+    for planes, suffix in cut_names_map:
+        for i, pl in enumerate(planes):
+            if pl is None:
+                continue
+            pt_name = f"{cone_name(i)}_{suffix}"
+            cutting_points.append({
+                "name": pt_name,
+                "type": "point",
+                "name_path": f"WaypointTargets/{pt_name}",
+                "source_script": SOURCE_SCRIPT,
+                "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
+            })
+
     upsert_end_effector(checker_config, PICKUP_END_EFFECTOR_NAME, pickup_points, SOURCE_SCRIPT)
     upsert_end_effector(checker_config, KNOTTING_END_EFFECTOR_NAME, knotting_points, SOURCE_SCRIPT)
+    upsert_end_effector(checker_config, CUTTING_END_EFFECTOR_NAME, cutting_points, SOURCE_SCRIPT)
 
     with open(CHECKER_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(checker_config, f, indent=2)
-    print(f"[OK] robert_end_checker_config.json updated: {len(pickup_points)} pickup, {len(knotting_points)} knotting points")
+    print(f"[OK] robert_end_checker_config.json updated: {len(pickup_points)} pickup, {len(knotting_points)} knotting, {len(cutting_points)} cutting points")
 
     # ── RoboDK import ─────────────────────────────────────────────────────────
     try:
