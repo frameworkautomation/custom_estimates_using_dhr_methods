@@ -38,6 +38,7 @@ import System
 # ── End effector names for robert_end_checker_config.json ──────────────────────
 PICKUP_END_EFFECTOR_NAME   = "pickup"
 KNOTTING_END_EFFECTOR_NAME = "knotting"
+SOURCE_SCRIPT = "export_base_cone_waypoints"
 
 REPO_ROOT = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 CHECKER_CONFIG_PATH = os.path.join(REPO_ROOT, "robert_checker_stuff", "robert_end_checker_config.json")
@@ -497,6 +498,7 @@ if trigger:
             "name": grab_name,
             "type": "point",
             "name_path": f"WaypointTargets/{grab_name}",
+            "source_script": SOURCE_SCRIPT,
             "special_track_conditions": {"type": "Locked_at_j7_0"}
         })
         ap = cone_approach_planes_raw[i] if i < len(cone_approach_planes_raw) else None
@@ -505,6 +507,7 @@ if trigger:
                 "name": approach_name,
                 "type": "point",
                 "name_path": f"WaypointTargets/{approach_name}",
+                "source_script": SOURCE_SCRIPT,
                 "special_track_conditions": {"type": "Locked_at_j7_0"}
             })
 
@@ -519,6 +522,7 @@ if trigger:
             "name": grab_name,
             "type": "point",
             "name_path": f"WaypointTargets/{grab_name}",
+            "source_script": SOURCE_SCRIPT,
             "special_track_conditions": {"type": "Locked_at_j7_0"}
         })
         ap = str_approach_planes_raw[i] if i < len(str_approach_planes_raw) else None
@@ -527,21 +531,24 @@ if trigger:
                 "name": approach_name,
                 "type": "point",
                 "name_path": f"WaypointTargets/{approach_name}",
+                "source_script": SOURCE_SCRIPT,
                 "special_track_conditions": {"type": "Locked_at_j7_0"}
             })
 
-    def upsert_end_effector(config, ee_name, points):
+    def upsert_end_effector(config, ee_name, new_points, source):
+        """Replace only points from this source_script, keep points from other sources."""
         for ee in config["end_effectors"]:
             if ee["end_effector_name"] == ee_name:
-                ee["paths_and_points_to_check"] = points
+                other_points = [p for p in ee["paths_and_points_to_check"] if p.get("source_script") != source]
+                ee["paths_and_points_to_check"] = other_points + new_points
                 return
         config["end_effectors"].append({
             "end_effector_name": ee_name,
-            "paths_and_points_to_check": points
+            "paths_and_points_to_check": new_points
         })
 
-    upsert_end_effector(checker_config, PICKUP_END_EFFECTOR_NAME, pickup_points)
-    upsert_end_effector(checker_config, KNOTTING_END_EFFECTOR_NAME, knotting_points)
+    upsert_end_effector(checker_config, PICKUP_END_EFFECTOR_NAME, pickup_points, SOURCE_SCRIPT)
+    upsert_end_effector(checker_config, KNOTTING_END_EFFECTOR_NAME, knotting_points, SOURCE_SCRIPT)
 
     with open(CHECKER_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(checker_config, f, indent=2)
