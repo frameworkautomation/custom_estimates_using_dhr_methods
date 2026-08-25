@@ -494,8 +494,28 @@ if trigger:
         json.dump(checker_config, f, indent=2)
     print(f"[OK] robert_end_checker_config.json updated: {len(pickup_points)} pickup, {len(knotting_points)} knotting, {len(cutting_points)} cutting points")
 
-    # ── RoboDK import ─────────────────────────────────────────────────────────
+    # ── RoboDK import (with re-entry guard) ──────────────────────────────────
+    import time as _time
+    _lock_file = "C:/temp/cones/_robodk_import_lock.txt"
+    _min_interval = 3.0  # seconds — skip if last run was within this window
+    _now = _time.time()
+    _last_run = 0
     try:
+        with open(_lock_file, "r") as _lf:
+            _last_run = float(_lf.read().strip())
+    except Exception:
+        pass
+    _skip_robodk = (_now - _last_run) < _min_interval
+    if _skip_robodk:
+        print(f"[SKIP] RoboDK import — last run was {_now - _last_run:.1f}s ago (< {_min_interval}s)")
+
+    if not _skip_robodk:
+        os.makedirs("C:/temp/cones", exist_ok=True)
+        with open(_lock_file, "w") as _lf:
+            _lf.write(str(_now))
+
+    if not _skip_robodk:
+      try:
         sys.path.append("C:/RoboDK/Python")
         from robodk.robolink import Robolink
         from robodk.robomath import Mat
@@ -561,13 +581,13 @@ if trigger:
         print(f"Done -- {num_cones} cones in tree")
         a = cone_stl_paths[0] if cone_stl_paths else ""
 
-    except Exception as e:
+      except Exception as e:
         print(f"RoboDK error: {e}")
         import traceback
         traceback.print_exc()
 
     # ── Amalgamate waypoints + re-import to RoboDK ────────────────────────────
-    if update_and_amalgamate_waypoints:
+    if update_and_amalgamate_waypoints and not _skip_robodk:
         import subprocess
         REPO = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
         amalgamate_script  = os.path.join(REPO, "robodk_code", "amalgamate_waypoints.py")
