@@ -1,1 +1,734 @@
-{}
+{
+  "end_effectors": [
+    {
+      "end_effector_name": "pickup",
+      "paths_and_points_to_check": [
+        {
+          "name": "F0_grab",
+          "type": "point",
+          "name_path": "Cones/F0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F0_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F1_grab",
+          "type": "point",
+          "name_path": "Cones/F1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F1_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F2_grab",
+          "type": "point",
+          "name_path": "Cones/F2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F2_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F3_grab",
+          "type": "point",
+          "name_path": "Cones/F3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F3_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F4_grab",
+          "type": "point",
+          "name_path": "Cones/F4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F4_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F5_grab",
+          "type": "point",
+          "name_path": "Cones/F5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F5_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F6_grab",
+          "type": "point",
+          "name_path": "Cones/F6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F6_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F7_grab",
+          "type": "point",
+          "name_path": "Cones/F7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F7_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F8_grab",
+          "type": "point",
+          "name_path": "Cones/F8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F8_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F9_grab",
+          "type": "point",
+          "name_path": "Cones/F9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F9_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B0_grab",
+          "type": "point",
+          "name_path": "Cones/B0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B0_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B1_grab",
+          "type": "point",
+          "name_path": "Cones/B1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B1_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B2_grab",
+          "type": "point",
+          "name_path": "Cones/B2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B2_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B3_grab",
+          "type": "point",
+          "name_path": "Cones/B3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B3_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B4_grab",
+          "type": "point",
+          "name_path": "Cones/B4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B4_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B5_grab",
+          "type": "point",
+          "name_path": "Cones/B5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B5_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B6_grab",
+          "type": "point",
+          "name_path": "Cones/B6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B6_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B7_grab",
+          "type": "point",
+          "name_path": "Cones/B7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B7_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B8_grab",
+          "type": "point",
+          "name_path": "Cones/B8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B8_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B9_grab",
+          "type": "point",
+          "name_path": "Cones/B9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B9_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        }
+      ]
+    },
+    {
+      "end_effector_name": "knotting",
+      "paths_and_points_to_check": [
+        {
+          "name": "F0_string_grab",
+          "type": "point",
+          "name_path": "Cones/F0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F0_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F1_string_grab",
+          "type": "point",
+          "name_path": "Cones/F1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F1_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F2_string_grab",
+          "type": "point",
+          "name_path": "Cones/F2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F2_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F3_string_grab",
+          "type": "point",
+          "name_path": "Cones/F3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F3_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F4_string_grab",
+          "type": "point",
+          "name_path": "Cones/F4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F4_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F5_string_grab",
+          "type": "point",
+          "name_path": "Cones/F5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F5_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F6_string_grab",
+          "type": "point",
+          "name_path": "Cones/F6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F6_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F7_string_grab",
+          "type": "point",
+          "name_path": "Cones/F7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F7_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F8_string_grab",
+          "type": "point",
+          "name_path": "Cones/F8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F8_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F9_string_grab",
+          "type": "point",
+          "name_path": "Cones/F9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "F9_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/F9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B0_string_grab",
+          "type": "point",
+          "name_path": "Cones/B0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B0_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B0",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B1_string_grab",
+          "type": "point",
+          "name_path": "Cones/B1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B1_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B1",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B2_string_grab",
+          "type": "point",
+          "name_path": "Cones/B2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B2_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B2",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B3_string_grab",
+          "type": "point",
+          "name_path": "Cones/B3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B3_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B3",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B4_string_grab",
+          "type": "point",
+          "name_path": "Cones/B4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B4_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B4",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B5_string_grab",
+          "type": "point",
+          "name_path": "Cones/B5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B5_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B5",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B6_string_grab",
+          "type": "point",
+          "name_path": "Cones/B6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B6_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B6",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B7_string_grab",
+          "type": "point",
+          "name_path": "Cones/B7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B7_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B7",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B8_string_grab",
+          "type": "point",
+          "name_path": "Cones/B8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B8_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B8",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B9_string_grab",
+          "type": "point",
+          "name_path": "Cones/B9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "B9_string_grab_approach",
+          "type": "point",
+          "name_path": "Cones/B9",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        }
+      ]
+    }
+  ]
+}
