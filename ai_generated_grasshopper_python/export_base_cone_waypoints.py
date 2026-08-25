@@ -28,11 +28,19 @@
 
 import os
 import sys
+import json
 import math
 import struct
 import Rhino.Geometry as rg
 import scriptcontext as sc
 import System
+
+# ── End effector names for robert_end_checker_config.json ──────────────────────
+PICKUP_END_EFFECTOR_NAME   = "pickup"
+KNOTTING_END_EFFECTOR_NAME = "knotting"
+
+REPO_ROOT = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
+CHECKER_CONFIG_PATH = os.path.join(REPO_ROOT, "robert_checker_stuff", "robert_end_checker_config.json")
 
 # ── Optional inputs with defaults ────────────────────────────────────────────
 try:
@@ -468,6 +476,76 @@ if trigger:
     yaml_out = yaml_path
     print(f"\n[OK] {len(waypoints)} waypoints, {len(edges)} edges -> {yaml_path}")
     print(f"[OK] {len(stl_paths)} STL files written")
+
+    # ── Write robert_end_checker_config.json ───────────────────────────────────
+    if os.path.exists(CHECKER_CONFIG_PATH):
+        with open(CHECKER_CONFIG_PATH, "r", encoding="utf-8") as f:
+            checker_config = json.load(f)
+    else:
+        checker_config = {}
+    if "end_effectors" not in checker_config:
+        checker_config["end_effectors"] = []
+
+    # Build pickup points (base cone grab + approach)
+    pickup_points = []
+    for i, pl in enumerate(cone_grab_planes_raw):
+        if pl is None:
+            continue
+        grab_name     = f"{cone_name(i)}_grab"
+        approach_name = f"{cone_name(i)}_grab_approach"
+        pickup_points.append({
+            "name": grab_name,
+            "type": "point",
+            "name_path": f"WaypointTargets/{grab_name}",
+            "special_track_conditions": {"type": "Locked_at_j7_0"}
+        })
+        ap = cone_approach_planes_raw[i] if i < len(cone_approach_planes_raw) else None
+        if ap is not None:
+            pickup_points.append({
+                "name": approach_name,
+                "type": "point",
+                "name_path": f"WaypointTargets/{approach_name}",
+                "special_track_conditions": {"type": "Locked_at_j7_0"}
+            })
+
+    # Build knotting points (string grab + approach)
+    knotting_points = []
+    for i, pl in enumerate(str_grab_planes_raw):
+        if pl is None:
+            continue
+        grab_name     = f"{cone_name(i)}_string_grab"
+        approach_name = f"{cone_name(i)}_string_grab_approach"
+        knotting_points.append({
+            "name": grab_name,
+            "type": "point",
+            "name_path": f"WaypointTargets/{grab_name}",
+            "special_track_conditions": {"type": "Locked_at_j7_0"}
+        })
+        ap = str_approach_planes_raw[i] if i < len(str_approach_planes_raw) else None
+        if ap is not None:
+            knotting_points.append({
+                "name": approach_name,
+                "type": "point",
+                "name_path": f"WaypointTargets/{approach_name}",
+                "special_track_conditions": {"type": "Locked_at_j7_0"}
+            })
+
+    def upsert_end_effector(config, ee_name, points):
+        for ee in config["end_effectors"]:
+            if ee["end_effector_name"] == ee_name:
+                ee["paths_and_points_to_check"] = points
+                return
+        config["end_effectors"].append({
+            "end_effector_name": ee_name,
+            "paths_and_points_to_check": points
+        })
+
+    upsert_end_effector(checker_config, PICKUP_END_EFFECTOR_NAME, pickup_points)
+    upsert_end_effector(checker_config, KNOTTING_END_EFFECTOR_NAME, knotting_points)
+
+    with open(CHECKER_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(checker_config, f, indent=2)
+    print(f"[OK] robert_end_checker_config.json updated: {len(pickup_points)} pickup, {len(knotting_points)} knotting points")
 
     # ── Import STLs into RoboDK ───────────────────────────────────────────────
     try:
