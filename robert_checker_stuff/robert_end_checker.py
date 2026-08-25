@@ -267,8 +267,7 @@ def main():
                 print(f"\n[EE] '{ee_name}' — tool set, {len(points)} point(s)")
             else:
                 all_tools = [i.Name() for i in RDK.ItemList(ITEM_TYPE_TOOL)]
-                print(f"\n[EE] '{ee_name}' — tool NOT found in RoboDK (available: {all_tools})")
-                print(f"     Solving with current tool. {len(points)} point(s)")
+                raise RuntimeError(f"Tool '{ee_name}' not found in RoboDK. Available tools: {all_tools}")
 
             ee_results = {}
 
