@@ -30,6 +30,7 @@ import json
 # ── End effector names for robert_end_checker_config.json ──────────────────────
 PICKUP_END_EFFECTOR_NAME   = "pickup"
 KNOTTING_END_EFFECTOR_NAME = "knotting"
+MACHINE_CONE_J7_OPTIMIZE_VALUE = 3600.0
 
 REPO_ROOT = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods"
 CHECKER_CONFIG_PATH = os.path.join(REPO_ROOT, "robert_checker_stuff", "robert_end_checker_config.json")
@@ -343,7 +344,7 @@ if trigger:
             "name": grab_name,
             "type": "point",
             "name_path": f"Cones/{cone_name(i)}",
-            "special_track_conditions": {"type": "None"}
+            "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
         })
         ap = cone_approach_planes[i] if i < len(cone_approach_planes) else None
         if ap is not None:
@@ -351,7 +352,7 @@ if trigger:
                 "name": approach_name,
                 "type": "point",
                 "name_path": f"Cones/{cone_name(i)}",
-                "special_track_conditions": {"type": "None"}
+                "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
             })
 
     # Build knotting points (string grab + approach)
@@ -365,7 +366,7 @@ if trigger:
             "name": grab_name,
             "type": "point",
             "name_path": f"Cones/{cone_name(i)}",
-            "special_track_conditions": {"type": "None"}
+            "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
         })
         ap = str_approach_planes[i] if i < len(str_approach_planes) else None
         if ap is not None:
@@ -373,7 +374,7 @@ if trigger:
                 "name": approach_name,
                 "type": "point",
                 "name_path": f"Cones/{cone_name(i)}",
-                "special_track_conditions": {"type": "None"}
+                "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": MACHINE_CONE_J7_OPTIMIZE_VALUE}
             })
 
     def upsert_end_effector(config, ee_name, points):
