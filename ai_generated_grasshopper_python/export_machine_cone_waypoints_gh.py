@@ -496,7 +496,10 @@ if trigger:
 
     # ── RoboDK import (with re-entry guard via sc.sticky) ────────────────────
     import hashlib as _hl
-    _input_hash = _hl.md5(str(len(cone_stl_paths)).encode() + str(len(waypoints)).encode() + str(len(edges)).encode()).hexdigest()
+    _hash_data = str([(w.get("name"), w.get("x"), w.get("y"), w.get("z")) for w in waypoints]).encode()
+    _hash_data += str([(e.get("from"), e.get("to")) for e in edges]).encode()
+    _hash_data += str(len(cone_stl_paths)).encode()
+    _input_hash = _hl.md5(_hash_data).hexdigest()
     _sticky_key = "export_machine_cone_last_hash"
     _skip_robodk = sc.sticky.get(_sticky_key) == _input_hash
     if _skip_robodk:
