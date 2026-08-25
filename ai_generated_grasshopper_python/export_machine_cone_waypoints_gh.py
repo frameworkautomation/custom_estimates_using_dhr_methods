@@ -494,25 +494,15 @@ if trigger:
         json.dump(checker_config, f, indent=2)
     print(f"[OK] robert_end_checker_config.json updated: {len(pickup_points)} pickup, {len(knotting_points)} knotting, {len(cutting_points)} cutting points")
 
-    # ── RoboDK import (with re-entry guard) ──────────────────────────────────
-    import time as _time
-    _lock_file = "C:/temp/cones/_robodk_import_lock.txt"
-    _min_interval = 3.0  # seconds — skip if last run was within this window
-    _now = _time.time()
-    _last_run = 0
-    try:
-        with open(_lock_file, "r") as _lf:
-            _last_run = float(_lf.read().strip())
-    except Exception:
-        pass
-    _skip_robodk = (_now - _last_run) < _min_interval
+    # ── RoboDK import (with re-entry guard via sc.sticky) ────────────────────
+    import hashlib as _hl
+    _input_hash = _hl.md5(str(len(cone_stl_paths)).encode() + str(len(waypoints)).encode() + str(len(edges)).encode()).hexdigest()
+    _sticky_key = "export_machine_cone_last_hash"
+    _skip_robodk = sc.sticky.get(_sticky_key) == _input_hash
     if _skip_robodk:
-        print(f"[SKIP] RoboDK import — last run was {_now - _last_run:.1f}s ago (< {_min_interval}s)")
-
-    if not _skip_robodk:
-        os.makedirs("C:/temp/cones", exist_ok=True)
-        with open(_lock_file, "w") as _lf:
-            _lf.write(str(_now))
+        print(f"[SKIP] RoboDK import — inputs unchanged since last run")
+    else:
+        sc.sticky[_sticky_key] = _input_hash
 
     if not _skip_robodk:
       try:
