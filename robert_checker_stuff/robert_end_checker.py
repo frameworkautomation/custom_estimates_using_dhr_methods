@@ -86,9 +86,9 @@ def _solve_ik_optimized_j7(robot, pose, j7_target):
     if arr.size == 0:
         return joints_free, ok
 
-    # SolveIK_All returns (n_joints, n_solutions) — transpose to rows
-    if arr.ndim == 2 and arr.shape[0] <= 7:
-        sols = arr.T.tolist()
+    # np.array(SolveIK_All) gives (n_solutions, n_joints) — already rows
+    if arr.ndim == 2:
+        sols = arr.tolist()
     elif arr.ndim == 1:
         sols = [arr.tolist()]
     else:
