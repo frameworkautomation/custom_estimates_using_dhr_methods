@@ -15,6 +15,7 @@
 #   cone_color          : Colour (optional, default orange)
 #   string_color        : Colour (optional, default yellow)
 #   bin_color           : Colour (optional, default blue)
+#   z_axis_free         : Boolean (optional, default False) — if True, marks points as z_axis_free in checker config JSON
 #   update_and_amalgamate_waypoints : Boolean — if True, runs amalgamate_waypoints.py then import_waypoints_to_robodk.py after export
 #   trigger             : Boolean
 #
@@ -73,6 +74,11 @@ try:
     bin_names
 except NameError:
     bin_names = None
+
+try:
+    z_axis_free
+except NameError:
+    z_axis_free = False
 
 try:
     update_and_amalgamate_waypoints
@@ -499,7 +505,7 @@ if trigger:
             "type": "point",
             "name_path": f"WaypointTargets/{grab_name}",
             "source_script": SOURCE_SCRIPT,
-            "z_axis_free": True,
+            "z_axis_free": bool(z_axis_free),
             "special_track_conditions": {"type": "Locked_at_j7_0"}
         })
         ap = cone_approach_planes_raw[i] if i < len(cone_approach_planes_raw) else None
@@ -509,7 +515,7 @@ if trigger:
                 "type": "point",
                 "name_path": f"WaypointTargets/{approach_name}",
                 "source_script": SOURCE_SCRIPT,
-                "z_axis_free": True,
+                "z_axis_free": bool(z_axis_free),
                 "special_track_conditions": {"type": "Locked_at_j7_0"}
             })
 
@@ -525,7 +531,7 @@ if trigger:
             "type": "point",
             "name_path": f"WaypointTargets/{grab_name}",
             "source_script": SOURCE_SCRIPT,
-            "z_axis_free": True,
+            "z_axis_free": bool(z_axis_free),
             "special_track_conditions": {"type": "Locked_at_j7_0"}
         })
         ap = str_approach_planes_raw[i] if i < len(str_approach_planes_raw) else None
@@ -535,7 +541,7 @@ if trigger:
                 "type": "point",
                 "name_path": f"WaypointTargets/{approach_name}",
                 "source_script": SOURCE_SCRIPT,
-                "z_axis_free": True,
+                "z_axis_free": bool(z_axis_free),
                 "special_track_conditions": {"type": "Locked_at_j7_0"}
             })
 
