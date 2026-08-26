@@ -125,7 +125,7 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
 Z_FREE_STEPS = 72  # 5 degree resolution for z-axis-free sweep
 
 
-def _solve_ik_z_axis_free_locked_j7(robot, pose, j7_target):
+def _solve_ik_z_axis_free_locked_j7(robot, pose, j7_target, label=""):
     """Solve IK with z-axis rotation free + j7 locked.
 
     Uses the proven solve_ik_locked_j7 from move_to_base_cone_grab.py which does:
@@ -140,6 +140,16 @@ def _solve_ik_z_axis_free_locked_j7(robot, pose, j7_target):
         robot, pose, tool_offset, j7_target, pose, preferred_j6, Z_FREE_STEPS
     )
 
+    if best is None and not hasattr(_solve_ik_z_axis_free_locked_j7, '_debug_done'):
+        _solve_ik_z_axis_free_locked_j7._debug_done = True
+        xyz = Pose_2_TxyzRxyz(pose)
+        tool_xyz = Pose_2_TxyzRxyz(tool_offset)
+        print(f"    [Z-FREE DEBUG] {label} FAILED — n_reachable={n_reachable}")
+        print(f"    [Z-FREE DEBUG] pose XYZ=({xyz[0]:.1f}, {xyz[1]:.1f}, {xyz[2]:.1f})")
+        print(f"    [Z-FREE DEBUG] tool name='{tool_item.Name() if tool_item.Valid() else 'None'}'")
+        print(f"    [Z-FREE DEBUG] tool offset XYZ=({tool_xyz[0]:.1f}, {tool_xyz[1]:.1f}, {tool_xyz[2]:.1f})")
+        print(f"    [Z-FREE DEBUG] j7_target={j7_target} FK_TOL_MM={FK_TOL_MM}")
+
     if best is not None:
         return best, True
     return [], False
@@ -153,7 +163,7 @@ def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False):
         if ctype != "Locked_at_j7_0":
             raise RuntimeError(
                 f"z_axis_free is only supported with Locked_at_j7_0, got '{ctype}' for '{label}'")
-        return _solve_ik_z_axis_free_locked_j7(robot, pose, 0.0)
+        return _solve_ik_z_axis_free_locked_j7(robot, pose, 0.0, label)
 
     if ctype == "Locked_at_j7_0":
         return _solve_ik_locked_j7(robot, RDK, pose, 0.0)
