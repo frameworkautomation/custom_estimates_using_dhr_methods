@@ -100,6 +100,406 @@
           }
         },
         {
+          "name": "Front_0_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_0_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_0_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_0_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_1_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_1_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_1_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_1_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_2_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_2_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_0_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_0_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_0_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_0_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_1_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_1_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_1_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_1_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
           "name": "Base_Right_0_grab",
           "type": "point",
           "name_path": "WaypointTargets/Base_Right_0_grab",
@@ -206,86 +606,6 @@
           "special_track_conditions": {
             "type": "Locked_at_j7_0"
           }
-        },
-        {
-          "name": "Front_0_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_0_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Front_0_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_0_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Front_1_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_1_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Front_1_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_1_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_0_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_0_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_0_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_0_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_1_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_1_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_1_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_1_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
         }
       ]
     },
@@ -389,6 +709,406 @@
           }
         },
         {
+          "name": "Front_0_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_0_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_0_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_0_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_1_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_1_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_1_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_1_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_2_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_2_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_0_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_0_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_0_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_0_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_1_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_1_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_1_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_1_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_string_grab",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_string_grab_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
           "name": "Base_Right_0_string_grab",
           "type": "point",
           "name_path": "WaypointTargets/Base_Right_0_string_grab",
@@ -495,86 +1215,6 @@
           "special_track_conditions": {
             "type": "Locked_at_j7_0"
           }
-        },
-        {
-          "name": "Front_0_string_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_0_string_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Front_0_string_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_0_string_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Front_1_string_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_1_string_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Front_1_string_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Front_1_string_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_0_string_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_0_string_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_0_string_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_0_string_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_1_string_grab",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_1_string_grab",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
-        },
-        {
-          "name": "Back_1_string_grab_approach",
-          "type": "point",
-          "name_path": "WaypointTargets/Back_1_string_grab_approach",
-          "source_script": "export_machine_cone_waypoints_gh",
-          "special_track_conditions": {
-            "type": "Optimized_for_j7_at",
-            "j7_value": 3600.0
-          }
         }
       ]
     },
@@ -602,6 +1242,86 @@
           }
         },
         {
+          "name": "Front_2_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
           "name": "Back_0_cut_approach",
           "type": "point",
           "name_path": "WaypointTargets/Back_0_cut_approach",
@@ -615,6 +1335,86 @@
           "name": "Back_1_cut_approach",
           "type": "point",
           "name_path": "WaypointTargets/Back_1_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_cut_approach",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_cut_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_cut_approach",
           "source_script": "export_machine_cone_waypoints_gh",
           "special_track_conditions": {
             "type": "Optimized_for_j7_at",
@@ -642,6 +1442,86 @@
           }
         },
         {
+          "name": "Front_2_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
           "name": "Back_0_cut_top",
           "type": "point",
           "name_path": "WaypointTargets/Back_0_cut_top",
@@ -655,6 +1535,86 @@
           "name": "Back_1_cut_top",
           "type": "point",
           "name_path": "WaypointTargets/Back_1_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_cut_top",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_cut_top",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_cut_top",
           "source_script": "export_machine_cone_waypoints_gh",
           "special_track_conditions": {
             "type": "Optimized_for_j7_at",
@@ -682,6 +1642,86 @@
           }
         },
         {
+          "name": "Front_2_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
           "name": "Back_0_cut_bottom",
           "type": "point",
           "name_path": "WaypointTargets/Back_0_cut_bottom",
@@ -695,6 +1735,86 @@
           "name": "Back_1_cut_bottom",
           "type": "point",
           "name_path": "WaypointTargets/Back_1_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_cut_bottom",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_cut_bottom",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_cut_bottom",
           "source_script": "export_machine_cone_waypoints_gh",
           "special_track_conditions": {
             "type": "Optimized_for_j7_at",
@@ -722,6 +1842,86 @@
           }
         },
         {
+          "name": "Front_2_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_2_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_3_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_3_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_4_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_4_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_5_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_5_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_6_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_6_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_7_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_7_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_8_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_8_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Front_9_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_9_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
           "name": "Back_0_cut_pull_away",
           "type": "point",
           "name_path": "WaypointTargets/Back_0_cut_pull_away",
@@ -735,6 +1935,86 @@
           "name": "Back_1_cut_pull_away",
           "type": "point",
           "name_path": "WaypointTargets/Back_1_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_2_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_2_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_3_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_3_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_4_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_4_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_5_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_5_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_6_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_6_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_7_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_7_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_8_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_8_cut_pull_away",
+          "source_script": "export_machine_cone_waypoints_gh",
+          "special_track_conditions": {
+            "type": "Optimized_for_j7_at",
+            "j7_value": 3600.0
+          }
+        },
+        {
+          "name": "Back_9_cut_pull_away",
+          "type": "point",
+          "name_path": "WaypointTargets/Back_9_cut_pull_away",
           "source_script": "export_machine_cone_waypoints_gh",
           "special_track_conditions": {
             "type": "Optimized_for_j7_at",
