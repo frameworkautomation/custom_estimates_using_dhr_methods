@@ -65,55 +65,6 @@ def fmt_joints(joints):
 
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
-def _solve_ik_optimized_j7(robot, pose, j7_target):
-    """Rail shift + SolveIK_All + pick best non-singular solution closest to home."""
-    import numpy as np
-    import math
-
-    # Step 1: free solve to get j7_natural
-    joints_free, ok = _solve_ik_free(robot, pose)
-    if not ok:
-        return [], False
-    j7_natural = joints_free[6] if len(joints_free) > 6 else 0.0
-
-    # Step 2: rail shift
-    delta = j7_target - j7_natural
-    shifted = transl(delta, 0, 0) * pose if abs(delta) > 1e-6 else pose
-
-    # Step 3: get all solutions
-    all_sol = robot.SolveIK_All(shifted)
-    arr = np.array(all_sol)
-    if arr.size == 0:
-        return joints_free, ok
-
-    # np.array(SolveIK_All) gives (n_solutions, n_joints) — already rows
-    if arr.ndim == 2:
-        sols = arr.tolist()
-    elif arr.ndim == 1:
-        sols = [arr.tolist()]
-    else:
-        return joints_free, ok
-
-    # Step 4: filter valid, prefer non-singular (j4 != 0), closest to home
-    best = None
-    best_dist = float("inf")
-    for sol in sols:
-        if len(sol) < 6:
-            continue
-        if any(math.isnan(v) or math.isinf(v) for v in sol):
-            continue
-        # Penalize j4 near zero (singularity)
-        j4_penalty = 10000 if abs(sol[3]) < 5.0 else 0
-        dist = sum((sol[k] - HOME_SEED[k]) ** 2 for k in range(6)) + j4_penalty
-        if dist < best_dist:
-            best_dist = dist
-            best = sol
-
-    if best is not None:
-        return best, True
-    return joints_free, ok
-
-
 def _solve_ik_free(robot, pose):
     """SolveIK with no j7 constraint. Returns (joints_list, ok)."""
     result = robot.SolveIK(pose)
@@ -146,9 +97,9 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     props["AbsJnt_7"] = j7_target
     robot.setParam("OptimAxes", props)
     robot.setJoints(HOME_SEED)
+    RDK.Render(False)
     try:
         robot.MoveJ(pose)
-        RDK.Render(True)
         raw = robot.Joints()
         try:
             joints = raw.list()
@@ -156,6 +107,7 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
             joints = list(raw)
         j7_actual = joints[6] if len(joints) > 6 else 0.0
         robot.setJoints(HOME_SEED)
+        RDK.Render(True)
         if abs(j7_actual - j7_target) > J7_TOL_MM:
             return joints, False
         return joints, True
@@ -178,7 +130,12 @@ def solve_point(robot, RDK, pose, track_cond, label):
 
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
-        return _solve_ik_optimized_j7(robot, pose, j7_val)
+        # Try locked first, fall back to free if it fails
+        joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val)
+        if ok:
+            return joints, True
+        # Soft preference — accept free solution
+        return _solve_ik_free(robot, pose)
 
     else:  # "None"
         return _solve_ik_free(robot, pose)
