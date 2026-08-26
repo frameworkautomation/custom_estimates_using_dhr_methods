@@ -312,7 +312,7 @@ def main():
                     j7_info = f" j7=opt({track_cond['j7_value']})"
 
                 status = "OK" if ok else "FAIL"
-                j7_actual = f" j7_actual={joints[6]:.1f}" if ok else ""
+                j7_actual = f" j7_actual={joints[6]:.1f}" if ok and len(joints) > 6 else ""
                 print(f"  [{name}] {status}{j7_info}{j7_actual}")
 
                 ee_results[name] = {
