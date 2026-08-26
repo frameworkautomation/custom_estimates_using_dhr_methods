@@ -253,6 +253,18 @@ def main():
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
+    # Debug: what frame is the robot using?
+    cur_frame = robot.getLink(ITEM_TYPE_FRAME)
+    print(f"[DEBUG] Robot frame: '{cur_frame.Name() if cur_frame.Valid() else 'None'}'")
+    cur_tool = robot.getLink(ITEM_TYPE_TOOL)
+    print(f"[DEBUG] Robot tool: '{cur_tool.Name() if cur_tool.Valid() else 'None'}'")
+    jts = robot.Joints()
+    try:
+        jl = jts.list()
+    except:
+        jl = list(jts)
+    print(f"[DEBUG] Joints ({len(jl)}): {[round(j,1) for j in jl]}")
+
     # Do NOT call setPoseFrame — it can break the robot-rail connection.
     # SolveIK works with the robot's current frame setup.
     # Just get the pose in absolute (world) coordinates via PoseAbs().
