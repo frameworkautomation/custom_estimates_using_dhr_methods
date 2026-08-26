@@ -65,13 +65,8 @@ def fmt_joints(joints):
 
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
-def _solve_ik(robot, pose):
-    """Call robot.SolveIK and return (joints_list, ok).
-
-    Copied from the proven pattern in check_collision_free_paths.py and
-    moving_a_cone.py. NO seed argument — setPoseFrame(world_frame) must
-    be called before this.
-    """
+def _solve_ik_free(robot, pose):
+    """SolveIK with no j7 constraint. Returns (joints_list, ok)."""
     result = robot.SolveIK(pose)
     try:
         joints = result.list()
@@ -82,35 +77,70 @@ def _solve_ik(robot, pose):
     return [], False
 
 
-def solve_point(robot, pose, track_cond, label):
-    """Solve IK using SolveIK (no seed). Check j7 constraints after the fact.
+def _solve_ik_locked_j7(robot, pose, j7_target):
+    """SolveIK with j7 pinned using the rail shift trick from move_to_base_cone_grab.py.
 
-    Uses the exact pattern from check_collision_free_paths.py.
-    setPoseFrame(world_frame) must be called before this.
+    1. SolveIK(pose) to learn j7_natural
+    2. delta = j7_target - j7_natural
+    3. SolveIK(transl(delta, 0, 0) * pose) → returns j7 ≈ j7_target
+
+    No setPoseFrame, no MoveJ, no OptimAxes — pure read-only IK.
     """
-    joints, ok = _solve_ik(robot, pose)
+    # Step 1: free solve to learn what j7 the solver naturally picks
+    joints_free, ok = _solve_ik_free(robot, pose)
     if not ok:
         return [], False
 
+    j7_natural = joints_free[6] if len(joints_free) > 6 else 0.0
+    delta = j7_target - j7_natural
+
+    if abs(delta) < 1e-6:
+        # Already at target j7
+        if len(joints_free) > 6 and abs(joints_free[6] - j7_target) <= J7_TOL_MM:
+            return joints_free, True
+        return joints_free, False
+
+    # Step 2: shift pose by delta along X (rail axis) and re-solve
+    shifted_pose = transl(delta, 0, 0) * pose
+    result = robot.SolveIK(shifted_pose)
+    try:
+        joints = result.list()
+    except AttributeError:
+        joints = list(result)
+
+    if len(joints) < 6:
+        return joints_free, False  # return free solution as best attempt
+
+    # Verify j7 landed where we wanted
+    j7_actual = joints[6] if len(joints) > 6 else 0.0
+    if abs(j7_actual - j7_target) > J7_TOL_MM:
+        return joints, False  # rail saturated or solver lied
+
+    return joints, True
+
+
+def solve_point(robot, pose, track_cond, label):
+    """Dispatch to the right IK solver based on special_track_conditions."""
     ctype = track_cond.get("type", "None")
 
     if ctype == "Locked_at_j7_0":
-        if len(joints) > 6 and abs(joints[6] - 0.0) > J7_TOL_MM:
-            return joints, False
-        return joints, True
+        return _solve_ik_locked_j7(robot, pose, 0.0)
 
     elif ctype == "Locked_at_j7_pt":
         j7_val = float(track_cond["j7_value"])
-        if len(joints) > 6 and abs(joints[6] - j7_val) > J7_TOL_MM:
-            return joints, False
-        return joints, True
+        return _solve_ik_locked_j7(robot, pose, j7_val)
 
     elif ctype == "Optimized_for_j7_at":
-        # Soft preference — don't fail if j7 drifts
-        return joints, True
+        j7_val = float(track_cond["j7_value"])
+        # Try locked first, fall back to free if it fails
+        joints, ok = _solve_ik_locked_j7(robot, pose, j7_val)
+        if ok:
+            return joints, True
+        # Soft preference — accept free solution
+        return _solve_ik_free(robot, pose)
 
     else:  # "None"
-        return joints, True
+        return _solve_ik_free(robot, pose)
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
