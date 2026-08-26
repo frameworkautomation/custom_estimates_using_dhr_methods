@@ -1,0 +1,121 @@
+======================================================================
+  REACHABILITY REPORT
+  Robot: Fanuc R-2000iC/125L
+  Generated: 20260826_100355
+======================================================================
+
+  End Effector: pickup  (4/20 reachable)
+  #    Name                                     Status j7 constraint              j7 actual
+  -------------------------------------------------------------------------------------
+  0    Base_Right_0_grab                          FAIL locked(0)                          -
+  1    Base_Right_0_grab_approach                 FAIL locked(0)                          -
+  2    Base_Right_1_grab                          FAIL locked(0)                          -
+  3    Base_Right_1_grab_approach                 FAIL locked(0)                          -
+  4    Base_Right_2_grab                          FAIL locked(0)                          -
+  5    Base_Right_2_grab_approach                 FAIL locked(0)                          -
+  6    Base_Left_0_grab                           FAIL locked(0)                          -
+  7    Base_Left_0_grab_approach                  FAIL locked(0)                          -
+  8    Base_Left_1_grab                           FAIL locked(0)                          -
+  9    Base_Left_1_grab_approach                  FAIL locked(0)                          -
+  10   Base_Left_2_grab                           FAIL locked(0)                          -
+  11   Base_Left_2_grab_approach                  FAIL locked(0)                          -
+  12   Front_0_grab                                 OK opt(3600.0)                      0.0
+  13   Front_0_grab_approach                        OK opt(3600.0)                      0.0
+  14   Front_1_grab                               FAIL opt(3600.0)                        -
+  15   Front_1_grab_approach                      FAIL opt(3600.0)                        -
+  16   Back_0_grab                                  OK opt(3600.0)                      0.0
+  17   Back_0_grab_approach                         OK opt(3600.0)                      0.0
+  18   Back_1_grab                                FAIL opt(3600.0)                        -
+  19   Back_1_grab_approach                       FAIL opt(3600.0)                        -
+
+  UNREACHABLE (16):
+    - Base_Right_0_grab: IK failed
+    - Base_Right_0_grab_approach: IK failed
+    - Base_Right_1_grab: IK failed
+    - Base_Right_1_grab_approach: IK failed
+    - Base_Right_2_grab: IK failed
+    - Base_Right_2_grab_approach: IK failed
+    - Base_Left_0_grab: IK failed
+    - Base_Left_0_grab_approach: IK failed
+    - Base_Left_1_grab: IK failed
+    - Base_Left_1_grab_approach: IK failed
+    - Base_Left_2_grab: IK failed
+    - Base_Left_2_grab_approach: IK failed
+    - Front_1_grab: IK failed
+    - Front_1_grab_approach: IK failed
+    - Back_1_grab: IK failed
+    - Back_1_grab_approach: IK failed
+
+  End Effector: knotting  (4/20 reachable)
+  #    Name                                     Status j7 constraint              j7 actual
+  -------------------------------------------------------------------------------------
+  0    Base_Right_0_string_grab                   FAIL locked(0)                          -
+  1    Base_Right_0_string_grab_approach          FAIL locked(0)                          -
+  2    Base_Right_1_string_grab                   FAIL locked(0)                          -
+  3    Base_Right_1_string_grab_approach          FAIL locked(0)                          -
+  4    Base_Right_2_string_grab                   FAIL locked(0)                          -
+  5    Base_Right_2_string_grab_approach          FAIL locked(0)                          -
+  6    Base_Left_0_string_grab                    FAIL locked(0)                          -
+  7    Base_Left_0_string_grab_approach           FAIL locked(0)                          -
+  8    Base_Left_1_string_grab                    FAIL locked(0)                          -
+  9    Base_Left_1_string_grab_approach           FAIL locked(0)                          -
+  10   Base_Left_2_string_grab                    FAIL locked(0)                          -
+  11   Base_Left_2_string_grab_approach           FAIL locked(0)                          -
+  12   Front_0_string_grab                          OK opt(3600.0)                   1149.6
+  13   Front_0_string_grab_approach                 OK opt(3600.0)                   1694.6
+  14   Front_1_string_grab                        FAIL opt(3600.0)                        -
+  15   Front_1_string_grab_approach               FAIL opt(3600.0)                        -
+  16   Back_0_string_grab                           OK opt(3600.0)                   1295.3
+  17   Back_0_string_grab_approach                  OK opt(3600.0)                   1595.3
+  18   Back_1_string_grab                         FAIL opt(3600.0)                        -
+  19   Back_1_string_grab_approach                FAIL opt(3600.0)                        -
+
+  UNREACHABLE (16):
+    - Base_Right_0_string_grab: IK failed
+    - Base_Right_0_string_grab_approach: IK failed
+    - Base_Right_1_string_grab: IK failed
+    - Base_Right_1_string_grab_approach: IK failed
+    - Base_Right_2_string_grab: IK failed
+    - Base_Right_2_string_grab_approach: IK failed
+    - Base_Left_0_string_grab: IK failed
+    - Base_Left_0_string_grab_approach: IK failed
+    - Base_Left_1_string_grab: IK failed
+    - Base_Left_1_string_grab_approach: IK failed
+    - Base_Left_2_string_grab: IK failed
+    - Base_Left_2_string_grab_approach: IK failed
+    - Front_1_string_grab: IK failed
+    - Front_1_string_grab_approach: IK failed
+    - Back_1_string_grab: IK failed
+    - Back_1_string_grab_approach: IK failed
+
+  End Effector: cutting  (8/16 reachable)
+  #    Name                                     Status j7 constraint              j7 actual
+  -------------------------------------------------------------------------------------
+  0    Front_0_cut_approach                         OK opt(3600.0)                   1281.2
+  1    Front_1_cut_approach                       FAIL opt(3600.0)                        -
+  2    Back_0_cut_approach                          OK opt(3600.0)                   1234.9
+  3    Back_1_cut_approach                        FAIL opt(3600.0)                        -
+  4    Front_0_cut_top                              OK opt(3600.0)                   1009.1
+  5    Front_1_cut_top                            FAIL opt(3600.0)                        -
+  6    Back_0_cut_top                               OK opt(3600.0)                   1162.0
+  7    Back_1_cut_top                             FAIL opt(3600.0)                        -
+  8    Front_0_cut_bottom                           OK opt(3600.0)                    686.2
+  9    Front_1_cut_bottom                         FAIL opt(3600.0)                        -
+  10   Back_0_cut_bottom                            OK opt(3600.0)                    884.9
+  11   Back_1_cut_bottom                          FAIL opt(3600.0)                        -
+  12   Front_0_cut_pull_away                        OK opt(3600.0)                   1604.1
+  13   Front_1_cut_pull_away                      FAIL opt(3600.0)                        -
+  14   Back_0_cut_pull_away                         OK opt(3600.0)                   1512.0
+  15   Back_1_cut_pull_away                       FAIL opt(3600.0)                        -
+
+  UNREACHABLE (8):
+    - Front_1_cut_approach: IK failed
+    - Back_1_cut_approach: IK failed
+    - Front_1_cut_top: IK failed
+    - Back_1_cut_top: IK failed
+    - Front_1_cut_bottom: IK failed
+    - Back_1_cut_bottom: IK failed
+    - Front_1_cut_pull_away: IK failed
+    - Back_1_cut_pull_away: IK failed
+
+======================================================================
