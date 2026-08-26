@@ -1,7 +1,7 @@
 ======================================================================
   REACHABILITY REPORT
   Robot: Fanuc R-2000iC/125L
-  Generated: 20260826_155235
+  Generated: 20260826_161124
 ======================================================================
 
   End Effector: pickup  (23/24 reachable)
@@ -35,21 +35,21 @@
   UNREACHABLE (1):
     - Base_Left_2_grab_approach: IK failed
 
-  End Effector: knotting  (11/24 reachable)
+  End Effector: knotting  (15/24 reachable)
   #    Name                                     Status j7 constraint              j7 actual
   -------------------------------------------------------------------------------------
-  0    Front_0_string_grab                          OK opt(3600.0)                   3600.0
-  1    Front_0_string_grab_approach                 OK opt(3600.0)                   3600.0
+  0    Front_0_string_grab                          OK opt(3600.0)                   2516.8
+  1    Front_0_string_grab_approach                 OK opt(3600.0)                   3061.8
   2    Front_1_string_grab                          OK opt(3600.0)                   3600.0
   3    Front_1_string_grab_approach                 OK opt(3600.0)                   3600.0
-  4    Front_2_string_grab                        FAIL opt(3600.0)                        -
-  5    Front_2_string_grab_approach               FAIL opt(3600.0)                        -
-  6    Back_0_string_grab                           OK opt(3600.0)                   3600.0
-  7    Back_0_string_grab_approach                  OK opt(3600.0)                   3600.0
+  4    Front_2_string_grab                          OK opt(3600.0)                   3600.0
+  5    Front_2_string_grab_approach                 OK opt(3600.0)                   3600.0
+  6    Back_0_string_grab                           OK opt(3600.0)                   2932.5
+  7    Back_0_string_grab_approach                  OK opt(3600.0)                   3232.5
   8    Back_1_string_grab                           OK opt(3600.0)                   3600.0
   9    Back_1_string_grab_approach                  OK opt(3600.0)                   3600.0
-  10   Back_2_string_grab                         FAIL opt(3600.0)                        -
-  11   Back_2_string_grab_approach                FAIL opt(3600.0)                        -
+  10   Back_2_string_grab                           OK opt(3600.0)                   3600.0
+  11   Back_2_string_grab_approach                  OK opt(3600.0)                   3600.0
   12   Base_Right_0_string_grab                     OK locked(0)                        0.0
   13   Base_Right_0_string_grab_approach          FAIL locked(0)                          -
   14   Base_Right_1_string_grab                     OK locked(0)                        0.0
@@ -63,11 +63,7 @@
   22   Base_Left_2_string_grab                    FAIL locked(0)                          -
   23   Base_Left_2_string_grab_approach           FAIL locked(0)                          -
 
-  UNREACHABLE (13):
-    - Front_2_string_grab: IK failed
-    - Front_2_string_grab_approach: IK failed
-    - Back_2_string_grab: IK failed
-    - Back_2_string_grab_approach: IK failed
+  UNREACHABLE (9):
     - Base_Right_0_string_grab_approach: IK failed
     - Base_Right_1_string_grab_approach: IK failed
     - Base_Right_2_string_grab: IK failed
