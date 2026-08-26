@@ -1,5 +1,4 @@
 waypoints:
-
   Base_Right_0_grab_approach:
     x: 674.3756
     y: -462.036
@@ -12,6 +11,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
   Base_Right_0_grab:
     x: 866.6669
     y: -462.036
@@ -23,6 +23,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: cone grab ΓÇö robot-relative, j7 free
   Base_Right_1_grab_approach:
     x: 507.615
     y: -462.036
@@ -35,6 +36,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
   Base_Right_1_grab:
     x: 699.9063
     y: -462.036
@@ -46,6 +48,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: cone grab ΓÇö robot-relative, j7 free
   Base_Right_2_grab_approach:
     x: 340.8543
     y: -462.036
@@ -58,6 +61,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
   Base_Right_2_grab:
     x: 533.1456
     y: -462.036
@@ -69,6 +73,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: cone grab ΓÇö robot-relative, j7 free
   Base_Left_0_grab_approach:
     x: 674.3756
     y: -246.036
@@ -81,6 +86,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
   Base_Left_0_grab:
     x: 866.6669
     y: -246.036
@@ -92,6 +98,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: cone grab ΓÇö robot-relative, j7 free
   Base_Left_1_grab_approach:
     x: 507.615
     y: -246.036
@@ -104,6 +111,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
   Base_Left_1_grab:
     x: 699.9063
     y: -246.036
@@ -115,6 +123,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: cone grab ΓÇö robot-relative, j7 free
   Base_Left_2_grab_approach:
     x: 340.8543
     y: -246.036
@@ -127,6 +136,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
   Base_Left_2_grab:
     x: 533.1456
     y: -246.036
@@ -138,6 +148,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: cone grab ΓÇö robot-relative, j7 free
   Base_Right_0_string_grab_approach:
     x: 674.3756
     y: -462.036
@@ -150,6 +161,8 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+      axis free
   Base_Right_0_string_grab:
     x: 866.6669
     y: -462.036
@@ -161,6 +174,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: string grab ΓÇö robot-relative, j7 free
   Base_Right_1_string_grab_approach:
     x: 507.615
     y: -462.036
@@ -173,6 +187,8 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+      axis free
   Base_Right_1_string_grab:
     x: 699.9063
     y: -462.036
@@ -184,6 +200,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: string grab ΓÇö robot-relative, j7 free
   Base_Right_2_string_grab_approach:
     x: 340.8543
     y: -462.036
@@ -196,6 +213,8 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+      axis free
   Base_Right_2_string_grab:
     x: 533.1456
     y: -462.036
@@ -207,6 +226,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: string grab ΓÇö robot-relative, j7 free
   Base_Left_0_string_grab_approach:
     x: 674.3756
     y: -246.036
@@ -219,6 +239,8 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+      axis free
   Base_Left_0_string_grab:
     x: 866.6669
     y: -246.036
@@ -230,6 +252,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: string grab ΓÇö robot-relative, j7 free
   Base_Left_1_string_grab_approach:
     x: 507.615
     y: -246.036
@@ -242,6 +265,8 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+      axis free
   Base_Left_1_string_grab:
     x: 699.9063
     y: -246.036
@@ -253,6 +278,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: string grab ΓÇö robot-relative, j7 free
   Base_Left_2_string_grab_approach:
     x: 340.8543
     y: -246.036
@@ -265,6 +291,8 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
+    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+      axis free
   Base_Left_2_string_grab:
     x: 533.1456
     y: -246.036
@@ -276,6 +304,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: string grab ΓÇö robot-relative, j7 free
   Front_0_grab:
     x: 2581.3875
     y: -1422.1499
@@ -287,6 +316,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine cone place
   Front_0_grab_approach:
     x: 2581.3875
     y: -1422.1499
@@ -298,6 +328,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine cone approach
   Front_1_grab:
     x: 2581.3875
     y: -2448.8604
@@ -309,6 +340,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine cone place
   Front_1_grab_approach:
     x: 2581.3875
     y: -2448.8604
@@ -320,6 +352,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine cone approach
   Front_2_grab:
     x: 2581.3875
     y: -3475.5709
@@ -331,6 +364,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine cone place
   Front_2_grab_approach:
     x: 2581.3875
     y: -3475.5709
@@ -342,6 +376,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine cone approach
   Back_0_grab:
     x: 2826.3875
     y: -1536.2288
@@ -353,6 +388,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine cone place
   Back_0_grab_approach:
     x: 2826.3875
     y: -1536.2288
@@ -364,6 +400,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine cone approach
   Back_1_grab:
     x: 2826.3875
     y: -2562.9393
@@ -375,6 +412,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine cone place
   Back_1_grab_approach:
     x: 2826.3875
     y: -2562.9393
@@ -386,6 +424,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine cone approach
   Back_2_grab:
     x: 2826.3875
     y: -3589.6499
@@ -397,6 +436,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine cone place
   Back_2_grab_approach:
     x: 2826.3875
     y: -3589.6499
@@ -408,6 +448,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine cone approach
   Front_0_string_grab:
     x: 2581.3875
     y: -1422.1499
@@ -419,6 +460,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine string grab
   Front_0_string_grab_approach:
     x: 3126.3875
     y: -1422.1499
@@ -430,6 +472,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine string approach
   Front_1_string_grab:
     x: 2581.3875
     y: -2448.8604
@@ -441,6 +484,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine string grab
   Front_1_string_grab_approach:
     x: 3126.3875
     y: -2448.8604
@@ -452,6 +496,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine string approach
   Front_2_string_grab:
     x: 2581.3875
     y: -3475.5709
@@ -463,6 +508,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine string grab
   Front_2_string_grab_approach:
     x: 3126.3875
     y: -3475.5709
@@ -474,6 +520,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine string approach
   Back_0_string_grab:
     x: 2826.3875
     y: -1536.2288
@@ -485,6 +532,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine string grab
   Back_0_string_grab_approach:
     x: 3126.3875
     y: -1536.2288
@@ -496,6 +544,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine string approach
   Back_1_string_grab:
     x: 2826.3875
     y: -2562.9393
@@ -507,6 +556,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine string grab
   Back_1_string_grab_approach:
     x: 3126.3875
     y: -2562.9393
@@ -518,6 +568,7 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
+    note: machine string approach
   Back_2_string_grab:
     x: 2826.3875
     y: -3589.6499
@@ -529,6 +580,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
+    note: machine string grab
   Back_2_string_grab_approach:
     x: 3126.3875
     y: -3589.6499
@@ -540,151 +592,149 @@ waypoints:
     move_type: MoveJ
     j7: null
     source: grasshopper
-
-
-# ── Edges (auto-generated by amalgamate_waypoints.py) ──────────────────
+    note: machine string approach
 edges:
-  - from: Base_Right_0_grab_approach
-    to:   Base_Right_0_grab
-    tested: null
-  - from: Base_Right_0_grab
-    to:   Base_Right_0_grab_approach
-    tested: null
-  - from: Base_Right_1_grab_approach
-    to:   Base_Right_1_grab
-    tested: null
-  - from: Base_Right_1_grab
-    to:   Base_Right_1_grab_approach
-    tested: null
-  - from: Base_Right_2_grab_approach
-    to:   Base_Right_2_grab
-    tested: null
-  - from: Base_Right_2_grab
-    to:   Base_Right_2_grab_approach
-    tested: null
-  - from: Base_Left_0_grab_approach
-    to:   Base_Left_0_grab
-    tested: null
-  - from: Base_Left_0_grab
-    to:   Base_Left_0_grab_approach
-    tested: null
-  - from: Base_Left_1_grab_approach
-    to:   Base_Left_1_grab
-    tested: null
-  - from: Base_Left_1_grab
-    to:   Base_Left_1_grab_approach
-    tested: null
-  - from: Base_Left_2_grab_approach
-    to:   Base_Left_2_grab
-    tested: null
-  - from: Base_Left_2_grab
-    to:   Base_Left_2_grab_approach
-    tested: null
-  - from: Base_Right_0_string_grab_approach
-    to:   Base_Right_0_string_grab
-    tested: null
-  - from: Base_Right_0_string_grab
-    to:   Base_Right_0_string_grab_approach
-    tested: null
-  - from: Base_Right_1_string_grab_approach
-    to:   Base_Right_1_string_grab
-    tested: null
-  - from: Base_Right_1_string_grab
-    to:   Base_Right_1_string_grab_approach
-    tested: null
-  - from: Base_Right_2_string_grab_approach
-    to:   Base_Right_2_string_grab
-    tested: null
-  - from: Base_Right_2_string_grab
-    to:   Base_Right_2_string_grab_approach
-    tested: null
-  - from: Base_Left_0_string_grab_approach
-    to:   Base_Left_0_string_grab
-    tested: null
-  - from: Base_Left_0_string_grab
-    to:   Base_Left_0_string_grab_approach
-    tested: null
-  - from: Base_Left_1_string_grab_approach
-    to:   Base_Left_1_string_grab
-    tested: null
-  - from: Base_Left_1_string_grab
-    to:   Base_Left_1_string_grab_approach
-    tested: null
-  - from: Base_Left_2_string_grab_approach
-    to:   Base_Left_2_string_grab
-    tested: null
-  - from: Base_Left_2_string_grab
-    to:   Base_Left_2_string_grab_approach
-    tested: null
-  - from: Front_0_grab_approach
-    to:   Front_0_grab
-    tested: null
-  - from: Front_0_grab
-    to:   Front_0_grab_approach
-    tested: null
-  - from: Front_1_grab_approach
-    to:   Front_1_grab
-    tested: null
-  - from: Front_1_grab
-    to:   Front_1_grab_approach
-    tested: null
-  - from: Front_2_grab_approach
-    to:   Front_2_grab
-    tested: null
-  - from: Front_2_grab
-    to:   Front_2_grab_approach
-    tested: null
-  - from: Back_0_grab_approach
-    to:   Back_0_grab
-    tested: null
-  - from: Back_0_grab
-    to:   Back_0_grab_approach
-    tested: null
-  - from: Back_1_grab_approach
-    to:   Back_1_grab
-    tested: null
-  - from: Back_1_grab
-    to:   Back_1_grab_approach
-    tested: null
-  - from: Back_2_grab_approach
-    to:   Back_2_grab
-    tested: null
-  - from: Back_2_grab
-    to:   Back_2_grab_approach
-    tested: null
-  - from: Front_0_string_grab_approach
-    to:   Front_0_string_grab
-    tested: null
-  - from: Front_0_string_grab
-    to:   Front_0_string_grab_approach
-    tested: null
-  - from: Front_1_string_grab_approach
-    to:   Front_1_string_grab
-    tested: null
-  - from: Front_1_string_grab
-    to:   Front_1_string_grab_approach
-    tested: null
-  - from: Front_2_string_grab_approach
-    to:   Front_2_string_grab
-    tested: null
-  - from: Front_2_string_grab
-    to:   Front_2_string_grab_approach
-    tested: null
-  - from: Back_0_string_grab_approach
-    to:   Back_0_string_grab
-    tested: null
-  - from: Back_0_string_grab
-    to:   Back_0_string_grab_approach
-    tested: null
-  - from: Back_1_string_grab_approach
-    to:   Back_1_string_grab
-    tested: null
-  - from: Back_1_string_grab
-    to:   Back_1_string_grab_approach
-    tested: null
-  - from: Back_2_string_grab_approach
-    to:   Back_2_string_grab
-    tested: null
-  - from: Back_2_string_grab
-    to:   Back_2_string_grab_approach
-    tested: null
+- from: Base_Right_0_grab_approach
+  to: Base_Right_0_grab
+  tested: null
+- from: Base_Right_0_grab
+  to: Base_Right_0_grab_approach
+  tested: null
+- from: Base_Right_1_grab_approach
+  to: Base_Right_1_grab
+  tested: null
+- from: Base_Right_1_grab
+  to: Base_Right_1_grab_approach
+  tested: null
+- from: Base_Right_2_grab_approach
+  to: Base_Right_2_grab
+  tested: null
+- from: Base_Right_2_grab
+  to: Base_Right_2_grab_approach
+  tested: null
+- from: Base_Left_0_grab_approach
+  to: Base_Left_0_grab
+  tested: null
+- from: Base_Left_0_grab
+  to: Base_Left_0_grab_approach
+  tested: null
+- from: Base_Left_1_grab_approach
+  to: Base_Left_1_grab
+  tested: null
+- from: Base_Left_1_grab
+  to: Base_Left_1_grab_approach
+  tested: null
+- from: Base_Left_2_grab_approach
+  to: Base_Left_2_grab
+  tested: null
+- from: Base_Left_2_grab
+  to: Base_Left_2_grab_approach
+  tested: null
+- from: Base_Right_0_string_grab_approach
+  to: Base_Right_0_string_grab
+  tested: null
+- from: Base_Right_0_string_grab
+  to: Base_Right_0_string_grab_approach
+  tested: null
+- from: Base_Right_1_string_grab_approach
+  to: Base_Right_1_string_grab
+  tested: null
+- from: Base_Right_1_string_grab
+  to: Base_Right_1_string_grab_approach
+  tested: null
+- from: Base_Right_2_string_grab_approach
+  to: Base_Right_2_string_grab
+  tested: null
+- from: Base_Right_2_string_grab
+  to: Base_Right_2_string_grab_approach
+  tested: null
+- from: Base_Left_0_string_grab_approach
+  to: Base_Left_0_string_grab
+  tested: null
+- from: Base_Left_0_string_grab
+  to: Base_Left_0_string_grab_approach
+  tested: null
+- from: Base_Left_1_string_grab_approach
+  to: Base_Left_1_string_grab
+  tested: null
+- from: Base_Left_1_string_grab
+  to: Base_Left_1_string_grab_approach
+  tested: null
+- from: Base_Left_2_string_grab_approach
+  to: Base_Left_2_string_grab
+  tested: null
+- from: Base_Left_2_string_grab
+  to: Base_Left_2_string_grab_approach
+  tested: null
+- from: Front_0_grab_approach
+  to: Front_0_grab
+  tested: null
+- from: Front_0_grab
+  to: Front_0_grab_approach
+  tested: null
+- from: Front_1_grab_approach
+  to: Front_1_grab
+  tested: null
+- from: Front_1_grab
+  to: Front_1_grab_approach
+  tested: null
+- from: Front_2_grab_approach
+  to: Front_2_grab
+  tested: null
+- from: Front_2_grab
+  to: Front_2_grab_approach
+  tested: null
+- from: Back_0_grab_approach
+  to: Back_0_grab
+  tested: null
+- from: Back_0_grab
+  to: Back_0_grab_approach
+  tested: null
+- from: Back_1_grab_approach
+  to: Back_1_grab
+  tested: null
+- from: Back_1_grab
+  to: Back_1_grab_approach
+  tested: null
+- from: Back_2_grab_approach
+  to: Back_2_grab
+  tested: null
+- from: Back_2_grab
+  to: Back_2_grab_approach
+  tested: null
+- from: Front_0_string_grab_approach
+  to: Front_0_string_grab
+  tested: null
+- from: Front_0_string_grab
+  to: Front_0_string_grab_approach
+  tested: null
+- from: Front_1_string_grab_approach
+  to: Front_1_string_grab
+  tested: null
+- from: Front_1_string_grab
+  to: Front_1_string_grab_approach
+  tested: null
+- from: Front_2_string_grab_approach
+  to: Front_2_string_grab
+  tested: null
+- from: Front_2_string_grab
+  to: Front_2_string_grab_approach
+  tested: null
+- from: Back_0_string_grab_approach
+  to: Back_0_string_grab
+  tested: null
+- from: Back_0_string_grab
+  to: Back_0_string_grab_approach
+  tested: null
+- from: Back_1_string_grab_approach
+  to: Back_1_string_grab
+  tested: null
+- from: Back_1_string_grab
+  to: Back_1_string_grab_approach
+  tested: null
+- from: Back_2_string_grab_approach
+  to: Back_2_string_grab
+  tested: null
+- from: Back_2_string_grab
+  to: Back_2_string_grab_approach
+  tested: null
