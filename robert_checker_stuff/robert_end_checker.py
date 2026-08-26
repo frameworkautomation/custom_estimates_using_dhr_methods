@@ -242,6 +242,12 @@ def main():
     ap.add_argument("--robodk-ip", default=None, help="RoboDK IP (default: localhost then 172.23.208.1)")
     args = ap.parse_args()
 
+    # Delete old results so stale data can't be used by shower
+    for f in [RESULTS_PATH, REPORT_PATH]:
+        if os.path.exists(f):
+            os.remove(f)
+            print(f"[INFO] Deleted old {os.path.basename(f)}")
+
     config = load_config()
     end_effectors = config.get("end_effectors", [])
     if not end_effectors:
