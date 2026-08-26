@@ -432,11 +432,11 @@ if trigger:
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
                           "move_type":"MoveJ","j7":None,"z_axis_free":True,
                           "special_conditions":["attached_to_base"],
-                          "note":"cone approach — robot-relative, j7 free, rotation around cone Z axis free"})
+                          "note":"cone approach - robot-relative, j7 free, rotation around cone Z axis free"})
         waypoints.append({"name": grab_name,     "x":x, "y":y, "z":z, "rx":rx, "ry":ry, "rz":rz,
                           "move_type":"MoveL","j7":None,
                           "special_conditions":["attached_to_base"],
-                          "note":"cone grab — robot-relative, j7 free"})
+                          "note":"cone grab - robot-relative, j7 free"})
 
         # Bidirectional edges — enter (approach→grab) and exit (grab→approach)
         edges.append({"from": approach_name, "to": grab_name})
@@ -463,11 +463,11 @@ if trigger:
         waypoints.append({"name": approach_name, "x":ax,"y":ay,"z":az,"rx":arx,"ry":ary,"rz":arz,
                           "move_type":"MoveJ","j7":None,"z_axis_free":True,
                           "special_conditions":["attached_to_base"],
-                          "note":"string grab approach — robot-relative, j7 free, rotation around cone Z axis free"})
+                          "note":"string grab approach - robot-relative, j7 free, rotation around cone Z axis free"})
         waypoints.append({"name": grab_name,     "x":x, "y":y, "z":z, "rx":rx, "ry":ry, "rz":rz,
                           "move_type":"MoveL","j7":None,
                           "special_conditions":["attached_to_base"],
-                          "note":"string grab — robot-relative, j7 free"})
+                          "note":"string grab - robot-relative, j7 free"})
 
         edges.append({"from": approach_name, "to": grab_name})
         edges.append({"from": grab_name,     "to": approach_name})

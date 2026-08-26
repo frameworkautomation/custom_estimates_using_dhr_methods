@@ -11,7 +11,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
+    note: cone approach - robot-relative, j7 free, rotation around cone Z axis free
   Base_Right_0_grab:
     x: 866.6669
     y: -462.036
@@ -23,7 +23,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: cone grab ΓÇö robot-relative, j7 free
+    note: cone grab - robot-relative, j7 free
   Base_Right_1_grab_approach:
     x: 507.615
     y: -462.036
@@ -36,7 +36,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
+    note: cone approach - robot-relative, j7 free, rotation around cone Z axis free
   Base_Right_1_grab:
     x: 699.9063
     y: -462.036
@@ -48,7 +48,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: cone grab ΓÇö robot-relative, j7 free
+    note: cone grab - robot-relative, j7 free
   Base_Right_2_grab_approach:
     x: 340.8543
     y: -462.036
@@ -61,7 +61,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
+    note: cone approach - robot-relative, j7 free, rotation around cone Z axis free
   Base_Right_2_grab:
     x: 533.1456
     y: -462.036
@@ -73,7 +73,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: cone grab ΓÇö robot-relative, j7 free
+    note: cone grab - robot-relative, j7 free
   Base_Left_0_grab_approach:
     x: 674.3756
     y: -246.036
@@ -86,7 +86,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
+    note: cone approach - robot-relative, j7 free, rotation around cone Z axis free
   Base_Left_0_grab:
     x: 866.6669
     y: -246.036
@@ -98,7 +98,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: cone grab ΓÇö robot-relative, j7 free
+    note: cone grab - robot-relative, j7 free
   Base_Left_1_grab_approach:
     x: 507.615
     y: -246.036
@@ -111,7 +111,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
+    note: cone approach - robot-relative, j7 free, rotation around cone Z axis free
   Base_Left_1_grab:
     x: 699.9063
     y: -246.036
@@ -123,7 +123,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: cone grab ΓÇö robot-relative, j7 free
+    note: cone grab - robot-relative, j7 free
   Base_Left_2_grab_approach:
     x: 340.8543
     y: -246.036
@@ -136,7 +136,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: cone approach ΓÇö robot-relative, j7 free, rotation around cone Z axis free
+    note: cone approach - robot-relative, j7 free, rotation around cone Z axis free
   Base_Left_2_grab:
     x: 533.1456
     y: -246.036
@@ -148,7 +148,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: cone grab ΓÇö robot-relative, j7 free
+    note: cone grab - robot-relative, j7 free
   Base_Right_0_string_grab_approach:
     x: 674.3756
     y: -462.036
@@ -161,7 +161,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+    note: string grab approach - robot-relative, j7 free, rotation around cone Z
       axis free
   Base_Right_0_string_grab:
     x: 866.6669
@@ -174,7 +174,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: string grab ΓÇö robot-relative, j7 free
+    note: string grab - robot-relative, j7 free
   Base_Right_1_string_grab_approach:
     x: 507.615
     y: -462.036
@@ -187,7 +187,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+    note: string grab approach - robot-relative, j7 free, rotation around cone Z
       axis free
   Base_Right_1_string_grab:
     x: 699.9063
@@ -200,7 +200,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: string grab ΓÇö robot-relative, j7 free
+    note: string grab - robot-relative, j7 free
   Base_Right_2_string_grab_approach:
     x: 340.8543
     y: -462.036
@@ -213,7 +213,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+    note: string grab approach - robot-relative, j7 free, rotation around cone Z
       axis free
   Base_Right_2_string_grab:
     x: 533.1456
@@ -226,7 +226,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: string grab ΓÇö robot-relative, j7 free
+    note: string grab - robot-relative, j7 free
   Base_Left_0_string_grab_approach:
     x: 674.3756
     y: -246.036
@@ -239,7 +239,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+    note: string grab approach - robot-relative, j7 free, rotation around cone Z
       axis free
   Base_Left_0_string_grab:
     x: 866.6669
@@ -252,7 +252,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: string grab ΓÇö robot-relative, j7 free
+    note: string grab - robot-relative, j7 free
   Base_Left_1_string_grab_approach:
     x: 507.615
     y: -246.036
@@ -265,7 +265,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+    note: string grab approach - robot-relative, j7 free, rotation around cone Z
       axis free
   Base_Left_1_string_grab:
     x: 699.9063
@@ -278,7 +278,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: string grab ΓÇö robot-relative, j7 free
+    note: string grab - robot-relative, j7 free
   Base_Left_2_string_grab_approach:
     x: 340.8543
     y: -246.036
@@ -291,7 +291,7 @@ waypoints:
     j7: null
     source: grasshopper
     z_axis_free: true
-    note: string grab approach ΓÇö robot-relative, j7 free, rotation around cone Z
+    note: string grab approach - robot-relative, j7 free, rotation around cone Z
       axis free
   Base_Left_2_string_grab:
     x: 533.1456
@@ -304,7 +304,7 @@ waypoints:
     move_type: MoveL
     j7: null
     source: grasshopper
-    note: string grab ΓÇö robot-relative, j7 free
+    note: string grab - robot-relative, j7 free
   Front_0_grab:
     x: 2581.3875
     y: -1422.1499

@@ -1,0 +1,399 @@
+waypoints:
+  - name: Base_Right_0_grab_approach
+    x: 674.3756
+    y: -462.036
+    z: 1398.183
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Right_0_grab
+    x: 866.6669
+    y: -462.036
+    z: 985.8129
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone grab - robot-relative, j7 free"
+  - name: Base_Right_1_grab_approach
+    x: 507.615
+    y: -462.036
+    z: 1320.4212
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Right_1_grab
+    x: 699.9063
+    y: -462.036
+    z: 908.0512
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone grab - robot-relative, j7 free"
+  - name: Base_Right_2_grab_approach
+    x: 340.8543
+    y: -462.036
+    z: 1242.6594
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Right_2_grab
+    x: 533.1456
+    y: -462.036
+    z: 830.2894
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone grab - robot-relative, j7 free"
+  - name: Base_Left_0_grab_approach
+    x: 674.3756
+    y: -246.036
+    z: 1398.183
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Left_0_grab
+    x: 866.6669
+    y: -246.036
+    z: 985.8129
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone grab - robot-relative, j7 free"
+  - name: Base_Left_1_grab_approach
+    x: 507.615
+    y: -246.036
+    z: 1320.4212
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Left_1_grab
+    x: 699.9063
+    y: -246.036
+    z: 908.0512
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone grab - robot-relative, j7 free"
+  - name: Base_Left_2_grab_approach
+    x: 340.8543
+    y: -246.036
+    z: 1242.6594
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Left_2_grab
+    x: 533.1456
+    y: -246.036
+    z: 830.2894
+    rx: 180.0
+    ry: 25.0
+    rz: -180.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "cone grab - robot-relative, j7 free"
+  - name: Base_Right_0_string_grab_approach
+    x: 674.3756
+    y: -462.036
+    z: 1398.183
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Right_0_string_grab
+    x: 866.6669
+    y: -462.036
+    z: 985.8129
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab - robot-relative, j7 free"
+  - name: Base_Right_1_string_grab_approach
+    x: 507.615
+    y: -462.036
+    z: 1320.4212
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Right_1_string_grab
+    x: 699.9063
+    y: -462.036
+    z: 908.0512
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab - robot-relative, j7 free"
+  - name: Base_Right_2_string_grab_approach
+    x: 340.8543
+    y: -462.036
+    z: 1242.6594
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Right_2_string_grab
+    x: 533.1456
+    y: -462.036
+    z: 830.2894
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab - robot-relative, j7 free"
+  - name: Base_Left_0_string_grab_approach
+    x: 674.3756
+    y: -246.036
+    z: 1398.183
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Left_0_string_grab
+    x: 866.6669
+    y: -246.036
+    z: 985.8129
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab - robot-relative, j7 free"
+  - name: Base_Left_1_string_grab_approach
+    x: 507.615
+    y: -246.036
+    z: 1320.4212
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Left_1_string_grab
+    x: 699.9063
+    y: -246.036
+    z: 908.0512
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab - robot-relative, j7 free"
+  - name: Base_Left_2_string_grab_approach
+    x: 340.8543
+    y: -246.036
+    z: 1242.6594
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveJ
+    j7: null
+    z_axis_free: true
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
+  - name: Base_Left_2_string_grab
+    x: 533.1456
+    y: -246.036
+    z: 830.2894
+    rx: -155.0
+    ry: -0.0
+    rz: -90.0
+    frame: robot_local
+    move_type: MoveL
+    j7: null
+    special_conditions: [attached_to_base]
+    source: grasshopper
+    note: "string grab - robot-relative, j7 free"
+
+edges:
+  - from: Base_Right_0_grab_approach
+    to:   Base_Right_0_grab
+    tested: null
+  - from: Base_Right_0_grab
+    to:   Base_Right_0_grab_approach
+    tested: null
+  - from: Base_Right_1_grab_approach
+    to:   Base_Right_1_grab
+    tested: null
+  - from: Base_Right_1_grab
+    to:   Base_Right_1_grab_approach
+    tested: null
+  - from: Base_Right_2_grab_approach
+    to:   Base_Right_2_grab
+    tested: null
+  - from: Base_Right_2_grab
+    to:   Base_Right_2_grab_approach
+    tested: null
+  - from: Base_Left_0_grab_approach
+    to:   Base_Left_0_grab
+    tested: null
+  - from: Base_Left_0_grab
+    to:   Base_Left_0_grab_approach
+    tested: null
+  - from: Base_Left_1_grab_approach
+    to:   Base_Left_1_grab
+    tested: null
+  - from: Base_Left_1_grab
+    to:   Base_Left_1_grab_approach
+    tested: null
+  - from: Base_Left_2_grab_approach
+    to:   Base_Left_2_grab
+    tested: null
+  - from: Base_Left_2_grab
+    to:   Base_Left_2_grab_approach
+    tested: null
+  - from: Base_Right_0_string_grab_approach
+    to:   Base_Right_0_string_grab
+    tested: null
+  - from: Base_Right_0_string_grab
+    to:   Base_Right_0_string_grab_approach
+    tested: null
+  - from: Base_Right_1_string_grab_approach
+    to:   Base_Right_1_string_grab
+    tested: null
+  - from: Base_Right_1_string_grab
+    to:   Base_Right_1_string_grab_approach
+    tested: null
+  - from: Base_Right_2_string_grab_approach
+    to:   Base_Right_2_string_grab
+    tested: null
+  - from: Base_Right_2_string_grab
+    to:   Base_Right_2_string_grab_approach
+    tested: null
+  - from: Base_Left_0_string_grab_approach
+    to:   Base_Left_0_string_grab
+    tested: null
+  - from: Base_Left_0_string_grab
+    to:   Base_Left_0_string_grab_approach
+    tested: null
+  - from: Base_Left_1_string_grab_approach
+    to:   Base_Left_1_string_grab
+    tested: null
+  - from: Base_Left_1_string_grab
+    to:   Base_Left_1_string_grab_approach
+    tested: null
+  - from: Base_Left_2_string_grab_approach
+    to:   Base_Left_2_string_grab
+    tested: null
+  - from: Base_Left_2_string_grab
+    to:   Base_Left_2_string_grab_approach
+    tested: null
