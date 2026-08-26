@@ -184,14 +184,22 @@ def main():
 
                     print(f"  MoveJ type={type(joints).__name__} len={len(joints)}")
                     robot.MoveJ(joints)
-                    # Read joints back to verify
-                    actual_joints = robot.Joints()
-                    try:
-                        aj = actual_joints.list()
-                    except:
-                        aj = list(actual_joints)
-                    print(f"  Joints after MoveJ: {fmt_joints(aj)}")
-                    print(f"  Joints match: {all(abs(joints[i] - aj[i]) < 0.01 for i in range(min(len(joints), len(aj))))}")
+
+                    # Read achieved TCP pose
+                    achieved_pose = robot.Pose()
+                    achieved_xyzrpw = Pose_2_TxyzRxyz(achieved_pose)
+                    print(f"  EE Pose (robot.Pose()):")
+                    print(f"    XYZ: ({achieved_xyzrpw[0]:.1f}, {achieved_xyzrpw[1]:.1f}, {achieved_xyzrpw[2]:.1f}) mm")
+                    print(f"    RPW: ({achieved_xyzrpw[3]:.2f}, {achieved_xyzrpw[4]:.2f}, {achieved_xyzrpw[5]:.2f}) deg")
+
+                    if target.Valid():
+                        tgt_full = Pose_2_TxyzRxyz(target.PoseAbs())
+                        print(f"  Target (PoseAbs):")
+                        print(f"    XYZ: ({tgt_full[0]:.1f}, {tgt_full[1]:.1f}, {tgt_full[2]:.1f}) mm")
+                        print(f"    RPW: ({tgt_full[3]:.2f}, {tgt_full[4]:.2f}, {tgt_full[5]:.2f}) deg")
+                        import math
+                        err = math.sqrt(sum((tgt_full[i] - achieved_xyzrpw[i])**2 for i in range(3)))
+                        print(f"  Position error: {err:.1f} mm")
                 except Exception as e:
                     print(f"  [ERROR] MoveJ failed: {e}")
 
