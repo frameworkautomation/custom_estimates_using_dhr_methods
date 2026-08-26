@@ -14,6 +14,45 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
+**TODO (top priority): z_axis_free IK solver — rotation sweep via RoboDK frames**
+
+`SolveIK_All` corrupts the robot-rail connection in this station. Do NOT use it.
+Instead, implement z_axis_free as a rotation sweep using RoboDK frame manipulation:
+
+**Class: `ZAxisFreeSolver`**
+- Instantiated once at the start of the checker run
+- On init: creates a parent frame `DiscoveredWaypoints` in the RoboDK station
+- On init: creates a child frame `temp` under `DiscoveredWaypoints`
+- On each run of `solve()`: deletes and recreates `DiscoveredWaypoints` (clean slate)
+
+**Method: `solve(robot, RDK, target_pose, j7_target, N=72)`**
+1. For `i` in `range(N)`:
+   a. Compute rotation angle = `360 * i / N` degrees
+   b. Create a rotated copy of the target pose: rotate around the target's own Z axis
+      by that angle
+   c. Set `temp` frame's pose to the rotated pose
+   d. Use the existing `_solve_ik_locked_j7(robot, RDK, temp_pose, j7_target)` to
+      attempt IK (OptimAxes + MoveJ — the proven working approach)
+   e. If it succeeds AND passes FK verification (err < 50mm):
+      - Create a frame `discovered_waypoint_<name>` under `DiscoveredWaypoints`
+        with the solved pose, for visual inspection
+      - Return the joints
+   f. If it fails, continue to next angle
+2. If no angle works after N attempts, return failure
+
+**Key constraints:**
+- Do NOT use `SolveIK_All` — it corrupts the robot-rail connection in this station
+- Do NOT use `move_to_base_cone_grab.py` — it uses `SolveIK_All` internally
+- Use the existing `_solve_ik_locked_j7` (OptimAxes + MoveJ) which is proven to work
+- The `temp` frame is reused each iteration (set pose, not recreated)
+- `DiscoveredWaypoints` is deleted and recreated at the start of each `solve()` call
+- Only supported with `Locked_at_j7_0` — error on other track conditions
+
+**Where it goes:**
+- New class in `robert_checker_stuff/robert_end_checker.py`
+- Called from `solve_point()` when `z_axis_free=True`
+- The checker instantiates the class once after connecting to RoboDK
+
 **TODO (cutting):**
 - Implement linear moves for cutting sequence (approach→top→bottom→pull_away should
   use MoveL between top/bottom/pull_away, not MoveJ — deferred for now)
