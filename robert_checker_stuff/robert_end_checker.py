@@ -72,10 +72,31 @@ def _solve_ik(robot, pose, seed):
     A valid solution with some joints at zero is still valid.
     """
     sol = robot.SolveIK(pose, seed)
+    # sol is a Mat object. Try multiple ways to extract joints.
     try:
         joints = sol.list()
     except AttributeError:
         joints = list(sol)
+
+    # Debug: print what we got on first call only
+    if not hasattr(_solve_ik, '_debug_done'):
+        _solve_ik._debug_done = True
+        print(f"  [DEBUG] SolveIK returned: type={type(sol).__name__} len={len(sol)} list={joints}")
+        print(f"  [DEBUG] seed was: {seed}")
+        # Try alternate extraction
+        try:
+            rows = sol.rows
+            cols = sol.cols
+            print(f"  [DEBUG] Mat dimensions: {rows}x{cols}")
+        except:
+            pass
+        try:
+            import robodk.robomath as rm
+            flat = rm.Joints_2_List(sol)
+            print(f"  [DEBUG] Joints_2_List: {flat}")
+        except:
+            pass
+
     # Empty or zero-length = no solution found
     if len(joints) == 0:
         return list(seed), False
