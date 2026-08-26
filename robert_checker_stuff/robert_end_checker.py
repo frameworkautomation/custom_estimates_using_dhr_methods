@@ -87,14 +87,15 @@ _OPT_AXES_LOCKED = {
 }
 
 
-def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
-    """Solve IK with j7 locked using OptimAxes + MoveJ.
+def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
+    """Solve IK with j7 constrained using OptimAxes + MoveJ.
 
-    Copied from check_base_cone_reachability.py solve_ik_static_j7.
-    Wraps with Render(False) and restores joints after.
+    j7_weight controls how strongly j7 is pinned:
+      100 = hard lock, 50 = firm, 20 = moderate, 5 = soft preference
     """
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
+    props["AbsW_7"] = j7_weight
     robot.setParam("OptimAxes", props)
     def _attempt(seed):
         robot.setJoints(seed)
@@ -146,11 +147,12 @@ def solve_point(robot, RDK, pose, track_cond, label):
 
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
-        # Try locked first, fall back to free if it fails
-        joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val)
-        if ok:
-            return joints, True
-        # Soft preference — accept free solution
+        # Try with decreasing j7 weights until one works
+        for w in [100, 50, 20, 5]:
+            joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val, j7_weight=w)
+            if ok:
+                return joints, True
+        # Last resort — completely free
         return _solve_ik_free(robot, pose)
 
     else:  # "None"
