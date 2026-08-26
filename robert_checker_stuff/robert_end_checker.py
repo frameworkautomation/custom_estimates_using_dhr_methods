@@ -111,6 +111,17 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
         except AttributeError:
             joints = list(raw)
         j7_actual = joints[6] if len(joints) > 6 else 0.0
+
+        # FK verify: do these joints actually reach the target?
+        robot.setJoints(joints)
+        achieved = robot.PoseAbs()
+        target_xyz = Pose_2_TxyzRxyz(pose)
+        achieved_xyz = Pose_2_TxyzRxyz(achieved)
+        import math
+        fk_err = math.sqrt(sum((target_xyz[i] - achieved_xyz[i])**2 for i in range(3)))
+        if fk_err > 50:  # more than 50mm off — something is wrong
+            print(f"    [FK WARN] err={fk_err:.1f}mm target=({target_xyz[0]:.0f},{target_xyz[1]:.0f},{target_xyz[2]:.0f}) achieved=({achieved_xyz[0]:.0f},{achieved_xyz[1]:.0f},{achieved_xyz[2]:.0f})")
+
         robot.setJoints(HOME_SEED)
         RDK.Render(True)
         if abs(j7_actual - j7_target) > J7_TOL_MM:
