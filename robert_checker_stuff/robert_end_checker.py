@@ -77,63 +77,61 @@ def _solve_ik_free(robot, pose):
     return [], False
 
 
-def _solve_ik_locked_j7(robot, pose, j7_target):
-    """SolveIK with j7 pinned using the rail shift trick from move_to_base_cone_grab.py.
+_OPT_AXES_LOCKED = {
+    "AbsOn_7": 1, "AbsW_7": 100,
+    "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+}
 
-    1. SolveIK(pose) to learn j7_natural
-    2. delta = j7_target - j7_natural
-    3. SolveIK(transl(delta, 0, 0) * pose) → returns j7 ≈ j7_target
 
-    No setPoseFrame, no MoveJ, no OptimAxes — pure read-only IK.
+def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
+    """Solve IK with j7 locked using OptimAxes + MoveJ.
+
+    Copied from check_base_cone_reachability.py solve_ik_static_j7.
+    Wraps with Render(False) and restores joints after.
     """
-    # Step 1: free solve to learn what j7 the solver naturally picks
-    joints_free, ok = _solve_ik_free(robot, pose)
-    if not ok:
+    props = dict(_OPT_AXES_LOCKED)
+    props["AbsJnt_7"] = j7_target
+    robot.setParam("OptimAxes", props)
+    robot.setJoints(HOME_SEED)
+    RDK.Render(False)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
+        try:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        j7_actual = joints[6] if len(joints) > 6 else 0.0
+        robot.setJoints(HOME_SEED)
+        RDK.Render(True)
+        if abs(j7_actual - j7_target) > J7_TOL_MM:
+            return joints, False
+        return joints, True
+    except Exception:
+        robot.setJoints(HOME_SEED)
+        RDK.Render(True)
         return [], False
 
-    j7_natural = joints_free[6] if len(joints_free) > 6 else 0.0
-    delta = j7_target - j7_natural
 
-    if abs(delta) < 1e-6:
-        # Already at target j7
-        if len(joints_free) > 6 and abs(joints_free[6] - j7_target) <= J7_TOL_MM:
-            return joints_free, True
-        return joints_free, False
-
-    # Step 2: shift pose by delta along X (rail axis) and re-solve
-    shifted_pose = transl(delta, 0, 0) * pose
-    result = robot.SolveIK(shifted_pose)
-    try:
-        joints = result.list()
-    except AttributeError:
-        joints = list(result)
-
-    if len(joints) < 6:
-        return joints_free, False  # return free solution as best attempt
-
-    # Verify j7 landed where we wanted
-    j7_actual = joints[6] if len(joints) > 6 else 0.0
-    if abs(j7_actual - j7_target) > J7_TOL_MM:
-        return joints, False  # rail saturated or solver lied
-
-    return joints, True
-
-
-def solve_point(robot, pose, track_cond, label):
+def solve_point(robot, RDK, pose, track_cond, label):
     """Dispatch to the right IK solver based on special_track_conditions."""
     ctype = track_cond.get("type", "None")
 
     if ctype == "Locked_at_j7_0":
-        return _solve_ik_locked_j7(robot, pose, 0.0)
+        return _solve_ik_locked_j7(robot, RDK, pose, 0.0)
 
     elif ctype == "Locked_at_j7_pt":
         j7_val = float(track_cond["j7_value"])
-        return _solve_ik_locked_j7(robot, pose, j7_val)
+        return _solve_ik_locked_j7(robot, RDK, pose, j7_val)
 
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
         # Try locked first, fall back to free if it fails
-        joints, ok = _solve_ik_locked_j7(robot, pose, j7_val)
+        joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val)
         if ok:
             return joints, True
         # Soft preference — accept free solution
@@ -257,7 +255,7 @@ def main():
                 # Get target's absolute pose (world space)
                 pose = target.PoseAbs()
 
-                joints, ok = solve_point(robot, pose, track_cond, name)
+                joints, ok = solve_point(robot, RDK, pose, track_cond, name)
 
                 ctype = track_cond.get("type", "None")
                 j7_info = ""
