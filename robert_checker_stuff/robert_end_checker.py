@@ -292,14 +292,29 @@ def main():
                 elif ctype == "Optimized_for_j7_at":
                     j7_info = f" j7=opt({track_cond['j7_value']})"
 
+                # FK verify: move to joints, read TCP in WorldFrame, measure error
+                import math
+                fk_err = None
+                if ok and len(joints) >= 6:
+                    robot.MoveJ(joints)
+                    achieved = robot.Pose()  # TCP in WorldFrame (since setPoseFrame)
+                    target_xyzrpw = Pose_2_TxyzRxyz(pose)
+                    achieved_xyzrpw = Pose_2_TxyzRxyz(achieved)
+                    fk_err = math.sqrt(sum((target_xyzrpw[i] - achieved_xyzrpw[i])**2 for i in range(3)))
+                    if fk_err > 50.0:
+                        ok = False  # reject — joints don't actually reach target
+                    robot.setJoints(HOME_SEED)
+
                 status = "OK" if ok else "FAIL"
                 j7_actual = f" j7_actual={joints[6]:.1f}" if ok and len(joints) > 6 else ""
-                print(f"  [{name}] {status}{j7_info}{j7_actual}")
+                err_str = f" err={fk_err:.1f}mm" if fk_err is not None else ""
+                print(f"  [{name}] {status}{j7_info}{j7_actual}{err_str}")
 
                 # Pause at Front_0_grab so user can verify position in RoboDK
-                if name == "Front_0_grab" and ok:
-                    robot.MoveJ(joints)
-                    input(f"    [PAUSE] Front_0_grab — verify position in RoboDK. Joints: {[round(j,2) for j in joints]}  Press Enter...")
+                if name == "Front_0_grab":
+                    if len(joints) >= 6:
+                        robot.MoveJ(joints)
+                    input(f"    [PAUSE] Front_0_grab — verify in RoboDK. err={fk_err}mm  Press Enter...")
                     robot.setJoints(HOME_SEED)
 
                 ee_results[name] = {
