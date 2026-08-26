@@ -22,11 +22,6 @@ sys.path.append("C:/RoboDK/Python")
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET
 from robodk.robomath import transl, invH, Mat, Pose_2_TxyzRxyz
 
-# Import proven z-axis-free solver from move_to_base_cone_grab.py
-REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-sys.path.insert(0, os.path.join(REPO_ROOT, "robodk_code"))
-from move_to_base_cone_grab import solve_ik_locked_j7 as _z_free_solve_locked_j7
-
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 HOME_SEED   = [0.0] * 7
@@ -102,10 +97,8 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     props["AbsJnt_7"] = j7_target
     robot.setParam("OptimAxes", props)
     robot.setJoints(HOME_SEED)
-    RDK.Render(False)
     try:
         robot.MoveJ(pose)
-        # Re-enable render BEFORE reading joints to ensure state is flushed
         RDK.Render(True)
         raw = robot.Joints()
         try:
@@ -113,6 +106,8 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
         except AttributeError:
             joints = list(raw)
         j7_actual = joints[6] if len(joints) > 6 else 0.0
+        # Pause so user can see position — joints recorded from actual robot state
+        input(f"    [PAUSE] Verify position visually. Joints: {[round(j,2) for j in joints]}  Press Enter...")
         robot.setJoints(HOME_SEED)
         if abs(j7_actual - j7_target) > J7_TOL_MM:
             return joints, False
@@ -123,48 +118,9 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
         return [], False
 
 
-Z_FREE_STEPS = 72  # 5 degree resolution for z-axis-free sweep
-
-
-def _solve_ik_z_axis_free_locked_j7(robot, pose, j7_target, label=""):
-    """Solve IK with z-axis rotation free + j7 locked.
-
-    Uses the proven solve_ik_locked_j7 from move_to_base_cone_grab.py which does:
-    Z-rotation sweep + rail shift trick + FK verification + closest-to-home selection.
-    """
-    tool_item = robot.getLink(ITEM_TYPE_TOOL)
-    tool_offset = tool_item.PoseTool() if tool_item.Valid() else Mat([
-        [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    preferred_j6 = HOME_SEED[:6]
-
-    best, best_dist, best_angle, n_reachable = _z_free_solve_locked_j7(
-        robot, pose, tool_offset, j7_target, pose, preferred_j6, Z_FREE_STEPS
-    )
-
-    if best is None and not hasattr(_solve_ik_z_axis_free_locked_j7, '_debug_done'):
-        _solve_ik_z_axis_free_locked_j7._debug_done = True
-        xyz = Pose_2_TxyzRxyz(pose)
-        tool_xyz = Pose_2_TxyzRxyz(tool_offset)
-        print(f"    [Z-FREE DEBUG] {label} FAILED — n_reachable={n_reachable}")
-        print(f"    [Z-FREE DEBUG] pose XYZ=({xyz[0]:.1f}, {xyz[1]:.1f}, {xyz[2]:.1f})")
-        print(f"    [Z-FREE DEBUG] tool name='{tool_item.Name() if tool_item.Valid() else 'None'}'")
-        print(f"    [Z-FREE DEBUG] tool offset XYZ=({tool_xyz[0]:.1f}, {tool_xyz[1]:.1f}, {tool_xyz[2]:.1f})")
-        print(f"    [Z-FREE DEBUG] j7_target={j7_target} FK_TOL_MM={FK_TOL_MM}")
-
-    if best is not None:
-        return best, True
-    return [], False
-
-
-def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False):
+def solve_point(robot, RDK, pose, track_cond, label):
     """Dispatch to the right IK solver based on special_track_conditions."""
     ctype = track_cond.get("type", "None")
-
-    if z_axis_free:
-        if ctype != "Locked_at_j7_0":
-            raise RuntimeError(
-                f"z_axis_free is only supported with Locked_at_j7_0, got '{ctype}' for '{label}'")
-        return _solve_ik_z_axis_free_locked_j7(robot, pose, 0.0, label)
 
     if ctype == "Locked_at_j7_0":
         return _solve_ik_locked_j7(robot, RDK, pose, 0.0)
@@ -175,24 +131,12 @@ def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False):
 
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
-        # Rail shift trick to bias j7, but accept even if j7 drifts (soft preference)
-        joints_free, ok = _solve_ik_free(robot, pose)
-        if not ok:
-            return [], False
-        j7_natural = joints_free[6] if len(joints_free) > 6 else 0.0
-        delta = j7_val - j7_natural
-        if abs(delta) < 1e-6:
-            return joints_free, True
-        shifted = transl(delta, 0, 0) * pose
-        result = robot.SolveIK(shifted)
-        try:
-            joints = result.list()
-        except AttributeError:
-            joints = list(result)
-        if len(joints) >= 6:
+        # Try locked first, fall back to free if it fails
+        joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val)
+        if ok:
             return joints, True
-        # Fallback to free solution
-        return joints_free, True
+        # Soft preference — accept free solution
+        return _solve_ik_free(robot, pose)
 
     else:  # "None"
         return _solve_ik_free(robot, pose)
@@ -255,12 +199,6 @@ def main():
     ap.add_argument("--robodk-ip", default=None, help="RoboDK IP (default: localhost then 172.23.208.1)")
     args = ap.parse_args()
 
-    # Delete old results so stale data can't be used by shower
-    for f in [RESULTS_PATH, REPORT_PATH]:
-        if os.path.exists(f):
-            os.remove(f)
-            print(f"[INFO] Deleted old {os.path.basename(f)}")
-
     config = load_config()
     end_effectors = config.get("end_effectors", [])
     if not end_effectors:
@@ -269,18 +207,6 @@ def main():
 
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
-
-    # Debug: what frame is the robot using?
-    cur_frame = robot.getLink(ITEM_TYPE_FRAME)
-    print(f"[DEBUG] Robot frame: '{cur_frame.Name() if cur_frame.Valid() else 'None'}'")
-    cur_tool = robot.getLink(ITEM_TYPE_TOOL)
-    print(f"[DEBUG] Robot tool: '{cur_tool.Name() if cur_tool.Valid() else 'None'}'")
-    jts = robot.Joints()
-    try:
-        jl = jts.list()
-    except:
-        jl = list(jts)
-    print(f"[DEBUG] Joints ({len(jl)}): {[round(j,1) for j in jl]}")
 
     # Do NOT call setPoseFrame — it can break the robot-rail connection.
     # SolveIK works with the robot's current frame setup.
@@ -330,8 +256,7 @@ def main():
                 # Get target's absolute pose (world space)
                 pose = target.PoseAbs()
 
-                z_free = pt.get("z_axis_free", False)
-                joints, ok = solve_point(robot, RDK, pose, track_cond, name, z_axis_free=z_free)
+                joints, ok = solve_point(robot, RDK, pose, track_cond, name)
 
                 ctype = track_cond.get("type", "None")
                 j7_info = ""
