@@ -20,7 +20,7 @@ import datetime
 sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET
-from robodk.robomath import transl, Mat, Pose_2_TxyzRxyz
+from robodk.robomath import transl, invH, Mat, Pose_2_TxyzRxyz
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
@@ -225,11 +225,16 @@ def main():
                     }
                     continue
 
+                # Get target pose in world space
                 pose = target.Pose()
-                # If target is under a frame, get its absolute pose
                 parent = target.Parent()
                 if parent.Valid() and parent.Name() != "WorldFrame":
                     pose = parent.PoseAbs() * pose
+
+                # SolveIK works in the robot's reference frame, not world.
+                # Convert world pose to robot-base-relative pose.
+                robot_base = robot.PoseAbs()
+                pose = invH(robot_base) * pose
 
                 joints, ok = solve_point(robot, pose, track_cond, name)
 
