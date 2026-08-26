@@ -90,34 +90,25 @@ _OPT_AXES_LOCKED = {
 class ZAxisFreeSolver:
     """Rotation sweep around target Z axis to find IK solutions.
 
-    Creates a parent frame 'DiscoveredWaypoints' in the RoboDK station on init.
-    Each call to solve() deletes and recreates it (clean slate), then sweeps N
-    rotations around the target's Z axis, attempting IK at each angle via
-    _solve_ik_locked_j7.
+    Creates a single 'DiscoveredWaypoints' frame on init. All discovered
+    waypoints accumulate under it across solve() calls for visual inspection.
     """
 
     def __init__(self, RDK):
         self.RDK = RDK
-        self._create_frames()
-
-    def _create_frames(self):
-        """Create DiscoveredWaypoints parent frame and temp child frame."""
-        station = self.RDK.ActiveStation()
-        self.parent_frame = self.RDK.AddFrame("DiscoveredWaypoints", station)
-        self.temp_frame = self.RDK.AddFrame("temp", self.parent_frame)
-
-    def _reset(self):
-        """Delete and recreate DiscoveredWaypoints (clean slate per solve)."""
-        if self.parent_frame.Valid():
-            self.parent_frame.Delete()
-        self._create_frames()
+        # Delete any leftover DiscoveredWaypoints from a previous run
+        old = RDK.Item("DiscoveredWaypoints", ITEM_TYPE_FRAME)
+        if old.Valid():
+            old.Delete()
+        station = RDK.ActiveStation()
+        self.parent_frame = RDK.AddFrame("DiscoveredWaypoints", station)
+        self.temp_frame = RDK.AddFrame("temp", self.parent_frame)
 
     def solve(self, robot, RDK, target_pose, j7_target, N=72, label=""):
         """Sweep N rotations around target Z axis, return first IK that works.
 
         Returns (joints_list, ok).
         """
-        self._reset()
 
         for i in range(N):
             angle_deg = 360.0 * i / N
@@ -158,11 +149,12 @@ class ZAxisFreeSolver:
         return [], False
 
 
-def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
+def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100, check_j7_tol=True):
     """Solve IK with j7 constrained using OptimAxes + MoveJ.
 
     j7_weight controls how strongly j7 is pinned:
       100 = hard lock, 50 = firm, 20 = moderate, 5 = soft preference
+    check_j7_tol: if True, reject solutions where j7 drifts > J7_TOL_MM from target
     """
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
@@ -178,8 +170,8 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
         except AttributeError:
             joints = list(raw)
         robot.setJoints(HOME_SEED)
-        # Reject if j7 drifted too far from target
-        if len(joints) >= 7 and abs(joints[6] - j7_target) > J7_TOL_MM:
+        # Reject if j7 drifted too far from target (only for hard locks)
+        if check_j7_tol and len(joints) >= 7 and abs(joints[6] - j7_target) > J7_TOL_MM:
             return [], False
         return joints, True
     except Exception:
@@ -210,10 +202,10 @@ def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False, z_solver
 
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
-        # Try with decreasing j7 weights, FK verify each
+        # Try with decreasing j7 weights, FK verify each (no j7 tolerance — soft preference)
         import math
         for w in [100, 50, 20, 5]:
-            joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val, j7_weight=w)
+            joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val, j7_weight=w, check_j7_tol=False)
             if ok and len(joints) >= 6:
                 robot.MoveJ(joints)
                 achieved = robot.Pose()

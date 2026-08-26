@@ -1,26 +1,23 @@
 ======================================================================
   REACHABILITY REPORT
   Robot: Fanuc R-2000iC/125L
-  Generated: 20260826_150159
+  Generated: 20260826_153036
 ======================================================================
 
-  End Effector: pickup  (11/12 reachable)
+  End Effector: pickup  (12/12 reachable)
   #    Name                                     Status j7 constraint              j7 actual
   -------------------------------------------------------------------------------------
-  0    Base_Right_0_grab                            OK locked(0)                        0.0
-  1    Base_Right_0_grab_approach                   OK locked(0)                        0.0
-  2    Base_Right_1_grab                            OK locked(0)                        0.0
-  3    Base_Right_1_grab_approach                   OK locked(0)                        0.0
-  4    Base_Right_2_grab                            OK locked(0)                        0.0
-  5    Base_Right_2_grab_approach                   OK locked(0)                        0.0
-  6    Base_Left_0_grab                             OK locked(0)                        0.0
-  7    Base_Left_0_grab_approach                    OK locked(0)                        0.0
-  8    Base_Left_1_grab                             OK locked(0)                        0.0
-  9    Base_Left_1_grab_approach                    OK locked(0)                        0.0
-  10   Base_Left_2_grab                             OK locked(0)                        0.0
-  11   Base_Left_2_grab_approach                  FAIL locked(0)                          -
-
-  UNREACHABLE (1):
-    - Base_Left_2_grab_approach: IK failed
+  0    Front_0_grab                                 OK opt(3600.0)                   3762.3
+  1    Front_0_grab_approach                        OK opt(3600.0)                   3815.7
+  2    Front_1_grab                                 OK opt(3600.0)                   3600.0
+  3    Front_1_grab_approach                        OK opt(3600.0)                   3600.0
+  4    Front_2_grab                                 OK opt(3600.0)                   3600.0
+  5    Front_2_grab_approach                        OK opt(3600.0)                   3600.0
+  6    Back_0_grab                                  OK opt(3600.0)                   3806.8
+  7    Back_0_grab_approach                         OK opt(3600.0)                   2841.6
+  8    Back_1_grab                                  OK opt(3600.0)                   3600.0
+  9    Back_1_grab_approach                         OK opt(3600.0)                   3600.0
+  10   Back_2_grab                                  OK opt(3600.0)                   3600.0
+  11   Back_2_grab_approach                         OK opt(3600.0)                   3600.0
 
 ======================================================================

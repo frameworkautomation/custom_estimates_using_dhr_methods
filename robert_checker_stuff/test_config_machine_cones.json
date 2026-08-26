@@ -1,0 +1,21 @@
+{
+  "end_effectors": [
+    {
+      "end_effector_name": "pickup",
+      "paths_and_points_to_check": [
+        {"name": "Front_0_grab", "type": "point", "name_path": "WaypointTargets/Front_0_grab", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Front_0_grab_approach", "type": "point", "name_path": "WaypointTargets/Front_0_grab_approach", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Front_1_grab", "type": "point", "name_path": "WaypointTargets/Front_1_grab", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Front_1_grab_approach", "type": "point", "name_path": "WaypointTargets/Front_1_grab_approach", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Front_2_grab", "type": "point", "name_path": "WaypointTargets/Front_2_grab", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Front_2_grab_approach", "type": "point", "name_path": "WaypointTargets/Front_2_grab_approach", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Back_0_grab", "type": "point", "name_path": "WaypointTargets/Back_0_grab", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Back_0_grab_approach", "type": "point", "name_path": "WaypointTargets/Back_0_grab_approach", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Back_1_grab", "type": "point", "name_path": "WaypointTargets/Back_1_grab", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Back_1_grab_approach", "type": "point", "name_path": "WaypointTargets/Back_1_grab_approach", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Back_2_grab", "type": "point", "name_path": "WaypointTargets/Back_2_grab", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}},
+        {"name": "Back_2_grab_approach", "type": "point", "name_path": "WaypointTargets/Back_2_grab_approach", "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}}
+      ]
+    }
+  ]
+}
