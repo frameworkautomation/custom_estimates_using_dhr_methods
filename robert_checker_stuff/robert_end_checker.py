@@ -96,22 +96,41 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
     robot.setParam("OptimAxes", props)
-    robot.setJoints(HOME_SEED)
-    try:
-        robot.MoveJ(pose)
-        raw = robot.Joints()
+    def _attempt(seed):
+        robot.setJoints(seed)
         try:
-            joints = raw.list()
-        except AttributeError:
-            joints = list(raw)
-        j7_actual = joints[6] if len(joints) > 6 else 0.0
-        robot.setJoints(HOME_SEED)
-        if abs(j7_actual - j7_target) > J7_TOL_MM:
-            return joints, False
-        return joints, True
-    except Exception:
-        robot.setJoints(HOME_SEED)
+            robot.MoveJ(pose)
+            raw = robot.Joints()
+            try:
+                jts = raw.list()
+            except AttributeError:
+                jts = list(raw)
+            robot.setJoints(HOME_SEED)
+            return jts
+        except Exception:
+            robot.setJoints(HOME_SEED)
+            return None
+
+    # First attempt from home
+    joints = _attempt(HOME_SEED)
+    if joints is None:
         return [], False
+    j7_actual = joints[6] if len(joints) > 6 else 0.0
+    if abs(j7_actual - j7_target) > J7_TOL_MM:
+        return joints, False
+
+    # Reject j4≈0 singularity (same principle as _avoid_zero_rail in dhr_robot.py)
+    if len(joints) > 3 and abs(joints[3]) < 5.0:
+        biased = list(HOME_SEED)
+        biased[3] = 30.0
+        biased[6] = j7_target
+        retry = _attempt(biased)
+        if retry is not None:
+            j7_r = retry[6] if len(retry) > 6 else 0.0
+            if abs(j7_r - j7_target) <= J7_TOL_MM and (len(retry) <= 3 or abs(retry[3]) >= 5.0):
+                return retry, True
+
+    return joints, True
 
 
 def solve_point(robot, RDK, pose, track_cond, label):
