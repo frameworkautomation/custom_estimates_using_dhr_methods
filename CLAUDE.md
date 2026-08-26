@@ -14,13 +14,8 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
-**TODO (priority):**
-- Fix cone grab point positions and orientations in grasshopper
-- Fix waypoint export in GH scripts so JSON output is correct
-
 **TODO (cutting):**
-- ~~Implement cutting points in the config JSON and GH export script~~ DONE
-- Implement L-moves for cutting sequence (approach→top→bottom→pull_away should
+- Implement linear moves for cutting sequence (approach→top→bottom→pull_away should
   use MoveL between top/bottom/pull_away, not MoveJ — deferred for now)
 - Implement cutting paths (`type: "path"`) — these are not just single IK checks
   but need to verify the tool can follow a cut trajectory
@@ -325,18 +320,15 @@ This reads the locally-cached HEAD ref without a network call. Requires that
 `git remote set-head origin --auto` was run at clone time (git clone does this by default).
 Fallback: if empty, try `git -C "$repo_dir" symbolic-ref refs/remotes/origin/HEAD`.
 
-## ── TODO (medium priority) ───────────────────────────────────────────────────
-
-- **[MEDIUM] Waypoint coloring in viewer** — currently all waypoints are green.
-  move_type (MoveJ/MoveL) belongs on edges, not waypoints. Decide what waypoint
-  color should represent (source: grasshopper/human, frame: world/robot_local,
-  collision status, or something else) and implement it. Update the legend accordingly.
-  Also decide whether edges should show move_type via color or line style.
-
 ## ── TODO (low priority) ───────────────────────────────────────────────────────
 
 - **[LOW] Move GhPython scripts** — currently in `ai_generated_grasshopper_python/`.
   Move to a cleaner location once workflow stabilises. Don't move until explicitly requested.
+
+- **[LOW] Explicit `tool_name:` per routing candidate in path_config.yaml** — relates to
+  the safe planning schema. Every routing candidate should carry an explicit `tool_name:`
+  field rather than relying on the global `default_tool:`. See detailed description earlier
+  in this file under the dedicated TODO section.
 
 - **[LOW] `save_joint_position.py` — series variant** — after single-point tool is tested,
   add a variant that accepts N waypoint names in sequence, lets user jog to each in RoboDK,
