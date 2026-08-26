@@ -343,6 +343,13 @@ Fallback: if empty, try `git -C "$repo_dir" symbolic-ref refs/remotes/origin/HEA
   and automatically creates bidirectional edges between consecutive points in `path_config.yaml`.
   Same `source: human` tag.
 
+- **[LOW] GH export script re-entry and trigger logic** — currently the RoboDK import
+  fires whenever the input hash changes (no trigger button required). Two changes needed:
+  1. Replace `update_and_amalgamate_waypoints` toggle with a single toggle that controls
+     ALL RoboDK interaction (brep import + amalgamate + waypoint import)
+  2. Require both the trigger button AND a hash change before running — hash change alone
+     should not fire the import
+
 ## Sub-optimal / known limitations (not blocking, but worth fixing later)
 
 ### `check_base_cone_reachability.py` approach-pose coupling
