@@ -65,104 +65,52 @@ def fmt_joints(joints):
 
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
-def _solve_ik(robot, pose, seed):
-    """Call robot.SolveIK with seed. Extract joints from the returned Mat.
+def _solve_ik(robot, pose):
+    """Call robot.SolveIK and return (joints_list, ok).
 
-    SolveIK(pose, seed) returns a Mat. The .list() method on some builds
-    returns [rows] instead of flat joints. Use .tolist() or row extraction
-    as fallback.
+    Copied from the proven pattern in check_collision_free_paths.py and
+    moving_a_cone.py. NO seed argument — setPoseFrame(world_frame) must
+    be called before this.
     """
-    sol = robot.SolveIK(pose, seed)
-
-    # Try multiple extraction methods
-    joints = None
-
-    # Method 1: .tolist() — some robodk versions
-    if joints is None:
-        try:
-            flat = sol.tolist()
-            if isinstance(flat, list) and len(flat) >= 6:
-                joints = flat
-        except:
-            pass
-
-    # Method 2: .list() — standard
-    if joints is None:
-        try:
-            flat = sol.list()
-            if isinstance(flat, list) and len(flat) >= 6:
-                joints = flat
-        except:
-            pass
-
-    # Method 3: .rows() iteration
-    if joints is None:
-        try:
-            flat = [sol[i, 0] for i in range(sol.size[0])]
-            if len(flat) >= 6:
-                joints = flat
-        except:
-            pass
-
-    # Method 4: numpy conversion
-    if joints is None:
-        try:
-            import numpy as np
-            arr = np.array(sol)
-            flat = arr.flatten().tolist()
-            if len(flat) >= 6:
-                joints = flat
-        except:
-            pass
-
-    # Method 5: iterate the Mat directly
-    if joints is None:
-        try:
-            flat = [float(v) for v in sol]
-            if len(flat) >= 6:
-                joints = flat
-        except:
-            pass
-
-    if joints is None or len(joints) < 6:
-        return list(seed), False
-    return joints, True
+    result = robot.SolveIK(pose)
+    try:
+        joints = result.list()
+    except AttributeError:
+        joints = list(result)
+    if len(joints) >= 6:
+        return joints, True
+    return [], False
 
 
 def solve_point(robot, pose, track_cond, label):
-    """Solve IK using SolveIK with appropriate j7 seed based on special_track_conditions.
+    """Solve IK using SolveIK (no seed). Check j7 constraints after the fact.
 
-    Does NOT use OptimAxes or MoveJ — avoids messing up robot-rail connection.
+    Uses the exact pattern from check_collision_free_paths.py.
+    setPoseFrame(world_frame) must be called before this.
     """
+    joints, ok = _solve_ik(robot, pose)
+    if not ok:
+        return [], False
+
     ctype = track_cond.get("type", "None")
-    seed = list(HOME_SEED)
 
     if ctype == "Locked_at_j7_0":
-        seed[6] = 0.0
-        joints, ok = _solve_ik(robot, pose, seed)
-        # Verify j7 is actually locked
-        if ok and len(joints) > 6 and abs(joints[6] - 0.0) > J7_TOL_MM:
+        if len(joints) > 6 and abs(joints[6] - 0.0) > J7_TOL_MM:
             return joints, False
-        return joints, ok
+        return joints, True
 
     elif ctype == "Locked_at_j7_pt":
         j7_val = float(track_cond["j7_value"])
-        seed[6] = j7_val
-        joints, ok = _solve_ik(robot, pose, seed)
-        if ok and len(joints) > 6 and abs(joints[6] - j7_val) > J7_TOL_MM:
+        if len(joints) > 6 and abs(joints[6] - j7_val) > J7_TOL_MM:
             return joints, False
-        return joints, ok
+        return joints, True
 
     elif ctype == "Optimized_for_j7_at":
-        j7_val = float(track_cond["j7_value"])
-        seed[6] = j7_val
-        joints, ok = _solve_ik(robot, pose, seed)
-        # Soft preference — don't fail if j7 drifts, just return what we got
-        return joints, ok
+        # Soft preference — don't fail if j7 drifts
+        return joints, True
 
-    else:  # "None" or unknown
-        joints, ok = _solve_ik(robot, pose, seed)
-        return joints, ok
+    else:  # "None"
+        return joints, True
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
