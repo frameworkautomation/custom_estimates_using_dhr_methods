@@ -174,12 +174,7 @@ def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False):
         return _solve_ik_locked_j7(robot, RDK, pose, j7_val)
 
     elif ctype == "Optimized_for_j7_at":
-        j7_val = float(track_cond["j7_value"])
-        # Try locked first, fall back to free if it fails
-        joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val)
-        if ok:
-            return joints, True
-        # Soft preference — accept free solution
+        # Use SolveIK (picks correct arm config) — OptimAxes gives rear config
         return _solve_ik_free(robot, pose)
 
     else:  # "None"
