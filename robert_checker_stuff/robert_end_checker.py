@@ -96,35 +96,22 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
     robot.setParam("OptimAxes", props)
-    def _try_solve(seed):
-        robot.setJoints(seed)
+    robot.setJoints(HOME_SEED)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
         try:
-            robot.MoveJ(pose)
-            raw = robot.Joints()
-            try:
-                joints = raw.list()
-            except AttributeError:
-                joints = list(raw)
-            j7_actual = joints[6] if len(joints) > 6 else 0.0
-            robot.setJoints(HOME_SEED)
-            if abs(j7_actual - j7_target) > J7_TOL_MM:
-                return joints, False
-            return joints, True
-        except Exception:
-            robot.setJoints(HOME_SEED)
-            return [], False
-
-    # First attempt from home seed
-    joints, ok = _try_solve(HOME_SEED)
-    if ok and len(joints) > 3 and abs(joints[3]) < 5.0:
-        # j4 near zero = wrist singularity — retry with j4 biased away from zero
-        biased_seed = list(HOME_SEED)
-        biased_seed[3] = 30.0
-        biased_seed[6] = j7_target
-        joints2, ok2 = _try_solve(biased_seed)
-        if ok2 and len(joints2) > 3 and abs(joints2[3]) > 5.0:
-            return joints2, True
-    return joints, ok
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        j7_actual = joints[6] if len(joints) > 6 else 0.0
+        robot.setJoints(HOME_SEED)
+        if abs(j7_actual - j7_target) > J7_TOL_MM:
+            return joints, False
+        return joints, True
+    except Exception:
+        robot.setJoints(HOME_SEED)
+        return [], False
 
 
 def solve_point(robot, RDK, pose, track_cond, label):
