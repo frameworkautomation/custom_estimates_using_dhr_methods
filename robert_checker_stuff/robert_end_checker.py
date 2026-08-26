@@ -184,6 +184,11 @@ def main():
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
+    # Set robot frame to WorldFrame so SolveIK works in world coordinates
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+
     all_results = {}
 
     try:
@@ -225,16 +230,8 @@ def main():
                     }
                     continue
 
-                # Get target pose in world space
-                pose = target.Pose()
-                parent = target.Parent()
-                if parent.Valid() and parent.Name() != "WorldFrame":
-                    pose = parent.PoseAbs() * pose
-
-                # SolveIK works in the robot's reference frame, not world.
-                # Convert world pose to robot-base-relative pose.
-                robot_base = robot.PoseAbs()
-                pose = invH(robot_base) * pose
+                # Get target's absolute pose (world space)
+                pose = target.PoseAbs()
 
                 joints, ok = solve_point(robot, pose, track_cond, name)
 
@@ -263,7 +260,8 @@ def main():
             all_results[ee_name] = ee_results
 
     finally:
-        pass  # SolveIK doesn't move the robot, nothing to reset
+        if saved_frame.Valid():
+            robot.setPoseFrame(saved_frame)
 
     # Save results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
