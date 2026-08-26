@@ -175,10 +175,23 @@ def main():
                 print(f"  Joints: {fmt_joints(joints)}")
 
                 try:
+                    # Find the RoboDK target to compare positions
+                    from robodk.robolink import ITEM_TYPE_TARGET
+                    target = RDK.Item(pname, ITEM_TYPE_TARGET)
+                    if target.Valid():
+                        tgt_xyz = Pose_2_TxyzRxyz(target.PoseAbs())
+                        print(f"  Target XYZ (PoseAbs): ({tgt_xyz[0]:.1f}, {tgt_xyz[1]:.1f}, {tgt_xyz[2]:.1f}) mm")
+
+                    print(f"  MoveJ type={type(joints).__name__} len={len(joints)}")
                     robot.MoveJ(joints)
-                    achieved = robot.Pose()
-                    xyzrpw = Pose_2_TxyzRxyz(achieved)
-                    print(f"  Achieved XYZ: ({xyzrpw[0]:.1f}, {xyzrpw[1]:.1f}, {xyzrpw[2]:.1f}) mm")
+                    # Read joints back to verify
+                    actual_joints = robot.Joints()
+                    try:
+                        aj = actual_joints.list()
+                    except:
+                        aj = list(actual_joints)
+                    print(f"  Joints after MoveJ: {fmt_joints(aj)}")
+                    print(f"  Joints match: {all(abs(joints[i] - aj[i]) < 0.01 for i in range(min(len(joints), len(aj))))}")
                 except Exception as e:
                     print(f"  [ERROR] MoveJ failed: {e}")
 
