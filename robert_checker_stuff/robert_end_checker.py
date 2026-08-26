@@ -211,7 +211,7 @@ def print_report(all_results, robot_name, timestamp):
             else:
                 j7_con = "free"
 
-            j7_act = f"{r['joints'][6]:.1f}" if r["reachable"] else "—"
+            j7_act = f"{r['joints'][6]:.1f}" if r["reachable"] and len(r.get('joints', [])) > 6 else "-"
             lines.append(f"  {i:<4} {name:<40} {status:>6} {j7_con:<25} {j7_act:>10}")
 
         # List failures separately
