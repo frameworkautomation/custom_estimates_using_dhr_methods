@@ -32,44 +32,7 @@ CONFIG_PATH = os.path.join(SCRIPT_DIR, "robert_end_checker_config.json")
 RESULTS_PATH = os.path.join(SCRIPT_DIR, "ik_results.json")
 REPORT_PATH  = os.path.join(SCRIPT_DIR, "reachability_report.txt")
 
-# OptimAxes — j7 locked to a specific value
-OPT_AXES_LOCKED_J7 = {
-    "AbsJnt_7": 0,
-    "AbsOn_7":  1,
-    "AbsW_7":   100,
-    "Algorithm": 3,
-    "MaxIter":  500,
-    "Tol":      0.001,
-    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
-    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
-    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
-    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
-}
-
-# OptimAxes — j7 free (no constraint)
-OPT_AXES_FREE_J7 = {
-    "Algorithm": 3,
-    "MaxIter":  500,
-    "Tol":      0.001,
-    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
-    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 0,
-    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
-    "RelW_5": 50, "RelW_6": 50,
-}
-
-# OptimAxes — j7 soft preference (optimize toward a value but don't enforce)
-OPT_AXES_OPTIMIZED_J7 = {
-    "AbsJnt_7": 0,
-    "AbsOn_7":  1,
-    "AbsW_7":   10,   # lower weight = soft preference, not hard lock
-    "Algorithm": 3,
-    "MaxIter":  500,
-    "Tol":      0.001,
-    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
-    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
-    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
-    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
-}
+NUM_JOINTS = 7  # 6 arm + 1 rail
 
 
 # ── CONNECT ──────────────────────────────────────────────────────────────────
@@ -102,83 +65,53 @@ def fmt_joints(joints):
 
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
-def _get_joints(robot):
-    raw = robot.Joints()
+def _solve_ik(robot, pose, seed):
+    """Call robot.SolveIK with a seed. Returns (joints_list, ok)."""
+    sol = robot.SolveIK(pose, seed)
     try:
-        return raw.list()
+        joints = sol.list()
     except AttributeError:
-        return list(raw)
-
-
-def solve_ik_locked_j7(robot, pose, j7_value, label):
-    """Solve IK with j7 hard-locked to j7_value."""
-    props = dict(OPT_AXES_LOCKED_J7)
-    props["AbsJnt_7"] = j7_value
-    robot.setParam("OptimAxes", props)
-    seed = list(HOME_SEED)
-    seed[6] = j7_value
-    robot.setJoints(seed)
-    try:
-        robot.MoveJ(pose)
-        joints = _get_joints(robot)
-        j7_actual = joints[6] if len(joints) > 6 else 0.0
-        robot.setJoints(HOME_SEED)
-        if abs(j7_actual - j7_value) > J7_TOL_MM:
-            return joints, False
-        return joints, True
-    except Exception:
-        joints = _get_joints(robot)
-        robot.setJoints(HOME_SEED)
+        joints = list(sol)
+    # SolveIK returns all-zeros on failure
+    if all(abs(j) < 1e-9 for j in joints):
         return joints, False
-
-
-def solve_ik_free_j7(robot, pose, label):
-    """Solve IK with j7 completely free."""
-    robot.setParam("OptimAxes", OPT_AXES_FREE_J7)
-    robot.setJoints(HOME_SEED)
-    try:
-        robot.MoveJ(pose)
-        joints = _get_joints(robot)
-        robot.setJoints(HOME_SEED)
-        return joints, True
-    except Exception:
-        joints = _get_joints(robot)
-        robot.setJoints(HOME_SEED)
-        return joints, False
-
-
-def solve_ik_optimized_j7(robot, pose, j7_value, label):
-    """Solve IK with j7 soft-optimized toward j7_value (not a hard constraint)."""
-    props = dict(OPT_AXES_OPTIMIZED_J7)
-    props["AbsJnt_7"] = j7_value
-    robot.setParam("OptimAxes", props)
-    seed = list(HOME_SEED)
-    seed[6] = j7_value
-    robot.setJoints(seed)
-    try:
-        robot.MoveJ(pose)
-        joints = _get_joints(robot)
-        robot.setJoints(HOME_SEED)
-        return joints, True
-    except Exception:
-        joints = _get_joints(robot)
-        robot.setJoints(HOME_SEED)
-        return joints, False
+    return joints, True
 
 
 def solve_point(robot, pose, track_cond, label):
-    """Dispatch to the right IK solver based on special_track_conditions."""
+    """Solve IK using SolveIK with appropriate j7 seed based on special_track_conditions.
+
+    Does NOT use OptimAxes or MoveJ — avoids messing up robot-rail connection.
+    """
     ctype = track_cond.get("type", "None")
+    seed = list(HOME_SEED)
+
     if ctype == "Locked_at_j7_0":
-        return solve_ik_locked_j7(robot, pose, 0.0, label)
+        seed[6] = 0.0
+        joints, ok = _solve_ik(robot, pose, seed)
+        # Verify j7 is actually locked
+        if ok and len(joints) > 6 and abs(joints[6] - 0.0) > J7_TOL_MM:
+            return joints, False
+        return joints, ok
+
     elif ctype == "Locked_at_j7_pt":
         j7_val = float(track_cond["j7_value"])
-        return solve_ik_locked_j7(robot, pose, j7_val, label)
+        seed[6] = j7_val
+        joints, ok = _solve_ik(robot, pose, seed)
+        if ok and len(joints) > 6 and abs(joints[6] - j7_val) > J7_TOL_MM:
+            return joints, False
+        return joints, ok
+
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
-        return solve_ik_optimized_j7(robot, pose, j7_val, label)
+        seed[6] = j7_val
+        joints, ok = _solve_ik(robot, pose, seed)
+        # Soft preference — don't fail if j7 drifts, just return what we got
+        return joints, ok
+
     else:  # "None" or unknown
-        return solve_ik_free_j7(robot, pose, label)
+        joints, ok = _solve_ik(robot, pose, seed)
+        return joints, ok
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -236,7 +169,6 @@ def load_config():
 def main():
     ap = argparse.ArgumentParser(description="Check reachability for end effectors from robert_end_checker_config.json")
     ap.add_argument("--robodk-ip", default=None, help="RoboDK IP (default: localhost then 172.23.208.1)")
-    ap.add_argument("--render", action="store_true", help="Show robot movement in RoboDK during solving")
     args = ap.parse_args()
 
     config = load_config()
@@ -247,12 +179,6 @@ def main():
 
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
-
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
-    robot.setPoseFrame(world_frame)
-    if not args.render:
-        RDK.Render(False)
 
     all_results = {}
 
@@ -328,10 +254,7 @@ def main():
             all_results[ee_name] = ee_results
 
     finally:
-        robot.setJoints(HOME_SEED)
-        if saved_frame.Valid():
-            robot.setPoseFrame(saved_frame)
-        RDK.Render(True)
+        pass  # SolveIK doesn't move the robot, nothing to reset
 
     # Save results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
