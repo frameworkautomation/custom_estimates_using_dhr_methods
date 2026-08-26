@@ -174,8 +174,25 @@ def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False):
         return _solve_ik_locked_j7(robot, RDK, pose, j7_val)
 
     elif ctype == "Optimized_for_j7_at":
-        # Use SolveIK (picks correct arm config) — OptimAxes gives rear config
-        return _solve_ik_free(robot, pose)
+        j7_val = float(track_cond["j7_value"])
+        # Rail shift trick to bias j7, but accept even if j7 drifts (soft preference)
+        joints_free, ok = _solve_ik_free(robot, pose)
+        if not ok:
+            return [], False
+        j7_natural = joints_free[6] if len(joints_free) > 6 else 0.0
+        delta = j7_val - j7_natural
+        if abs(delta) < 1e-6:
+            return joints_free, True
+        shifted = transl(delta, 0, 0) * pose
+        result = robot.SolveIK(shifted)
+        try:
+            joints = result.list()
+        except AttributeError:
+            joints = list(result)
+        if len(joints) >= 6:
+            return joints, True
+        # Fallback to free solution
+        return joints_free, True
 
     else:  # "None"
         return _solve_ik_free(robot, pose)
