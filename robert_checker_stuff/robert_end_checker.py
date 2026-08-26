@@ -179,10 +179,9 @@ def main():
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
-    # Set robot frame to WorldFrame so SolveIK works in world coordinates
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
-    robot.setPoseFrame(world_frame)
+    # Do NOT call setPoseFrame — it can break the robot-rail connection.
+    # SolveIK works with the robot's current frame setup.
+    # Just get the pose in absolute (world) coordinates via PoseAbs().
 
     all_results = {}
 
@@ -255,8 +254,7 @@ def main():
             all_results[ee_name] = ee_results
 
     finally:
-        if saved_frame.Valid():
-            robot.setPoseFrame(saved_frame)
+        pass
 
     # Save results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
