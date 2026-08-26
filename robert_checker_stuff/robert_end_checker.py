@@ -101,7 +101,10 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
     robot.setParam("OptimAxes", props)
-    robot.setJoints(HOME_SEED)
+    # Seed with j7 at the target so the solver starts close
+    seed = list(HOME_SEED)
+    seed[6] = j7_target
+    robot.setJoints(seed)
     RDK.Render(False)
     try:
         robot.MoveJ(pose)
@@ -111,13 +114,13 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
         except AttributeError:
             joints = list(raw)
         j7_actual = joints[6] if len(joints) > 6 else 0.0
-        robot.setJoints(HOME_SEED)
+        robot.setJoints(seed)
         RDK.Render(True)
         if abs(j7_actual - j7_target) > J7_TOL_MM:
             return joints, False
         return joints, True
     except Exception:
-        robot.setJoints(HOME_SEED)
+        robot.setJoints(seed)
         RDK.Render(True)
         return [], False
 
