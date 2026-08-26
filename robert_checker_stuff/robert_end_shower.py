@@ -88,9 +88,8 @@ def main():
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
-    robot.setPoseFrame(world_frame)
+    # Do NOT call setPoseFrame — it breaks the robot-rail connection in this station.
+    # MoveJ with joint values works regardless of frame setting.
 
     ee_names = list(ee_results.keys())
 
@@ -188,8 +187,6 @@ def main():
 
     finally:
         robot.setJoints(HOME_SEED)
-        if saved_frame.Valid():
-            robot.setPoseFrame(saved_frame)
 
 
 if __name__ == "__main__":
