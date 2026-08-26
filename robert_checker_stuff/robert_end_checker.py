@@ -237,6 +237,7 @@ def load_config():
 def main():
     ap = argparse.ArgumentParser(description="Check reachability for end effectors from robert_end_checker_config.json")
     ap.add_argument("--robodk-ip", default=None, help="RoboDK IP (default: localhost then 172.23.208.1)")
+    ap.add_argument("--render", action="store_true", help="Show robot movement in RoboDK during solving")
     args = ap.parse_args()
 
     config = load_config()
@@ -251,7 +252,8 @@ def main():
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
-    RDK.Render(False)
+    if not args.render:
+        RDK.Render(False)
 
     all_results = {}
 
