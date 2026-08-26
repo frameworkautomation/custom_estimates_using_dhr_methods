@@ -185,12 +185,19 @@ def main():
                     print(f"  MoveJ type={type(joints).__name__} len={len(joints)}")
                     robot.MoveJ(joints)
 
-                    # Read achieved TCP pose
-                    achieved_pose = robot.Pose()
-                    achieved_xyzrpw = Pose_2_TxyzRxyz(achieved_pose)
-                    print(f"  EE Pose (robot.Pose()):")
-                    print(f"    XYZ: ({achieved_xyzrpw[0]:.1f}, {achieved_xyzrpw[1]:.1f}, {achieved_xyzrpw[2]:.1f}) mm")
-                    print(f"    RPW: ({achieved_xyzrpw[3]:.2f}, {achieved_xyzrpw[4]:.2f}, {achieved_xyzrpw[5]:.2f}) deg")
+                    # Get EE world position via SolveFK
+                    fk_pose = robot.SolveFK(joints)
+                    # fk_pose is flange in world. Get tool offset and compute TCP world.
+                    from robodk.robolink import ITEM_TYPE_TOOL as _ITT
+                    tool_item = robot.getLink(_ITT)
+                    if tool_item.Valid():
+                        tcp_world = fk_pose * tool_item.PoseTool()
+                    else:
+                        tcp_world = fk_pose
+                    ee_xyzrpw = Pose_2_TxyzRxyz(tcp_world)
+                    print(f"  EE World (FK*Tool):")
+                    print(f"    XYZ: ({ee_xyzrpw[0]:.1f}, {ee_xyzrpw[1]:.1f}, {ee_xyzrpw[2]:.1f}) mm")
+                    print(f"    RPW: ({ee_xyzrpw[3]:.2f}, {ee_xyzrpw[4]:.2f}, {ee_xyzrpw[5]:.2f}) deg")
 
                     if target.Valid():
                         tgt_full = Pose_2_TxyzRxyz(target.PoseAbs())
@@ -198,7 +205,7 @@ def main():
                         print(f"    XYZ: ({tgt_full[0]:.1f}, {tgt_full[1]:.1f}, {tgt_full[2]:.1f}) mm")
                         print(f"    RPW: ({tgt_full[3]:.2f}, {tgt_full[4]:.2f}, {tgt_full[5]:.2f}) deg")
                         import math
-                        err = math.sqrt(sum((tgt_full[i] - achieved_xyzrpw[i])**2 for i in range(3)))
+                        err = math.sqrt(sum((tgt_full[i] - ee_xyzrpw[i])**2 for i in range(3)))
                         print(f"  Position error: {err:.1f} mm")
                 except Exception as e:
                     print(f"  [ERROR] MoveJ failed: {e}")
