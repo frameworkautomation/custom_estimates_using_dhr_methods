@@ -66,39 +66,22 @@ def fmt_joints(joints):
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
 def _solve_ik(robot, pose, seed):
-    """Call robot.SolveIK with a seed. Returns (joints_list, ok).
+    """Call robot.SolveIK (no seed arg — not reliable on all RoboDK builds).
 
-    SolveIK returns an empty matrix (0 rows) on failure, not all-zeros.
-    A valid solution with some joints at zero is still valid.
+    To bias toward a j7 position, call robot.setJoints(seed) before SolveIK.
+    SolveIK returns a Mat; use .list() to get flat joint values.
     """
-    sol = robot.SolveIK(pose, seed)
-    # sol is a Mat object. Try multiple ways to extract joints.
+    # Set seed via setJoints so SolveIK starts from this configuration
+    robot.setJoints(seed)
+    sol = robot.SolveIK(pose)
     try:
         joints = sol.list()
     except AttributeError:
         joints = list(sol)
-
-    # Debug: print what we got on first call only
-    if not hasattr(_solve_ik, '_debug_done'):
-        _solve_ik._debug_done = True
-        print(f"  [DEBUG] SolveIK returned: type={type(sol).__name__} len={len(sol)} list={joints}")
-        print(f"  [DEBUG] seed was: {seed}")
-        # Try alternate extraction
-        try:
-            rows = sol.rows
-            cols = sol.cols
-            print(f"  [DEBUG] Mat dimensions: {rows}x{cols}")
-        except:
-            pass
-        try:
-            import robodk.robomath as rm
-            flat = rm.Joints_2_List(sol)
-            print(f"  [DEBUG] Joints_2_List: {flat}")
-        except:
-            pass
-
-    # Empty or zero-length = no solution found
-    if len(joints) == 0:
+    # Restore home after solve
+    robot.setJoints(HOME_SEED)
+    # len(Mat) returns rows (1), not joint count — check list length instead
+    if len(joints) < 6:
         return list(seed), False
     return joints, True
 
