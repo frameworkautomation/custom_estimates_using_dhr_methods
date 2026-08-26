@@ -7,10 +7,10 @@
 #   approach_points        : flat list of Planes — cone approach planes (pre-computed in GH)
 #   string_grab_points     : flat list of Planes — string grab planes
 #   string_approach_points : flat list of Planes — string approach planes (pre-computed in GH)
-#   cut_approach_points    : flat list of Planes — cut approach planes
-#   cut_top_points         : flat list of Planes — cut top planes
-#   cut_bottom_points      : flat list of Planes — cut bottom planes
-#   cut_pull_away_points   : flat list of Planes — cut pull away planes
+#   cut_approach_planes    : flat list of Planes — cut approach planes
+#   cut_top_planes         : flat list of Planes — cut top planes
+#   cut_bottom_planes      : flat list of Planes — cut bottom planes
+#   cut_pull_away_planes   : flat list of Planes — cut pull away planes
 #   strings                : geometry (flat list)
 #   names                  : flat list of str — one name per cone; used for RoboDK items and YAML (optional, defaults to "cone_0", "cone_1", ...)
 #   cone_color             : Colour (optional, default red)
@@ -58,24 +58,24 @@ except NameError:
     string_approach_points = None
 
 try:
-    cut_approach_points
+    cut_approach_planes
 except NameError:
-    cut_approach_points = None
+    cut_approach_planes = None
 
 try:
-    cut_top_points
+    cut_top_planes
 except NameError:
-    cut_top_points = None
+    cut_top_planes = None
 
 try:
-    cut_bottom_points
+    cut_bottom_planes
 except NameError:
-    cut_bottom_points = None
+    cut_bottom_planes = None
 
 try:
-    cut_pull_away_points
+    cut_pull_away_planes
 except NameError:
-    cut_pull_away_points = None
+    cut_pull_away_planes = None
 
 try:
     names
@@ -287,10 +287,10 @@ cone_grab_planes       = [resolve_plane(p) for p in flatten_input(grab_points)]
 cone_approach_planes   = [resolve_plane(p) for p in flatten_input(approach_points)] if approach_points is not None else []
 str_grab_planes        = [resolve_plane(p) for p in flatten_input(string_grab_points)]
 str_approach_planes    = [resolve_plane(p) for p in flatten_input(string_approach_points)] if string_approach_points is not None else []
-cut_approach_planes    = [resolve_plane(p) for p in flatten_input(cut_approach_points)] if cut_approach_points is not None else []
-cut_top_planes         = [resolve_plane(p) for p in flatten_input(cut_top_points)] if cut_top_points is not None else []
-cut_bottom_planes      = [resolve_plane(p) for p in flatten_input(cut_bottom_points)] if cut_bottom_points is not None else []
-cut_pull_away_planes   = [resolve_plane(p) for p in flatten_input(cut_pull_away_points)] if cut_pull_away_points is not None else []
+cut_approach_planes    = [resolve_plane(p) for p in flatten_input(cut_approach_planes)] if cut_approach_planes is not None else []
+cut_top_planes         = [resolve_plane(p) for p in flatten_input(cut_top_planes)] if cut_top_planes is not None else []
+cut_bottom_planes      = [resolve_plane(p) for p in flatten_input(cut_bottom_planes)] if cut_bottom_planes is not None else []
+cut_pull_away_planes   = [resolve_plane(p) for p in flatten_input(cut_pull_away_planes)] if cut_pull_away_planes is not None else []
 
 num_cones = len(cone_branches)
 print(f"num_cones={num_cones}  cone_grabs={len(cone_grab_planes)}  cone_approaches={len(cone_approach_planes)}")
