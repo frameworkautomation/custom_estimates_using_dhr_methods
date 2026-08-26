@@ -97,41 +97,20 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
     props["AbsJnt_7"] = j7_target
     props["AbsW_7"] = j7_weight
     robot.setParam("OptimAxes", props)
-    def _attempt(seed):
-        robot.setJoints(seed)
+
+    robot.setJoints(HOME_SEED)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
         try:
-            robot.MoveJ(pose)
-            raw = robot.Joints()
-            try:
-                jts = raw.list()
-            except AttributeError:
-                jts = list(raw)
-            robot.setJoints(HOME_SEED)
-            return jts
-        except Exception:
-            robot.setJoints(HOME_SEED)
-            return None
-
-    # First attempt from home
-    joints = _attempt(HOME_SEED)
-    if joints is None:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        robot.setJoints(HOME_SEED)
+        return joints, True
+    except Exception:
+        robot.setJoints(HOME_SEED)
         return [], False
-    j7_actual = joints[6] if len(joints) > 6 else 0.0
-    if abs(j7_actual - j7_target) > J7_TOL_MM:
-        return joints, False
-
-    # Reject j4≈0 singularity (same principle as _avoid_zero_rail in dhr_robot.py)
-    if len(joints) > 3 and abs(joints[3]) < 5.0:
-        biased = list(HOME_SEED)
-        biased[3] = 30.0
-        biased[6] = j7_target
-        retry = _attempt(biased)
-        if retry is not None:
-            j7_r = retry[6] if len(retry) > 6 else 0.0
-            if abs(j7_r - j7_target) <= J7_TOL_MM and (len(retry) <= 3 or abs(retry[3]) >= 5.0):
-                return retry, True
-
-    return joints, True
 
 
 def solve_point(robot, RDK, pose, track_cond, label):
@@ -311,13 +290,6 @@ def main():
                 j7_actual = f" j7_actual={joints[6]:.1f}" if ok and len(joints) > 6 else ""
                 err_str = f" err={fk_err:.1f}mm" if fk_err is not None else ""
                 print(f"  [{name}] {status}{j7_info}{j7_actual}{err_str}")
-
-                # Pause at Front_0_grab so user can verify position in RoboDK
-                if name == "Front_0_grab":
-                    if len(joints) >= 6:
-                        robot.MoveJ(joints)
-                    input(f"    [PAUSE] Front_0_grab — verify in RoboDK. err={fk_err}mm  Press Enter...")
-                    robot.setJoints(HOME_SEED)
 
                 ee_results[name] = {
                     "reachable": ok,
