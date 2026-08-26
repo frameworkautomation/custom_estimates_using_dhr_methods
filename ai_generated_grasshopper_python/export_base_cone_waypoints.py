@@ -499,6 +499,7 @@ if trigger:
             "type": "point",
             "name_path": f"WaypointTargets/{grab_name}",
             "source_script": SOURCE_SCRIPT,
+            "z_axis_free": True,
             "special_track_conditions": {"type": "Locked_at_j7_0"}
         })
         ap = cone_approach_planes_raw[i] if i < len(cone_approach_planes_raw) else None
@@ -508,6 +509,7 @@ if trigger:
                 "type": "point",
                 "name_path": f"WaypointTargets/{approach_name}",
                 "source_script": SOURCE_SCRIPT,
+                "z_axis_free": True,
                 "special_track_conditions": {"type": "Locked_at_j7_0"}
             })
 
@@ -523,6 +525,7 @@ if trigger:
             "type": "point",
             "name_path": f"WaypointTargets/{grab_name}",
             "source_script": SOURCE_SCRIPT,
+            "z_axis_free": True,
             "special_track_conditions": {"type": "Locked_at_j7_0"}
         })
         ap = str_approach_planes_raw[i] if i < len(str_approach_planes_raw) else None
@@ -532,6 +535,7 @@ if trigger:
                 "type": "point",
                 "name_path": f"WaypointTargets/{approach_name}",
                 "source_script": SOURCE_SCRIPT,
+                "z_axis_free": True,
                 "special_track_conditions": {"type": "Locked_at_j7_0"}
             })
 

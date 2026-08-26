@@ -94,6 +94,9 @@ If the test fails, the IK solver code is broken. Do not commit.
 - **name** — identifier for this check
 - **type** — `"point"` or `"path"` (path not implemented yet, point only for now)
 - **name_path** — location in the RoboDK station tree (how to find the item)
+- **z_axis_free** — `true`/`false` (optional, default false). When true, uses Z-rotation
+  sweep from `move_to_base_cone_grab.py` to find IK with free rotation around target Z axis.
+  Currently only supported with `Locked_at_j7_0` — errors on other track conditions.
 - **special_track_conditions** — how to handle j7 during IK solve:
   - `type: "None"` — free j7, let solver pick whatever
   - `type: "Locked_at_j7_0"` — lock j7 to 0 when solving
