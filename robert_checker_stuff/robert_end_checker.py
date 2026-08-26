@@ -66,15 +66,19 @@ def fmt_joints(joints):
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
 def _solve_ik(robot, pose, seed):
-    """Call robot.SolveIK with a seed. Returns (joints_list, ok)."""
+    """Call robot.SolveIK with a seed. Returns (joints_list, ok).
+
+    SolveIK returns an empty matrix (0 rows) on failure, not all-zeros.
+    A valid solution with some joints at zero is still valid.
+    """
     sol = robot.SolveIK(pose, seed)
     try:
         joints = sol.list()
     except AttributeError:
         joints = list(sol)
-    # SolveIK returns all-zeros on failure
-    if all(abs(j) < 1e-9 for j in joints):
-        return joints, False
+    # Empty or zero-length = no solution found
+    if len(joints) == 0:
+        return list(seed), False
     return joints, True
 
 
