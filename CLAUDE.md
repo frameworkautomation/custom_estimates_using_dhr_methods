@@ -20,6 +20,23 @@
 - Implement cutting paths (`type: "path"`) — these are not just single IK checks
   but need to verify the tool can follow a cut trajectory
 
+## ── robert_checker_stuff testing protocol ─────────────────────────────────────
+
+**Test script:** `robert_checker_stuff/test_ik_mini.py`
+**Test config:** `robert_checker_stuff/test_config.json`
+
+Before committing any IK solver changes to `robert_end_checker.py`, run the mini
+test script. It uses a minimal config with just 2 points:
+- `Base_Right_0_grab` (pickup tool, Locked_at_j7_0) — base cone, should be reachable
+- `Front_0_grab` (pickup tool, Optimized_for_j7_at 3600) — machine cone, should be reachable
+
+**Both must return `reachable: true`** with non-zero joint values (not all zeros).
+The test reads the output JSON and verifies this automatically.
+
+Run: `python robert_checker_stuff/test_ik_mini.py --robodk-ip 172.23.208.1`
+
+If the test fails, the IK solver code is broken. Do not commit.
+
 ## ── robert_checker_stuff architecture ────────────────────────────────────────
 
 **Folder:** `robert_checker_stuff/`

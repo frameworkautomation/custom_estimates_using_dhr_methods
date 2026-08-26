@@ -1,0 +1,23 @@
+{
+  "end_effectors": [
+    {
+      "end_effector_name": "pickup",
+      "paths_and_points_to_check": [
+        {
+          "name": "Base_Right_0_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Base_Right_0_grab",
+          "source_script": "test",
+          "special_track_conditions": {"type": "Locked_at_j7_0"}
+        },
+        {
+          "name": "Front_0_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/Front_0_grab",
+          "source_script": "test",
+          "special_track_conditions": {"type": "Optimized_for_j7_at", "j7_value": 3600.0}
+        }
+      ]
+    }
+  ]
+}
