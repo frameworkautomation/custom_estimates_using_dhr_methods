@@ -100,14 +100,14 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     try:
         robot.MoveJ(pose)
         RDK.Render(True)
+        import time
+        time.sleep(0.5)  # let RoboDK settle
         raw = robot.Joints()
         try:
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
         j7_actual = joints[6] if len(joints) > 6 else 0.0
-        # Pause so user can see position — joints recorded from actual robot state
-        input(f"    [PAUSE] Verify position visually. Joints: {[round(j,2) for j in joints]}  Press Enter...")
         robot.setJoints(HOME_SEED)
         if abs(j7_actual - j7_target) > J7_TOL_MM:
             return joints, False
