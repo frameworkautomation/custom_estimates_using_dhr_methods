@@ -148,7 +148,7 @@ def main():
                     elif ctype == "Optimized_for_j7_at":
                         j7_info = f" j7=opt({tc.get('j7_value', '?')})"
                     j7_actual = ""
-                    if reachable:
+                    if reachable and len(pr.get('joints', [])) > 6:
                         j7_actual = f" j7_actual={pr['joints'][6]:.1f}"
                     print(f"  ({i:>3}) [{status:>4}] {pname}{j7_info}{j7_actual}")
 
@@ -167,13 +167,12 @@ def main():
                 pname = point_names[pt_idx]
                 pr = points[pname]
 
+                joints = pr["joints"]
                 if not pr.get("reachable"):
                     err = pr.get("error", "IK failed")
-                    print(f"\n  [ERROR] '{pname}' is not reachable: {err}")
-                    continue
-
-                joints = pr["joints"]
-                print(f"\n  Moving to: {pname}")
+                    print(f"\n  [WARN] '{pname}' is not reachable ({err}) — moving as close as possible")
+                else:
+                    print(f"\n  Moving to: {pname}")
                 print(f"  Joints: {fmt_joints(joints)}")
 
                 try:
