@@ -100,8 +100,6 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
     try:
         robot.MoveJ(pose)
         RDK.Render(True)
-        import time
-        time.sleep(0.5)  # let RoboDK settle
         raw = robot.Joints()
         try:
             joints = raw.list()
