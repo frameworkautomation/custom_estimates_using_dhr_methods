@@ -102,6 +102,14 @@ def fmt_joints(joints):
 
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
+def _get_joints(robot):
+    raw = robot.Joints()
+    try:
+        return raw.list()
+    except AttributeError:
+        return list(raw)
+
+
 def solve_ik_locked_j7(robot, pose, j7_value, label):
     """Solve IK with j7 hard-locked to j7_value."""
     props = dict(OPT_AXES_LOCKED_J7)
@@ -112,19 +120,16 @@ def solve_ik_locked_j7(robot, pose, j7_value, label):
     robot.setJoints(seed)
     try:
         robot.MoveJ(pose)
-        raw = robot.Joints()
-        try:
-            joints = raw.list()
-        except AttributeError:
-            joints = list(raw)
-        j7_actual = joints[6]
+        joints = _get_joints(robot)
+        j7_actual = joints[6] if len(joints) > 6 else 0.0
         robot.setJoints(HOME_SEED)
         if abs(j7_actual - j7_value) > J7_TOL_MM:
-            return [0.0] * 7, False
+            return joints, False
         return joints, True
     except Exception:
+        joints = _get_joints(robot)
         robot.setJoints(HOME_SEED)
-        return [0.0] * 7, False
+        return joints, False
 
 
 def solve_ik_free_j7(robot, pose, label):
@@ -133,16 +138,13 @@ def solve_ik_free_j7(robot, pose, label):
     robot.setJoints(HOME_SEED)
     try:
         robot.MoveJ(pose)
-        raw = robot.Joints()
-        try:
-            joints = raw.list()
-        except AttributeError:
-            joints = list(raw)
+        joints = _get_joints(robot)
         robot.setJoints(HOME_SEED)
         return joints, True
     except Exception:
+        joints = _get_joints(robot)
         robot.setJoints(HOME_SEED)
-        return [0.0] * 7, False
+        return joints, False
 
 
 def solve_ik_optimized_j7(robot, pose, j7_value, label):
@@ -155,16 +157,13 @@ def solve_ik_optimized_j7(robot, pose, j7_value, label):
     robot.setJoints(seed)
     try:
         robot.MoveJ(pose)
-        raw = robot.Joints()
-        try:
-            joints = raw.list()
-        except AttributeError:
-            joints = list(raw)
+        joints = _get_joints(robot)
         robot.setJoints(HOME_SEED)
         return joints, True
     except Exception:
+        joints = _get_joints(robot)
         robot.setJoints(HOME_SEED)
-        return [0.0] * 7, False
+        return joints, False
 
 
 def solve_point(robot, pose, track_cond, label):
