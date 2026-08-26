@@ -22,11 +22,6 @@ sys.path.append("C:/RoboDK/Python")
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET
 from robodk.robomath import transl, invH, Mat, Pose_2_TxyzRxyz
 
-# Import proven z-axis-free solver
-REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-sys.path.insert(0, os.path.join(REPO_ROOT, "robodk_code"))
-from move_to_base_cone_grab import solve_ik_locked_j7 as _z_free_solve_locked_j7
-
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 HOME_SEED   = [0.0] * 7
@@ -111,47 +106,16 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-        j7_actual = joints[6] if len(joints) > 6 else 0.0
         robot.setJoints(HOME_SEED)
-        if abs(j7_actual - j7_target) > J7_TOL_MM:
-            return joints, False
         return joints, True
     except Exception:
         robot.setJoints(HOME_SEED)
         return [], False
 
 
-Z_FREE_STEPS = 72  # 5 degree resolution
-
-
-def _solve_ik_z_axis_free_locked_j7(robot, pose, j7_target):
-    """Z-rotation sweep + rail shift + FK verify from move_to_base_cone_grab.py.
-
-    j7 is checked inside the proven function (J7_TOL_MM=0.05mm).
-    """
-    tool_item = robot.getLink(ITEM_TYPE_TOOL)
-    tool_offset = tool_item.PoseTool() if tool_item.Valid() else Mat([
-        [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    preferred_j6 = HOME_SEED[:6]
-
-    best, best_dist, best_angle, n_reachable = _z_free_solve_locked_j7(
-        robot, pose, tool_offset, j7_target, pose, preferred_j6, Z_FREE_STEPS
-    )
-
-    if best is not None:
-        return best, True
-    return [], False
-
-
-def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False):
+def solve_point(robot, RDK, pose, track_cond, label):
     """Dispatch to the right IK solver based on special_track_conditions."""
     ctype = track_cond.get("type", "None")
-
-    if z_axis_free:
-        if ctype != "Locked_at_j7_0":
-            raise RuntimeError(
-                f"z_axis_free only supported with Locked_at_j7_0, got '{ctype}' for '{label}'")
-        return _solve_ik_z_axis_free_locked_j7(robot, pose, 0.0)
 
     if ctype == "Locked_at_j7_0":
         return _solve_ik_locked_j7(robot, RDK, pose, 0.0)
@@ -306,8 +270,7 @@ def main():
                 # Get target's absolute pose (world space)
                 pose = target.PoseAbs()
 
-                z_free = pt.get("z_axis_free", False)
-                joints, ok = solve_point(robot, RDK, pose, track_cond, name, z_axis_free=z_free)
+                joints, ok = solve_point(robot, RDK, pose, track_cond, name)
 
                 ctype = track_cond.get("type", "None")
                 j7_info = ""
