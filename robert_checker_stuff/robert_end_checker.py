@@ -204,9 +204,19 @@ def main():
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
-    # Do NOT call setPoseFrame — it can break the robot-rail connection.
-    # SolveIK works with the robot's current frame setup.
-    # Just get the pose in absolute (world) coordinates via PoseAbs().
+    # Ensure WorldFrame exists (create if missing) and set it as robot frame.
+    # This is required for MoveJ(pose) to interpret PoseAbs() correctly.
+    # Both check_base_cone_reachability.py and moving_a_cone.py do this.
+    from robodk.robomath import eye
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    if not world_frame.Valid():
+        print("[INFO] Creating WorldFrame (not found in station)")
+        station = RDK.ActiveStation()
+        world_frame = RDK.AddFrame("WorldFrame", station)
+        world_frame.setPose(eye(4))
+    saved_frame = robot.getLink(ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+    print(f"[INFO] Robot frame set to WorldFrame")
 
     all_results = {}
 
@@ -267,6 +277,12 @@ def main():
                 j7_actual = f" j7_actual={joints[6]:.1f}" if ok and len(joints) > 6 else ""
                 print(f"  [{name}] {status}{j7_info}{j7_actual}")
 
+                # Pause at Front_0_grab so user can verify position in RoboDK
+                if name == "Front_0_grab" and ok:
+                    robot.MoveJ(joints)
+                    input(f"    [PAUSE] Front_0_grab — verify position in RoboDK. Joints: {[round(j,2) for j in joints]}  Press Enter...")
+                    robot.setJoints(HOME_SEED)
+
                 ee_results[name] = {
                     "reachable": ok,
                     "joints": [float(v) for v in joints],
@@ -279,7 +295,8 @@ def main():
             all_results[ee_name] = ee_results
 
     finally:
-        pass
+        if saved_frame.Valid():
+            robot.setPoseFrame(saved_frame)
 
     # Save results
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
