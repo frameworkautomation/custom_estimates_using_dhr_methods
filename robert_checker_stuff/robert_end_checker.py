@@ -126,11 +126,19 @@ def solve_point(robot, RDK, pose, track_cond, label):
 
     elif ctype == "Optimized_for_j7_at":
         j7_val = float(track_cond["j7_value"])
-        # Try with decreasing j7 weights until one works
+        # Try with decreasing j7 weights, FK verify each
+        import math
         for w in [100, 50, 20, 5]:
             joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_val, j7_weight=w)
-            if ok:
-                return joints, True
+            if ok and len(joints) >= 6:
+                robot.MoveJ(joints)
+                achieved = robot.Pose()
+                t = Pose_2_TxyzRxyz(pose)
+                a = Pose_2_TxyzRxyz(achieved)
+                err = math.sqrt(sum((t[i] - a[i])**2 for i in range(3)))
+                robot.setJoints(HOME_SEED)
+                if err <= 50.0:
+                    return joints, True
         # Last resort — completely free
         return _solve_ik_free(robot, pose)
 
