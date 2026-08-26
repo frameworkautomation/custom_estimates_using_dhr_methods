@@ -66,22 +66,65 @@ def fmt_joints(joints):
 # ── IK SOLVERS ───────────────────────────────────────────────────────────────
 
 def _solve_ik(robot, pose, seed):
-    """Call robot.SolveIK (no seed arg — not reliable on all RoboDK builds).
+    """Call robot.SolveIK with seed. Extract joints from the returned Mat.
 
-    To bias toward a j7 position, call robot.setJoints(seed) before SolveIK.
-    SolveIK returns a Mat; use .list() to get flat joint values.
+    SolveIK(pose, seed) returns a Mat. The .list() method on some builds
+    returns [rows] instead of flat joints. Use .tolist() or row extraction
+    as fallback.
     """
-    # Set seed via setJoints so SolveIK starts from this configuration
-    robot.setJoints(seed)
-    sol = robot.SolveIK(pose)
-    try:
-        joints = sol.list()
-    except AttributeError:
-        joints = list(sol)
-    # Restore home after solve
-    robot.setJoints(HOME_SEED)
-    # len(Mat) returns rows (1), not joint count — check list length instead
-    if len(joints) < 6:
+    sol = robot.SolveIK(pose, seed)
+
+    # Try multiple extraction methods
+    joints = None
+
+    # Method 1: .tolist() — some robodk versions
+    if joints is None:
+        try:
+            flat = sol.tolist()
+            if isinstance(flat, list) and len(flat) >= 6:
+                joints = flat
+        except:
+            pass
+
+    # Method 2: .list() — standard
+    if joints is None:
+        try:
+            flat = sol.list()
+            if isinstance(flat, list) and len(flat) >= 6:
+                joints = flat
+        except:
+            pass
+
+    # Method 3: .rows() iteration
+    if joints is None:
+        try:
+            flat = [sol[i, 0] for i in range(sol.size[0])]
+            if len(flat) >= 6:
+                joints = flat
+        except:
+            pass
+
+    # Method 4: numpy conversion
+    if joints is None:
+        try:
+            import numpy as np
+            arr = np.array(sol)
+            flat = arr.flatten().tolist()
+            if len(flat) >= 6:
+                joints = flat
+        except:
+            pass
+
+    # Method 5: iterate the Mat directly
+    if joints is None:
+        try:
+            flat = [float(v) for v in sol]
+            if len(flat) >= 6:
+                joints = flat
+        except:
+            pass
+
+    if joints is None or len(joints) < 6:
         return list(seed), False
     return joints, True
 
