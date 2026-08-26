@@ -20,7 +20,7 @@ import datetime
 sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET
-from robodk.robomath import transl, invH, Mat, Pose_2_TxyzRxyz
+from robodk.robomath import transl, invH, Mat, Pose_2_TxyzRxyz, rotx, roty, rotz
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
@@ -87,6 +87,77 @@ _OPT_AXES_LOCKED = {
 }
 
 
+class ZAxisFreeSolver:
+    """Rotation sweep around target Z axis to find IK solutions.
+
+    Creates a parent frame 'DiscoveredWaypoints' in the RoboDK station on init.
+    Each call to solve() deletes and recreates it (clean slate), then sweeps N
+    rotations around the target's Z axis, attempting IK at each angle via
+    _solve_ik_locked_j7.
+    """
+
+    def __init__(self, RDK):
+        self.RDK = RDK
+        self._create_frames()
+
+    def _create_frames(self):
+        """Create DiscoveredWaypoints parent frame and temp child frame."""
+        station = self.RDK.ActiveStation()
+        self.parent_frame = self.RDK.AddFrame("DiscoveredWaypoints", station)
+        self.temp_frame = self.RDK.AddFrame("temp", self.parent_frame)
+
+    def _reset(self):
+        """Delete and recreate DiscoveredWaypoints (clean slate per solve)."""
+        if self.parent_frame.Valid():
+            self.parent_frame.Delete()
+        self._create_frames()
+
+    def solve(self, robot, RDK, target_pose, j7_target, N=72, label=""):
+        """Sweep N rotations around target Z axis, return first IK that works.
+
+        Returns (joints_list, ok).
+        """
+        self._reset()
+
+        for i in range(N):
+            angle_deg = 360.0 * i / N
+            angle_rad = angle_deg * math.pi / 180.0
+
+            # Rotate the target pose around its own Z axis
+            rz_mat = rotz(angle_rad)
+            rotated_pose = target_pose * rz_mat
+
+            # Set temp frame pose to the rotated pose
+            self.temp_frame.setPose(rotated_pose)
+
+            # Attempt IK
+            joints, ok = _solve_ik_locked_j7(robot, RDK, rotated_pose, j7_target)
+            if not ok or len(joints) < 6:
+                continue
+
+            # FK verification
+            robot.MoveJ(joints)
+            achieved = robot.Pose()
+            t = Pose_2_TxyzRxyz(rotated_pose)
+            a = Pose_2_TxyzRxyz(achieved)
+            fk_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
+            robot.setJoints(HOME_SEED)
+
+            if fk_err > 50.0:
+                continue
+
+            # Success — create a visual waypoint frame for inspection
+            wp_name = f"discovered_waypoint_{label}" if label else f"discovered_waypoint_{i}"
+            wp_frame = RDK.AddFrame(wp_name, self.parent_frame)
+            wp_frame.setPose(rotated_pose)
+
+            print(f"    [z_axis_free] Found solution at {angle_deg:.1f} deg (err={fk_err:.1f}mm)")
+            return joints, True
+
+        print(f"    [z_axis_free] No solution found after {N} angles")
+        return [], False
+
+
 def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
     """Solve IK with j7 constrained using OptimAxes + MoveJ.
 
@@ -107,15 +178,28 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100):
         except AttributeError:
             joints = list(raw)
         robot.setJoints(HOME_SEED)
+        # Reject if j7 drifted too far from target
+        if len(joints) >= 7 and abs(joints[6] - j7_target) > J7_TOL_MM:
+            return [], False
         return joints, True
     except Exception:
         robot.setJoints(HOME_SEED)
         return [], False
 
 
-def solve_point(robot, RDK, pose, track_cond, label):
+def solve_point(robot, RDK, pose, track_cond, label, z_axis_free=False, z_solver=None):
     """Dispatch to the right IK solver based on special_track_conditions."""
     ctype = track_cond.get("type", "None")
+
+    if z_axis_free:
+        if ctype not in ("Locked_at_j7_0", "Locked_at_j7_pt"):
+            raise ValueError(
+                f"z_axis_free only supported with Locked_at_j7_0 or Locked_at_j7_pt, got '{ctype}'"
+            )
+        if z_solver is None:
+            raise ValueError("z_axis_free=True but no ZAxisFreeSolver instance provided")
+        j7_val = 0.0 if ctype == "Locked_at_j7_0" else float(track_cond["j7_value"])
+        return z_solver.solve(robot, RDK, pose, j7_val, label=label)
 
     if ctype == "Locked_at_j7_0":
         return _solve_ik_locked_j7(robot, RDK, pose, 0.0)
@@ -193,17 +277,19 @@ def print_report(all_results, robot_name, timestamp):
     return report
 
 
-def load_config():
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+def load_config(config_path=None):
+    path = config_path or CONFIG_PATH
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def main():
     ap = argparse.ArgumentParser(description="Check reachability for end effectors from robert_end_checker_config.json")
     ap.add_argument("--robodk-ip", default=None, help="RoboDK IP (default: localhost then 172.23.208.1)")
+    ap.add_argument("--config", default=None, help="Path to config JSON (default: robert_end_checker_config.json)")
     args = ap.parse_args()
 
-    config = load_config()
+    config = load_config(args.config)
     end_effectors = config.get("end_effectors", [])
     if not end_effectors:
         print("[ERROR] No end_effectors in config JSON.")
@@ -225,6 +311,9 @@ def main():
     saved_frame = robot.getLink(ITEM_TYPE_FRAME)
     robot.setPoseFrame(world_frame)
     print(f"[INFO] Robot frame set to WorldFrame")
+
+    # Instantiate ZAxisFreeSolver once for the whole run
+    z_solver = ZAxisFreeSolver(RDK)
 
     all_results = {}
 
@@ -270,7 +359,9 @@ def main():
                 # Get target's absolute pose (world space)
                 pose = target.PoseAbs()
 
-                joints, ok = solve_point(robot, RDK, pose, track_cond, name)
+                is_z_free = pt.get("z_axis_free", False)
+                joints, ok = solve_point(robot, RDK, pose, track_cond, name,
+                                         z_axis_free=is_z_free, z_solver=z_solver)
 
                 ctype = track_cond.get("type", "None")
                 j7_info = ""
