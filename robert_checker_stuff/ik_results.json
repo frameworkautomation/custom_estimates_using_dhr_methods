@@ -1,5 +1,5 @@
 {
-  "generated": "20260826_165253",
+  "generated": "20260826_172621",
   "robot": "Fanuc R-2000iC/125L",
   "end_effectors": {
     "pickup": {
@@ -374,6 +374,186 @@
         "special_track_conditions": {
           "type": "Locked_at_j7_0"
         }
+      },
+      "alt_Base_Right_0_grab": {
+        "reachable": true,
+        "joints": [
+          30.17405414893337,
+          21.814187304256198,
+          -52.00297190200026,
+          -114.61602865579182,
+          108.02479077875694,
+          9.03317030182574,
+          1.5848562462394953e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_0_grab_approach": {
+        "reachable": true,
+        "joints": [
+          32.15311830946934,
+          6.422225367482817,
+          -43.31704851219064,
+          -113.32742881373059,
+          112.7803986542772,
+          16.920202232222753,
+          1.5848562462394971e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_1_grab": {
+        "reachable": true,
+        "joints": [
+          32.825982165392595,
+          19.404127868379835,
+          -56.501981549763094,
+          -118.27804790733033,
+          107.4085698557629,
+          4.0808188257463796,
+          1.584856246239498e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_1_grab_approach": {
+        "reachable": true,
+        "joints": [
+          35.1342946848548,
+          2.441190606660172,
+          -46.782027124324344,
+          -117.150054121045,
+          113.20891483485569,
+          12.540594992594897,
+          1.584856246239495e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_2_grab": {
+        "reachable": true,
+        "joints": [
+          35.92177997107114,
+          17.809253366167113,
+          -61.09834989742473,
+          -122.38400869573519,
+          106.47201625859911,
+          -0.9118057657254918,
+          1.5848562462394934e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_2_grab_approach": {
+        "reachable": true,
+        "joints": [
+          38.63218454402024,
+          -1.0212527743572333,
+          -50.20583872721325,
+          -121.55290881534391,
+          113.55214022880962,
+          8.052510966873617,
+          1.584856246239501e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_0_grab": {
+        "reachable": true,
+        "joints": [
+          24.39554996772821,
+          17.68988258378475,
+          -53.22165411303808,
+          -109.96383197216784,
+          104.3173196376662,
+          9.245693174298617,
+          1.5848562462394963e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_0_grab_approach": {
+        "reachable": true,
+        "joints": [
+          26.120192231691597,
+          1.0503312214484624,
+          -43.58371073295401,
+          -108.67739133593815,
+          108.5968401682426,
+          18.331652577413763,
+          1.584856246239499e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_1_grab": {
+        "reachable": true,
+        "joints": [
+          26.711903414227717,
+          15.014157425266795,
+          -57.73935702319613,
+          -113.05106570090743,
+          103.88257340311667,
+          4.416411187118298,
+          1.5848562462394971e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_1_grab_approach": {
+        "reachable": true,
+        "joints": [
+          28.763497047109645,
+          -3.7198799672961336,
+          -46.7272757180919,
+          -111.78520908964582,
+          109.25941683938515,
+          14.532556005671953,
+          1.5848562462394987e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_2_grab": {
+        "reachable": true,
+        "joints": [
+          29.47136370627653,
+          13.144764140898332,
+          -62.41386893525937,
+          -116.60485491532552,
+          103.16939398030712,
+          -0.5405757684437934,
+          1.5848562462394937e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_2_grab_approach": {
+        "reachable": true,
+        "joints": [
+          31.940341924361057,
+          -8.24684275771001,
+          -49.71786154997682,
+          -115.43530621783304,
+          110.00177511173406,
+          10.72406381612201,
+          1.5848562462394948e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
       }
     },
     "knotting": {
@@ -735,6 +915,170 @@
         }
       },
       "Base_Left_2_string_grab_approach": {
+        "reachable": false,
+        "joints": [],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_0_string_grab": {
+        "reachable": true,
+        "joints": [
+          39.330385276040175,
+          -5.929663908952105,
+          -46.37769624236175,
+          59.325726606547796,
+          -115.92876877698826,
+          101.3966178922744,
+          1.5848562462394948e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_0_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          11.135657722872885,
+          -28.988741768515183,
+          -25.260092771323944,
+          -30.6315420312521,
+          -123.87667550015261,
+          66.56571841101812,
+          1.5848562462394966e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_1_string_grab": {
+        "reachable": true,
+        "joints": [
+          43.56226398034188,
+          -9.505021973088294,
+          -49.34544489700078,
+          54.18948731340224,
+          -116.67788531356402,
+          96.89306753102262,
+          1.5848562462394937e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_1_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          10.995441889108388,
+          -42.71021883238243,
+          -23.054748225574567,
+          -36.74511223334269,
+          -123.62123912055375,
+          62.20597032794166,
+          1.5848562462394966e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_2_string_grab": {
+        "reachable": true,
+        "joints": [
+          48.57036314150597,
+          -12.300636926256772,
+          -52.415946322039765,
+          48.07831650668388,
+          -117.21318060562815,
+          91.98902132953523,
+          1.584856246239495e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Right_2_string_grab_approach": {
+        "reachable": false,
+        "joints": [],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_0_string_grab": {
+        "reachable": true,
+        "joints": [
+          32.62195021673796,
+          -13.922409034358981,
+          -45.294867824048204,
+          65.53832536182719,
+          -112.28598461947433,
+          104.8153018384605,
+          1.5848562462394937e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_0_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          35.57832539670644,
+          -34.505983946118434,
+          -28.997360336150514,
+          -109.12569917041498,
+          120.58926619485216,
+          -59.273016835665686,
+          1.5848562462394993e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_1_string_grab": {
+        "reachable": true,
+        "joints": [
+          36.60906441641871,
+          -19.393571540434984,
+          -47.33539094632345,
+          61.35278249720183,
+          -113.83793546567074,
+          101.49455720604917,
+          1.5848562462394971e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_1_string_grab_approach": {
+        "reachable": true,
+        "joints": [
+          43.07913296490906,
+          -50.2782149523193,
+          -26.062025412569046,
+          -102.22164098537125,
+          122.22306079755543,
+          -52.98310576401772,
+          1.5848562462394934e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_2_string_grab": {
+        "reachable": true,
+        "joints": [
+          41.51307292836021,
+          -24.947225749994526,
+          -49.00285190901203,
+          56.25523109934392,
+          -115.77289061115007,
+          98.05850929767576,
+          1.5848562462394948e-07
+        ],
+        "special_track_conditions": {
+          "type": "Locked_at_j7_0"
+        }
+      },
+      "alt_Base_Left_2_string_grab_approach": {
         "reachable": false,
         "joints": [],
         "special_track_conditions": {
