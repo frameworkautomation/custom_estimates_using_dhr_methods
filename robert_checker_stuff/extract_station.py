@@ -252,7 +252,7 @@ def main():
 
     # ── Create destination station ───────────────────────────────────────
     print(f"\n[CREATE] Creating new station...")
-    dest_station_ref = RDK.AddStation("ExtractedStation")
+    dest_station_ref = RDK.AddStation("for_robert_relative_to_base")
 
     # ── Paste robot ──────────────────────────────────────────────────────
     if robot_data:

@@ -25,16 +25,16 @@
       "comment": "Base cone objects (Base_Right_0, Base_Left_2, alt_Base_Right_1, etc.)"
     },
     {
-      "regex": "^(alt_)?Base_(Right|Left)_\\d+_grab(_approach)?$",
+      "regex": "^(alt_)?Base_(Right|Left)_\\d+_grab$",
       "type": "target",
       "parent": "WaypointTargets",
-      "comment": "Pickup grab targets and approaches under WaypointTargets"
+      "comment": "Pickup grab targets under WaypointTargets (no approaches)"
     },
     {
-      "regex": "^(alt_)?Base_(Right|Left)_\\d+_string_grab(_approach)?$",
+      "regex": "^(alt_)?Base_(Right|Left)_\\d+_string_grab$",
       "type": "target",
       "parent": "WaypointTargets",
-      "comment": "String grab targets and approaches under WaypointTargets"
+      "comment": "String grab targets under WaypointTargets (no approaches)"
     }
   ]
 }
