@@ -1,0 +1,23 @@
+{
+  "z_rotation_step_deg": 5,
+
+  "offsets_mm": {
+    "grab": {
+      "before": 50,
+      "after": 300
+    },
+    "string_grab": {
+      "before": 50,
+      "after": 50
+    }
+  },
+
+  "end_effectors": {
+    "grab": "pickup",
+    "string_grab": "knotting"
+  },
+
+  "comment_z_rotation": "Step size in degrees for Z-axis rotation sweep (360 / step = attempts per target)",
+  "comment_offsets": "Offset distances in mm along negative Z of the target pose. 'before' = approach, 'after' = retract.",
+  "comment_end_effectors": "Which tool to activate when solving IK for each target type."
+}

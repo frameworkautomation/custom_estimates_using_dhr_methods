@@ -2,13 +2,31 @@
 Set up the extracted station for base cone movement sequence testing.
 
 Phase 1 — organize items into visible GUI folders:
-  - extracted_targets  — all Target items
+  - extracted_targets  — all Target items (grab + string_grab only)
   - cones              — Base cone objects (Base_Right_*, Base_Left_*, alt_Base_*)
   - bins               — Bin objects (bin_*)
 
-More phases will be added (movement sequences, IK checks, etc.).
+Phase 2 — create empty programs for each grab/string_grab pair:
+  - One program per base cone, named after the cone (e.g. "Base_Right_0")
+  - All programs go under a "programs" folder
 
-Caching: folders and item placements are reused if they already exist.
+Phase 3 — create offset targets for each grab and string_grab:
+  - offset_before_for_<name> — offset along -Z before the target (approach)
+  - offset_after_for_<name>  — offset along -Z after the target (retract)
+  - Distances from config (grab: 50/300mm, string_grab: 50/50mm)
+  - Stored under auto_generated_offsets/before and auto_generated_offsets/after
+
+Phase 4 — solve IK for all targets with Z-axis rotation sweep:
+  - Try original pose first; if it fails, sweep Z rotations per config step
+  - grab targets solved with pickup tool, string_grab with knotting tool
+  - Solved targets stored in targets_rotated_for_solution/extracted
+  - Solved offsets in targets_rotated_for_solution/auto_generated_offsets/before|after
+  - Failures written to ik_failure_report.txt
+
+Reads settings from setup_base_movements_config.json (same directory).
+
+Caching: folders, item placements, programs, and solved targets are reused
+if they already exist.
 
 Usage:
     python robert_checker_stuff/setup_base_movements.py
@@ -16,24 +34,40 @@ Usage:
 """
 
 import sys
+import os
 import re
+import json
+import math
 import argparse
 
 sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import (
-    Robolink, ITEM_TYPE_FRAME, ITEM_TYPE_TARGET, ITEM_TYPE_OBJECT,
+    Robolink, ITEM_TYPE_TARGET, ITEM_TYPE_OBJECT,
+    ITEM_TYPE_FOLDER, ITEM_TYPE_PROGRAM, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL,
+    ITEM_TYPE_FRAME,
 )
+from robodk.robomath import transl, rotz
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "setup_base_movements_config.json")
+REPORT_PATH = os.path.join(SCRIPT_DIR, "ik_failure_report.txt")
 
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
 CONE_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+$")
 BIN_PATTERN = re.compile(r"^bin_\d+$")
 
+GRAB_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_grab$")
+STRING_GRAB_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_string_grab$")
+
+# Matches the original extracted targets only (not offsets or solved copies)
+EXTRACTED_TARGET_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_(grab|string_grab)$")
+
 FOLDER_DEFS = {
     "extracted_targets": {
         "item_type": ITEM_TYPE_TARGET,
-        "filter": None,  # all targets
+        "filter": EXTRACTED_TARGET_PATTERN,
     },
     "cones": {
         "item_type": ITEM_TYPE_OBJECT,
@@ -45,6 +79,39 @@ FOLDER_DEFS = {
     },
 }
 
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+
+def load_config(path):
+    assert os.path.exists(path), f"Config not found: {path}"
+    with open(path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    step = config.get("z_rotation_step_deg")
+    assert step is not None, "Config missing 'z_rotation_step_deg'"
+    assert isinstance(step, (int, float)) and step > 0, \
+        f"z_rotation_step_deg must be a positive number, got {step}"
+
+    offsets = config.get("offsets_mm")
+    assert offsets is not None, "Config missing 'offsets_mm'"
+    for key in ("grab", "string_grab"):
+        assert key in offsets, f"offsets_mm missing '{key}'"
+        for direction in ("before", "after"):
+            assert direction in offsets[key], f"offsets_mm.{key} missing '{direction}'"
+
+    ee = config.get("end_effectors")
+    assert ee is not None, "Config missing 'end_effectors'"
+    assert "grab" in ee, "end_effectors missing 'grab'"
+    assert "string_grab" in ee, "end_effectors missing 'string_grab'"
+
+    print(f"[CONFIG] z_rotation_step_deg = {step}")
+    print(f"[CONFIG] offsets_mm.grab: before={offsets['grab']['before']}mm, after={offsets['grab']['after']}mm")
+    print(f"[CONFIG] offsets_mm.string_grab: before={offsets['string_grab']['before']}mm, after={offsets['string_grab']['after']}mm")
+    print(f"[CONFIG] end_effectors: grab={ee['grab']}, string_grab={ee['string_grab']}")
+    return config
+
+
+# ── CONNECT ───────────────────────────────────────────────────────────────────
 
 def connect(ip=None):
     if ip:
@@ -59,20 +126,59 @@ def connect(ip=None):
         return Robolink(robodk_ip="172.23.208.1")
 
 
-def get_or_create_folder(RDK, name):
-    """Return existing frame named `name`, or create one under the station root."""
-    item = RDK.Item(name, ITEM_TYPE_FRAME)
-    if item.Valid():
-        print(f"[CACHE] Folder '{name}' already exists — reusing")
-        return item
-    station = RDK.ActiveStation()
-    folder = RDK.AddFrame(name, station)
+def find_robot(RDK):
+    for name in ROBOT_NAMES:
+        r = RDK.Item(name, ITEM_TYPE_ROBOT)
+        if r.Valid():
+            return r
+    raise RuntimeError(f"Robot not found. Tried: {ROBOT_NAMES}")
+
+
+def find_tool(RDK, name):
+    tool = RDK.Item(name, ITEM_TYPE_TOOL)
+    assert tool.Valid(), f"Tool '{name}' not found in station"
+    return tool
+
+
+# ── FOLDERS ───────────────────────────────────────────────────────────────────
+
+def get_or_create_folder(RDK, name, parent=None):
+    """Return existing folder named `name`, or create one.
+
+    When parent is given, checks children of parent first to handle duplicate
+    folder names at different levels (e.g. 'before' at root vs inside another folder).
+    """
+    if parent is not None:
+        # Check children of parent for this name
+        children = parent.Childs()
+        for child in children:
+            if child.Name() == name and child.Type() == ITEM_TYPE_FOLDER:
+                return child
+
+        # Not found under parent — create it
+        RDK.Command("AddFolder", name)
+        # AddFolder creates at root, find it and reparent
+        folder = RDK.Item(name, ITEM_TYPE_FOLDER)
+        assert folder.Valid(), f"Failed to create folder '{name}'"
+        folder.setParent(parent)
+        print(f"[CREATE] Created folder '{name}' under '{parent.Name()}'")
+        return folder
+
+    # No parent — global lookup
+    existing = RDK.Item(name, ITEM_TYPE_FOLDER)
+    if existing.Valid():
+        return existing
+
+    RDK.Command("AddFolder", name)
+    folder = RDK.Item(name, ITEM_TYPE_FOLDER)
+    assert folder.Valid(), f"Failed to create folder '{name}'"
     print(f"[CREATE] Created folder '{name}'")
     return folder
 
 
+# ── HELPERS ───────────────────────────────────────────────────────────────────
+
 def items_matching(RDK, item_type, pattern):
-    """Return all station items of `item_type` whose name matches `pattern` (or all if None)."""
     all_items = RDK.ItemList(item_type)
     if pattern is None:
         return all_items
@@ -80,25 +186,285 @@ def items_matching(RDK, item_type, pattern):
 
 
 def move_item_to_folder(item, folder):
-    """Reparent `item` under `folder`, preserving its world pose. Returns True if moved."""
     parent = item.Parent()
     if parent.Valid() and parent.Name() == folder.Name():
-        return False  # already in the right folder
-
+        return False
     world_pose = item.PoseAbs()
     item.setParent(folder)
     item.setPoseAbs(world_pose)
     return True
 
 
+def discover_cone_names(RDK):
+    all_targets = RDK.ItemList(ITEM_TYPE_TARGET)
+    target_names = {t.Name() for t in all_targets}
+
+    grab_names = {n for n in target_names if GRAB_PATTERN.match(n)}
+    string_grab_names = {n for n in target_names if STRING_GRAB_PATTERN.match(n)}
+
+    grab_cones = {n.rsplit("_grab", 1)[0] for n in grab_names}
+    string_grab_cones = {n.rsplit("_string_grab", 1)[0] for n in string_grab_names}
+
+    paired = sorted(grab_cones & string_grab_cones)
+    return paired
+
+
+# ── PHASE 2 ──────────────────────────────────────────────────────────────────
+
+def create_programs(RDK, robot, cone_names, programs_folder):
+    created = 0
+    skipped = 0
+
+    for cone_name in cone_names:
+        existing = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
+        if existing.Valid():
+            skipped += 1
+            continue
+        prog = RDK.AddProgram(cone_name, robot)
+        prog.setParent(programs_folder)
+        created += 1
+
+    total = created + skipped
+    print(f"[programs] {total} program(s): {created} created, {skipped} already exist")
+
+
+# ── PHASE 3 ──────────────────────────────────────────────────────────────────
+
+def create_offset_target(RDK, robot, source_target, offset_name, offset_mm, folder):
+    existing = RDK.Item(offset_name, ITEM_TYPE_TARGET)
+    if existing.Valid():
+        return existing, False
+
+    source_pose = source_target.Pose()
+    offset_pose = source_pose * transl(0, 0, -offset_mm)
+
+    target = RDK.AddTarget(offset_name, folder, robot)
+    target.setPose(offset_pose)
+    return target, True
+
+
+def create_offset_targets(RDK, robot, offsets_config, before_folder, after_folder):
+    created = 0
+    skipped = 0
+
+    offset_rules = [
+        (GRAB_PATTERN, offsets_config["grab"]),
+        (STRING_GRAB_PATTERN, offsets_config["string_grab"]),
+    ]
+
+    all_targets = RDK.ItemList(ITEM_TYPE_TARGET)
+
+    for target_item in all_targets:
+        name = target_item.Name()
+        for pattern, distances in offset_rules:
+            if not pattern.match(name):
+                continue
+
+            before_name = f"offset_before_for_{name}"
+            _, was_created = create_offset_target(
+                RDK, robot, target_item, before_name, distances["before"], before_folder
+            )
+            created += was_created
+            skipped += (not was_created)
+
+            after_name = f"offset_after_for_{name}"
+            _, was_created = create_offset_target(
+                RDK, robot, target_item, after_name, distances["after"], after_folder
+            )
+            created += was_created
+            skipped += (not was_created)
+
+            break
+
+    total = created + skipped
+    print(f"[offsets] {total} offset target(s): {created} created, {skipped} already exist")
+
+
+# ── PHASE 4: IK SOLVING ─────────────────────────────────────────────────────
+
+# OptimAxes config for 6-DOF robot (no j7). Algorithm 3 = damped least squares.
+_OPT_AXES_6DOF = {
+    "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1,
+    "RelOn_4": 1, "RelOn_5": 1, "RelOn_6": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50,
+    "RelW_4": 50, "RelW_5": 50, "RelW_6": 50,
+}
+
+HOME_SEED_6DOF = [0.0] * 6
+
+
+def try_ik(robot, pose):
+    """Attempt IK using OptimAxes + MoveJ (same approach as robert_end_checker).
+
+    Returns joints list or None.
+    """
+    robot.setParam("OptimAxes", _OPT_AXES_6DOF)
+    robot.setJoints(HOME_SEED_6DOF)
+    try:
+        robot.MoveJ(pose)
+        raw = robot.Joints()
+        try:
+            joints = raw.list()
+        except AttributeError:
+            joints = list(raw)
+        robot.setJoints(HOME_SEED_6DOF)
+        if len(joints) < 6:
+            return None
+        if all(abs(j) < 1e-6 for j in joints):
+            return None
+        return joints
+    except Exception:
+        robot.setJoints(HOME_SEED_6DOF)
+        return None
+
+
+def solve_with_z_sweep(robot, target_pose, step_deg):
+    """Try original pose, then sweep Z rotations. Returns (solved_pose, joints, angle_deg) or (None, None, None)."""
+    # Try original first
+    joints = try_ik(robot, target_pose)
+    if joints is not None:
+        return target_pose, joints, 0.0
+
+    # Sweep rotations
+    n_steps = int(360 / step_deg)
+    for i in range(1, n_steps):
+        angle_deg = step_deg * i
+        angle_rad = angle_deg * math.pi / 180.0
+        rotated_pose = target_pose * rotz(angle_rad)
+        joints = try_ik(robot, rotated_pose)
+        if joints is not None:
+            return rotated_pose, joints, angle_deg
+
+    return None, None, None
+
+
+def target_exists_in_folder(folder, name):
+    """Check if a target with this name exists as a child of folder."""
+    children = folder.Childs()
+    for child in children:
+        if child.Name() == name and child.Type() == ITEM_TYPE_TARGET:
+            return True
+    return False
+
+
+def solve_and_create_targets(RDK, robot, config, extracted_folder,
+                             before_folder, after_folder):
+    """Solve IK for all grab and string_grab targets. Create solved targets + offsets.
+
+    Returns list of (target_name, tool_name) for failures.
+    """
+    step_deg = config["z_rotation_step_deg"]
+    offsets = config["offsets_mm"]
+    ee_config = config["end_effectors"]
+
+    # Set robot frame to world
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    if not world_frame.Valid():
+        world_frame = RDK.Item("", ITEM_TYPE_FRAME)
+    robot.setPoseFrame(world_frame)
+
+    solve_rules = [
+        (GRAB_PATTERN, ee_config["grab"], offsets["grab"]),
+        (STRING_GRAB_PATTERN, ee_config["string_grab"], offsets["string_grab"]),
+    ]
+
+    all_targets = RDK.ItemList(ITEM_TYPE_TARGET)
+    failures = []
+    solved = 0
+    cached = 0
+
+    for target_item in all_targets:
+        name = target_item.Name()
+
+        for pattern, tool_name, offset_distances in solve_rules:
+            if not pattern.match(name):
+                continue
+
+            # Cache check
+            if target_exists_in_folder(extracted_folder, name):
+                cached += 1
+                break
+
+            # Set tool
+            tool = find_tool(RDK, tool_name)
+            robot.setTool(tool)
+
+            # Get world pose
+            target_pose = target_item.PoseAbs()
+
+            # Solve
+            solved_pose, joints, angle_deg = solve_with_z_sweep(
+                robot, target_pose, step_deg
+            )
+
+            if solved_pose is None:
+                print(f"  [FAIL] {name} — no solution found (tool={tool_name})")
+                failures.append((name, tool_name))
+                break
+
+            if angle_deg == 0.0:
+                print(f"  [OK]   {name} — solved at original pose")
+            else:
+                print(f"  [OK]   {name} — solved at Z rotation {angle_deg:.1f} deg")
+
+            # Create solved target in extracted folder
+            solved_target = RDK.AddTarget(name, extracted_folder, robot)
+            solved_target.setPose(solved_pose)
+            solved_target.setJoints(joints)
+
+            # Create before/after offsets for the solved pose
+            before_pose = solved_pose * transl(0, 0, -offset_distances["before"])
+            before_target = RDK.AddTarget(
+                f"offset_before_for_{name}", before_folder, robot
+            )
+            before_target.setPose(before_pose)
+
+            after_pose = solved_pose * transl(0, 0, -offset_distances["after"])
+            after_target = RDK.AddTarget(
+                f"offset_after_for_{name}", after_folder, robot
+            )
+            after_target.setPose(after_pose)
+
+            solved += 1
+            break
+
+    print(f"[solve] {solved} solved, {cached} cached, {len(failures)} failed")
+    return failures
+
+
+def write_failure_report(failures):
+    """Write failure report to ik_failure_report.txt."""
+    with open(REPORT_PATH, "w", encoding="utf-8") as f:
+        f.write("IK Failure Report\n")
+        f.write("=" * 60 + "\n\n")
+        if not failures:
+            f.write("No failures — all targets solved successfully.\n")
+        else:
+            f.write(f"{len(failures)} target(s) could not be solved:\n\n")
+            for name, tool_name in failures:
+                f.write(f"  Target: {name}\n")
+                f.write(f"  Tool:   {tool_name}\n")
+                f.write(f"  Note:   No IK solution found at any Z-axis rotation\n\n")
+    print(f"[REPORT] Written to {REPORT_PATH}")
+
+
+# ── MAIN ─────────────────────────────────────────────────────────────────────
+
 def main():
     ap = argparse.ArgumentParser(description="Set up extracted station for base cone movement testing")
     ap.add_argument("--robodk-ip", default=None,
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
+    ap.add_argument("--config", default=DEFAULT_CONFIG,
+                    help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     args = ap.parse_args()
 
+    config = load_config(args.config)
     RDK = connect(args.robodk_ip)
+    robot = find_robot(RDK)
 
+    # ── Phase 1: organize items into folders ──────────────────────────────
+    print("\n── Phase 1: Organize items into folders ──")
     for folder_name, spec in FOLDER_DEFS.items():
         folder = get_or_create_folder(RDK, folder_name)
         matched = items_matching(RDK, spec["item_type"], spec["filter"])
@@ -114,13 +480,67 @@ def main():
         total = moved + skipped
         print(f"[{folder_name}] {total} item(s): {moved} moved, {skipped} already in place")
 
-    # Make all folders visible (expanded in the tree)
     for folder_name in FOLDER_DEFS:
-        folder = RDK.Item(folder_name, ITEM_TYPE_FRAME)
+        folder = RDK.Item(folder_name, ITEM_TYPE_FOLDER)
         if folder.Valid():
             folder.setVisible(True)
 
-    print("\n[DONE] Station organized.")
+    # ── Phase 2: create programs for grab/string_grab pairs ───────────────
+    print("\n── Phase 2: Create programs for base cone pairs ──")
+    cone_names = discover_cone_names(RDK)
+    print(f"[DISCOVER] {len(cone_names)} base cone(s) with grab + string_grab pairs")
+    for name in cone_names:
+        print(f"  - {name}")
+
+    programs_folder = get_or_create_folder(RDK, "programs")
+    programs_folder.setVisible(True)
+    create_programs(RDK, robot, cone_names, programs_folder)
+
+    # ── Phase 3: create offset targets ────────────────────────────────────
+    print("\n── Phase 3: Create offset targets (before/after) ──")
+    offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets")
+    before_folder = get_or_create_folder(RDK, "before", parent=offsets_parent)
+    after_folder = get_or_create_folder(RDK, "after", parent=offsets_parent)
+    offsets_parent.setVisible(True)
+    before_folder.setVisible(True)
+    after_folder.setVisible(True)
+
+    create_offset_targets(RDK, robot, config["offsets_mm"], before_folder, after_folder)
+
+    # ── Phase 4: solve IK with Z-rotation sweep ──────────────────────────
+    print("\n── Phase 4: Solve IK for all targets ──")
+    step_deg = config["z_rotation_step_deg"]
+    n_steps = int(360 / step_deg)
+    print(f"[INFO] Z-rotation sweep: {step_deg} deg steps = {n_steps} attempts per target")
+
+    rotated_root = get_or_create_folder(RDK, "targets_rotated_for_solution")
+    rotated_extracted = get_or_create_folder(RDK, "extracted", parent=rotated_root)
+    rotated_offsets = get_or_create_folder(
+        RDK, "auto_generated_offsets", parent=rotated_root
+    )
+    rotated_before = get_or_create_folder(RDK, "before", parent=rotated_offsets)
+    rotated_after = get_or_create_folder(RDK, "after", parent=rotated_offsets)
+
+    rotated_root.setVisible(True)
+    rotated_extracted.setVisible(True)
+    rotated_offsets.setVisible(True)
+    rotated_before.setVisible(True)
+    rotated_after.setVisible(True)
+
+    failures = solve_and_create_targets(
+        RDK, robot, config, rotated_extracted, rotated_before, rotated_after
+    )
+
+    if failures:
+        write_failure_report(failures)
+        print(f"\n[WARN] {len(failures)} target(s) failed — see {REPORT_PATH}")
+    else:
+        # Clear any old report
+        if os.path.exists(REPORT_PATH):
+            os.remove(REPORT_PATH)
+        print("\n[OK] All targets solved successfully.")
+
+    print("\n[DONE] Station setup complete.")
 
 
 if __name__ == "__main__":
