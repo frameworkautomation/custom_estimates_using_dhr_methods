@@ -242,6 +242,126 @@
           "special_track_conditions": {
             "type": "Locked_at_j7_0"
           }
+        },
+        {
+          "name": "alt_Base_Right_0_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_0_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_0_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_0_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_1_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_1_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_1_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_1_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_2_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_2_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_2_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_2_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_0_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_0_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_0_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_0_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_1_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_1_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_1_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_1_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_2_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_2_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_2_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_2_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
         }
       ]
     },
@@ -482,6 +602,126 @@
           "name": "Base_Left_2_string_grab_approach",
           "type": "point",
           "name_path": "WaypointTargets/Base_Left_2_string_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_0_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_0_string_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_0_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_0_string_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_1_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_1_string_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_1_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_1_string_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_2_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_2_string_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Right_2_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Right_2_string_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_0_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_0_string_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_0_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_0_string_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_1_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_1_string_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_1_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_1_string_grab_approach",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_2_string_grab",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_2_string_grab",
+          "source_script": "export_base_cone_waypoints",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "alt_Base_Left_2_string_grab_approach",
+          "type": "point",
+          "name_path": "WaypointTargets/alt_Base_Left_2_string_grab_approach",
           "source_script": "export_base_cone_waypoints",
           "z_axis_free": true,
           "special_track_conditions": {
