@@ -4,6 +4,37 @@
       "name": "Fanuc R-2000iC/125L",
       "type": "robot",
       "comment": "6-DOF arm extracted at j7=0 world pose, without the rail mechanism"
+    },
+    {
+      "name": "WorldFrame",
+      "type": "frame"
+    },
+    {
+      "name": "bin_0",
+      "type": "object"
+    },
+    {
+      "name": "bin_1",
+      "type": "object"
+    }
+  ],
+  "patterns": [
+    {
+      "regex": "^(alt_)?Base_(Right|Left)_\\d+$",
+      "type": "object",
+      "comment": "Base cone objects (Base_Right_0, Base_Left_2, alt_Base_Right_1, etc.)"
+    },
+    {
+      "regex": "^(alt_)?Base_(Right|Left)_\\d+_grab(_approach)?$",
+      "type": "target",
+      "parent": "WaypointTargets",
+      "comment": "Pickup grab targets and approaches under WaypointTargets"
+    },
+    {
+      "regex": "^(alt_)?Base_(Right|Left)_\\d+_string_grab(_approach)?$",
+      "type": "target",
+      "parent": "WaypointTargets",
+      "comment": "String grab targets and approaches under WaypointTargets"
     }
   ]
 }

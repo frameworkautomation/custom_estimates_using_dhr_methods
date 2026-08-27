@@ -5,9 +5,12 @@ The main use case: copy the robot arm at its j7=0 position WITHOUT the linear
 rail, plus any other items (tools, objects, frames) listed in the config.
 This gives a repeatable starting point for movement-sequence testing.
 
-Approach: Copy/Paste via the RoboDK API. When a 7-DOF robot (6 arm + rail) is
-copied and pasted into a new station, RoboDK pastes only the 6-DOF arm (the rail
-mechanism doesn't come along). We then position it at the robot's j7=0 world pose.
+The config supports both explicit items (by name) and pattern-based discovery
+(regex matching against all items of a given type in the source station).
+
+Approach: Copy/Paste via the RoboDK API. Items are copied one at a time from
+the source station and pasted into the destination. For the robot, Copy/Paste
+strips the rail mechanism, giving a clean 6-DOF arm.
 
 Usage:
     python robert_checker_stuff/extract_station.py
@@ -17,6 +20,7 @@ Usage:
 
 import sys
 import os
+import re
 import json
 import argparse
 import math
@@ -25,7 +29,7 @@ sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import (
     Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
-    ITEM_TYPE_TARGET, ITEM_TYPE_OBJECT,
+    ITEM_TYPE_TARGET, ITEM_TYPE_OBJECT, ITEM_TYPE_STATION,
 )
 from robodk.robomath import Pose_2_TxyzRxyz
 
@@ -51,7 +55,7 @@ TYPE_MAP = {
 
 
 def to_robodk_path(path):
-    """Convert path for RoboDK. Handles WSL /mnt/c/... → C:/... conversion."""
+    """Convert path for RoboDK. Handles WSL /mnt/c/... -> C:/... conversion."""
     abs_path = os.path.abspath(path)
     try:
         if abs_path.startswith("/mnt/"):
@@ -89,6 +93,47 @@ def find_robot_in_station(RDK, name):
     return None
 
 
+# ── PATTERN RESOLUTION ──────────────────────────────────────────────────────
+
+def resolve_patterns(RDK, patterns):
+    """Expand pattern entries into concrete item dicts by scanning the station.
+
+    Each pattern has a regex and a type. We scan all items of that type in the
+    station and return matches as explicit item dicts.
+    """
+    resolved = []
+    for pat in patterns:
+        regex = re.compile(pat["regex"])
+        type_str = pat["type"]
+        item_type = TYPE_MAP[type_str]
+        parent_name = pat.get("parent")
+
+        # Get all items of this type
+        all_of_type = RDK.ItemList(item_type)
+        matched = []
+        for item in all_of_type:
+            name = item.Name()
+            if not regex.match(name):
+                continue
+            # If parent is specified, check that the item's parent matches
+            if parent_name:
+                parent = item.Parent()
+                if not parent.Valid() or parent.Name() != parent_name:
+                    continue
+            matched.append({"name": name, "type": type_str})
+
+        comment = pat.get("comment", pat["regex"])
+        print(f"  Pattern '{comment}': {len(matched)} match(es)")
+        for m in matched:
+            print(f"    - {m['name']}")
+
+        assert len(matched) > 0, \
+            f"Pattern '{pat['regex']}' (type={type_str}) matched 0 items in source station"
+        resolved.extend(matched)
+
+    return resolved
+
+
 # ── MAIN ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -110,18 +155,19 @@ def main():
     with open(args.config, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-    items = config.get("items", [])
-    assert len(items) > 0, "Config has no items to extract"
+    explicit_items = config.get("items", [])
+    patterns = config.get("patterns", [])
+    assert len(explicit_items) > 0 or len(patterns) > 0, \
+        "Config has no items or patterns to extract"
 
-    for item_cfg in items:
+    # Validate explicit items
+    for item_cfg in explicit_items:
         assert "name" in item_cfg, f"Item missing 'name': {item_cfg}"
         assert "type" in item_cfg, f"Item '{item_cfg['name']}' missing 'type'"
         assert item_cfg["type"] in TYPE_MAP, \
             f"Unknown type '{item_cfg['type']}' for item '{item_cfg['name']}'"
 
-    print(f"[CONFIG] {len(items)} item(s) to extract:")
-    for item_cfg in items:
-        print(f"  - {item_cfg['name']} ({item_cfg['type']})")
+    print(f"[CONFIG] {len(explicit_items)} explicit item(s), {len(patterns)} pattern(s)")
 
     # ── Connect to RoboDK ────────────────────────────────────────────────
     RDK = connect(args.robodk_ip)
@@ -134,9 +180,28 @@ def main():
     assert src_station.Valid(), f"Failed to load source station: {args.source}"
     print(f"[LOAD] Source station loaded: '{src_station.Name()}'")
 
-    # ── Verify all config items exist in source ──────────────────────────
+    # ── Resolve patterns into concrete items ─────────────────────────────
+    if patterns:
+        print(f"\n[PATTERNS] Resolving {len(patterns)} pattern(s)...")
+        pattern_items = resolve_patterns(RDK, patterns)
+    else:
+        pattern_items = []
+
+    # Merge: explicit items first, then pattern-discovered items
+    # Deduplicate by (name, type)
+    seen = set()
+    all_items = []
+    for item_cfg in explicit_items + pattern_items:
+        key = (item_cfg["name"], item_cfg["type"])
+        if key not in seen:
+            seen.add(key)
+            all_items.append(item_cfg)
+
+    print(f"\n[TOTAL] {len(all_items)} item(s) to extract")
+
+    # ── Verify all items exist in source ─────────────────────────────────
     print("\n[VERIFY] Checking all items exist in source station...")
-    for item_cfg in items:
+    for item_cfg in all_items:
         name = item_cfg["name"]
         type_str = item_cfg["type"]
         if type_str == "robot":
@@ -147,131 +212,122 @@ def main():
             item = RDK.Item(name, TYPE_MAP[type_str])
             assert item.Valid(), \
                 f"Item '{name}' (type={type_str}) not found in source station"
-        print(f"  [OK] {name} ({type_str})")
-    print("[VERIFY] All items found in source")
+    print(f"[VERIFY] All {len(all_items)} items confirmed in source")
 
-    # ── Read source data and Copy items ──────────────────────────────────
-    # We must read poses and Copy() items BEFORE creating the new station,
-    # because AddStation changes the active station context.
-
-    source_data = {}  # keyed by item name
-
-    for item_cfg in items:
+    # ── Process robot first (must be done before creating new station) ───
+    # Robot needs special handling: read base pose, Copy, then after new
+    # station is created, Paste and reposition.
+    robot_data = None
+    for item_cfg in all_items:
+        if item_cfg["type"] != "robot":
+            continue
         name = item_cfg["name"]
-        type_str = item_cfg["type"]
+        robot_src = find_robot_in_station(RDK, name)
+        src_joints = robot_src.Joints()
+        try:
+            jlist = src_joints.list()
+        except AttributeError:
+            jlist = list(src_joints)
 
-        if type_str == "robot":
-            robot_src = find_robot_in_station(RDK, name)
-            src_joints = robot_src.Joints()
-            try:
-                jlist = src_joints.list()
-            except AttributeError:
-                jlist = list(src_joints)
+        if len(jlist) >= 7:
+            jlist_j7zero = list(jlist)
+            jlist_j7zero[6] = 0.0
+            robot_src.setJoints(jlist_j7zero)
 
-            # Set j7 to 0 to get the robot base world pose at rail home
-            if len(jlist) >= 7:
-                jlist_j7zero = list(jlist)
-                jlist_j7zero[6] = 0.0
-                robot_src.setJoints(jlist_j7zero)
+        robot_base_world = robot_src.PoseAbs()
+        base_txyz = Pose_2_TxyzRxyz(robot_base_world)
+        print(f"\n[READ] Robot '{robot_src.Name()}' base at j7=0: "
+              f"x={base_txyz[0]:.1f} y={base_txyz[1]:.1f} z={base_txyz[2]:.1f}")
 
-            robot_base_world = robot_src.PoseAbs()
-            base_txyz = Pose_2_TxyzRxyz(robot_base_world)
-            print(f"\n[READ] Robot '{robot_src.Name()}' base at j7=0: "
-                  f"x={base_txyz[0]:.1f} y={base_txyz[1]:.1f} z={base_txyz[2]:.1f}")
+        robot_src.Copy()
+        robot_data = {
+            "name": name,
+            "base_pose": robot_base_world,
+            "base_txyz": base_txyz,
+        }
+        break  # only one robot
 
-            # Copy the robot (RoboDK clipboard)
-            robot_src.Copy()
-            source_data[name] = {
-                "type": "robot",
-                "base_pose": robot_base_world,
-                "base_txyz": base_txyz,
-            }
-
-        else:
-            item = RDK.Item(name, TYPE_MAP[type_str])
-            world_pose = item.PoseAbs()
-            txyz = Pose_2_TxyzRxyz(world_pose)
-            print(f"\n[READ] {type_str} '{name}': "
-                  f"x={txyz[0]:.1f} y={txyz[1]:.1f} z={txyz[2]:.1f}")
-
-            item.Copy()
-            source_data[name] = {
-                "type": type_str,
-                "world_pose": world_pose,
-            }
+    # Keep a reference to the source station before creating the new one
+    src_station_ref = src_station
 
     # ── Create destination station ───────────────────────────────────────
     print(f"\n[CREATE] Creating new station...")
-    RDK.AddStation("ExtractedStation")
+    dest_station_ref = RDK.AddStation("ExtractedStation")
 
-    # ── Paste and position each item ─────────────────────────────────────
-    for item_cfg in items:
-        name = item_cfg["name"]
-        type_str = item_cfg["type"]
-        data = source_data[name]
+    # ── Paste robot ──────────────────────────────────────────────────────
+    if robot_data:
+        base_pose = robot_data["base_pose"]
+        base_txyz = robot_data["base_txyz"]
 
-        if type_str == "robot":
-            base_pose = data["base_pose"]
-            base_txyz = data["base_txyz"]
+        robot_dst = RDK.Paste()
+        assert robot_dst.Valid(), "Paste() failed — no robot in clipboard"
+        assert robot_dst.Type() == ITEM_TYPE_ROBOT, \
+            f"Pasted item is not a robot (type={robot_dst.Type()})"
 
-            print(f"\n[ROBOT] Placing robot at j7=0 world pose:")
-            print(f"  x={base_txyz[0]:.1f} y={base_txyz[1]:.1f} z={base_txyz[2]:.1f} "
-                  f"rx={math.degrees(base_txyz[3]):.1f} "
-                  f"ry={math.degrees(base_txyz[4]):.1f} "
-                  f"rz={math.degrees(base_txyz[5]):.1f}")
+        dst_joints = robot_dst.Joints()
+        try:
+            dst_jlist = dst_joints.list()
+        except AttributeError:
+            dst_jlist = list(dst_joints)
+        assert len(dst_jlist) == 6, \
+            f"Expected 6-DOF robot but got {len(dst_jlist)} joints"
 
-            # We need to re-copy from source because clipboard may be overwritten
-            # by subsequent Copy() calls. For now, with only one item this is fine.
-            # For multi-item: we'd need to handle this differently.
-            # Paste the robot
-            robot_dst = RDK.Paste()
-            assert robot_dst.Valid(), "Paste() failed — no robot in clipboard"
-            assert robot_dst.Type() == ITEM_TYPE_ROBOT, \
-                f"Pasted item is not a robot (type={robot_dst.Type()})"
+        station_dst = RDK.ActiveStation()
+        base_frame = RDK.AddFrame("RobotBase", station_dst)
+        base_frame.setPose(base_pose)
+        robot_dst.setParent(base_frame)
+        robot_dst.setJoints([0.0] * 6)
 
-            # Check DOF — should be 6 (rail stripped by Copy/Paste)
-            dst_joints = robot_dst.Joints()
-            try:
-                dst_jlist = dst_joints.list()
-            except AttributeError:
-                dst_jlist = list(dst_joints)
-            print(f"[ROBOT] Pasted DOF: {len(dst_jlist)}")
-            assert len(dst_jlist) == 6, \
-                f"Expected 6-DOF robot but got {len(dst_jlist)} joints. " \
-                f"The rail mechanism may have been included in the paste."
+        actual_base = robot_dst.PoseAbs()
+        actual_txyz = Pose_2_TxyzRxyz(actual_base)
+        pos_err = math.sqrt(
+            sum((actual_txyz[i] - base_txyz[i])**2 for i in range(3))
+        )
+        assert pos_err < 1.0, f"Robot base position mismatch: {pos_err:.2f} mm"
+        print(f"[ROBOT] 6-DOF robot placed (error: {pos_err:.2f} mm)")
 
-            # Position the robot at the j7=0 base pose.
-            # Cannot use setPoseAbs on a robot — it controls TCP, not base.
-            # Instead: create a parent frame at the target pose, re-parent robot under it.
-            station_dst = RDK.ActiveStation()
-            base_frame = RDK.AddFrame("RobotBase", station_dst)
-            base_frame.setPose(base_pose)
-            robot_dst.setParent(base_frame)
+    # ── Copy/Paste remaining items one at a time ─────────────────────────
+    # We need to switch back to the source station to Copy each item,
+    # then switch to dest to Paste it.
+    non_robot_items = [i for i in all_items if i["type"] != "robot"]
 
-            # Set joints to home
-            robot_dst.setJoints([0.0] * 6)
+    if non_robot_items:
+        print(f"\n[COPY] Copying {len(non_robot_items)} non-robot item(s)...")
 
-            # Verify base position
-            actual_base = robot_dst.PoseAbs()
-            actual_txyz = Pose_2_TxyzRxyz(actual_base)
-            pos_err = math.sqrt(
-                sum((actual_txyz[i] - base_txyz[i])**2 for i in range(3))
-            )
-            print(f"[ROBOT] Base position error: {pos_err:.2f} mm")
-            assert pos_err < 1.0, \
-                f"Robot base position mismatch: {pos_err:.2f} mm"
+        for i, item_cfg in enumerate(non_robot_items):
+            name = item_cfg["name"]
+            type_str = item_cfg["type"]
+            item_type = TYPE_MAP[type_str]
 
-            print(f"[ROBOT] 6-DOF robot placed at j7=0 world pose")
+            # Switch to source
+            RDK.setActiveStation(src_station_ref)
 
-        else:
-            # Generic item — paste and reposition
+            src_item = RDK.Item(name, item_type)
+            assert src_item.Valid(), \
+                f"Item '{name}' (type={type_str}) not found in source station"
+
+            world_pose = src_item.PoseAbs()
+            src_item.Copy()
+
+            # Switch to dest
+            RDK.setActiveStation(dest_station_ref)
+
             pasted = RDK.Paste()
             assert pasted.Valid(), f"Paste() failed for '{name}'"
-            world_pose = data["world_pose"]
-            pasted.setPoseAbs(world_pose)
-            txyz = Pose_2_TxyzRxyz(world_pose)
-            print(f"[{type_str.upper()}] Pasted '{pasted.Name()}' at "
-                  f"x={txyz[0]:.1f} y={txyz[1]:.1f} z={txyz[2]:.1f}")
+
+            # Position at original world pose
+            # For frames: setPose places relative to parent (station = world)
+            # For objects/targets: setPoseAbs should work
+            if type_str == "frame":
+                pasted.setPose(world_pose)
+            else:
+                pasted.setPoseAbs(world_pose)
+
+            if (i + 1) % 10 == 0 or (i + 1) == len(non_robot_items):
+                print(f"  [{i+1}/{len(non_robot_items)}] Copied '{name}' ({type_str})")
+
+        # Stay on dest station
+        RDK.setActiveStation(dest_station_ref)
 
     # ── Save ─────────────────────────────────────────────────────────────
     dest_path = to_robodk_path(args.dest)
@@ -287,7 +343,7 @@ def main():
     else:
         print(f"[WARN] Save file not found — save may have failed")
 
-    # ── Final verification: query the new station ────────────────────────
+    # ── Final verification ───────────────────────────────────────────────
     print(f"\n[VERIFY] Querying destination station...")
     robots = RDK.ItemList(ITEM_TYPE_ROBOT)
     print(f"  Robots: {[r.Name() for r in robots]}")
@@ -299,20 +355,35 @@ def main():
     print(f"  Tools:  {[t.Name() for t in tools]}")
     objects = RDK.ItemList(ITEM_TYPE_OBJECT)
     print(f"  Objects: {[o.Name() for o in objects]}")
+    targets = RDK.ItemList(ITEM_TYPE_TARGET)
+    print(f"  Targets: {len(targets)} target(s)")
+    for t in targets:
+        print(f"    - {t.Name()}")
 
-    all_items = RDK.ItemList()
-    print(f"  Total items: {len(all_items)}")
+    all_station_items = RDK.ItemList()
+    print(f"  Total items: {len(all_station_items)}")
 
-    # Verify robot has 6 DOF one more time
+    # Verify robot DOF
     for r in robots:
         try:
             nj = len(r.Joints().list())
         except AttributeError:
             nj = len(list(r.Joints()))
-        print(f"  Robot '{r.Name()}': {nj} DOF")
         assert nj == 6, f"Robot '{r.Name()}' has {nj} DOF, expected 6"
 
-    print("\n[DONE] Station extraction complete.")
+    # Verify expected counts from config
+    expected_objects = [i for i in all_items if i["type"] == "object"]
+    expected_targets = [i for i in all_items if i["type"] == "target"]
+    expected_frames = [i for i in all_items if i["type"] == "frame"]
+
+    assert len(objects) >= len(expected_objects), \
+        f"Expected at least {len(expected_objects)} objects, got {len(objects)}"
+    assert len(targets) >= len(expected_targets), \
+        f"Expected at least {len(expected_targets)} targets, got {len(targets)}"
+
+    print(f"\n[DONE] Station extraction complete. "
+          f"{len(robots)} robot(s), {len(objects)} object(s), "
+          f"{len(targets)} target(s), {len(frames)} frame(s), {len(tools)} tool(s).")
 
 
 if __name__ == "__main__":
