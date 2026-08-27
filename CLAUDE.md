@@ -14,7 +14,88 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
-**TODO (top priority): z_axis_free IK solver — rotation sweep via RoboDK frames**
+**TODO (top priority): Base cone vacuum pickup movement sequence**
+
+Verify the end effector can execute the full pickup sequence at each base cone.
+This goes beyond single-point reachability — we need to solve each step and
+observe whether the transitions between them are sensible (no excessive joint
+rotation between steps).
+
+**Sequence (per base cone):**
+1. Move in with vacuum — approach the cone with vacuum engaged
+2. Move up with vacuum — lift the cone out of its holder
+3. Move to pickup offset — reposition to the pickup tool's offset pose
+4. Do pickup — engage the pickup tool
+
+**Simplification:** Remove j7 from the solver so the track is not used. This
+keeps the problem simpler — base cones are right next to the robot base anyway.
+
+**What we're looking for:** Whether the joint configurations at each step are
+compatible — specifically that the transition from the vacuum position (just
+before move-up) to the pickup offset position doesn't require excessive arm
+rotation. Collisions are not a concern yet.
+
+**Purpose:** Determine whether the current end-effector and base cone positions
+are viable for this movement aspect. If the solver produces wildly different arm
+configs between steps, the layout may need adjustment.
+
+**TODO (script 1): Station extraction — `extract_station.py`**
+
+Single-file script that reads a source RoboDK station and builds a new station
+containing only the items listed in a config file. Gives repeatability — run it
+every time you need a clean starting point for movement-sequence testing.
+
+**CLI:**
+```
+python robert_checker_stuff/extract_station.py \
+  --source for_robert_n1.rdk \
+  --dest for_robert_relative_to_base.rdk \
+  --config robert_checker_stuff/station_extract_config.json
+```
+All three arguments have defaults:
+- `--source`: `for_robert_n1.rdk`
+- `--dest`: `for_robert_relative_to_base.rdk`
+- `--config`: `robert_checker_stuff/station_extract_config.json`
+
+**Config file (`station_extract_config.json`):**
+Lists what to copy — objects, frames, end-effector elements, poses, targets, etc.
+One config serves all extraction needs. Schema TBD but something like:
+```json
+{
+  "items": [
+    {"name": "Fanuc R-2000iC/125L", "type": "robot"},
+    {"name": "pickup", "type": "tool"},
+    {"name": "Base_Right_0", "type": "object"},
+    ...
+  ]
+}
+```
+
+**The main challenge: extracting the robot arm without the track.**
+
+In the source station the robot is a child of the linear rail mechanism (j7).
+We need to copy the 6-DOF arm into the new station positioned where it sits
+when j7 = 0 — but without the rail. This means:
+- Compute the robot base pose at j7 = 0 in world space
+- Place the robot in the new station at that world pose, parented to a plain
+  frame (not a mechanism)
+- Copy only j1–j6 joint values; j7 does not exist in the output station
+- Assert that the robot resolves correctly in the new station (FK check: same
+  TCP world pose for the same j1–j6 as in the source at j7 = 0)
+
+Other items (end effectors, cones, frames) are simpler — read their world pose
+from the source, create them in the destination at the same pose.
+
+**Assertion policy:** The script asserts on every item listed in the config. If
+any item cannot be found in the source station, the script raises an
+`AssertionError` with the missing item name — never silently skips.
+
+**TODO (script 2): Movement sequence builder**
+
+Separate script (to be written after script 1 is working). Reads the extracted
+station and the checker results, then builds RoboDK paths/points/programs for
+the vacuum pickup movement sequence. Will use heavy assertions initially to
+verify it has everything it needs from the extracted station before proceeding.
 
 `SolveIK_All` corrupts the robot-rail connection in this station. Do NOT use it.
 Instead, implement z_axis_free as a rotation sweep using RoboDK frame manipulation:
