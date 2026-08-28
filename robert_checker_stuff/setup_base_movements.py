@@ -683,62 +683,75 @@ def main():
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
+    ap.add_argument("--skip", nargs="*", default=[],
+                    help="Phases to skip, e.g. --skip 1 2 3 4 5A 5B")
     args = ap.parse_args()
+
+    skip = {s.upper() for s in args.skip}
+    if skip:
+        print(f"[SKIP] Skipping phases: {', '.join(sorted(skip))}")
 
     config = load_config(args.config)
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
     # ── Phase 1: organize items into folders ──────────────────────────────
-    print("\n── Phase 1: Organize items into folders ──")
-    for folder_name, spec in FOLDER_DEFS.items():
-        folder = get_or_create_folder(RDK, folder_name)
-        matched = items_matching(RDK, spec["item_type"], spec["filter"])
+    if "1" not in skip:
+        print("\n── Phase 1: Organize items into folders ──")
+        for folder_name, spec in FOLDER_DEFS.items():
+            folder = get_or_create_folder(RDK, folder_name)
+            matched = items_matching(RDK, spec["item_type"], spec["filter"])
 
-        moved = 0
-        skipped = 0
-        for item in matched:
-            if move_item_to_folder(item, folder):
-                moved += 1
-            else:
-                skipped += 1
+            moved = 0
+            skipped_count = 0
+            for item in matched:
+                if move_item_to_folder(item, folder):
+                    moved += 1
+                else:
+                    skipped_count += 1
 
-        total = moved + skipped
-        print(f"[{folder_name}] {total} item(s): {moved} moved, {skipped} already in place")
+            total = moved + skipped_count
+            print(f"[{folder_name}] {total} item(s): {moved} moved, {skipped_count} already in place")
 
-    for folder_name in FOLDER_DEFS:
-        folder = RDK.Item(folder_name, ITEM_TYPE_FOLDER)
-        if folder.Valid():
-            folder.setVisible(True)
+        for folder_name in FOLDER_DEFS:
+            folder = RDK.Item(folder_name, ITEM_TYPE_FOLDER)
+            if folder.Valid():
+                folder.setVisible(True)
+    else:
+        print("\n── Phase 1: SKIPPED ──")
 
     # ── Phase 2: create programs for grab/string_grab pairs ───────────────
-    print("\n── Phase 2: Create programs for base cone pairs ──")
+    # Always discover cone names (needed by later phases)
     cone_names = discover_cone_names(RDK)
-    print(f"[DISCOVER] {len(cone_names)} base cone(s) with grab + string_grab pairs")
-    for name in cone_names:
-        print(f"  - {name}")
 
-    programs_folder = get_or_create_folder(RDK, "programs")
-    programs_folder.setVisible(True)
-    create_programs(RDK, robot, cone_names, programs_folder)
+    if "2" not in skip:
+        print("\n── Phase 2: Create programs for base cone pairs ──")
+        print(f"[DISCOVER] {len(cone_names)} base cone(s) with grab + string_grab pairs")
+        for name in cone_names:
+            print(f"  - {name}")
+
+        programs_folder = get_or_create_folder(RDK, "programs")
+        programs_folder.setVisible(True)
+        create_programs(RDK, robot, cone_names, programs_folder)
+    else:
+        print("\n── Phase 2: SKIPPED ──")
 
     # ── Phase 3: create offset targets ────────────────────────────────────
-    print("\n── Phase 3: Create offset targets (before/after) ──")
-    offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets")
-    before_folder = get_or_create_folder(RDK, "before", parent=offsets_parent)
-    after_folder = get_or_create_folder(RDK, "after", parent=offsets_parent)
-    offsets_parent.setVisible(True)
-    before_folder.setVisible(True)
-    after_folder.setVisible(True)
+    if "3" not in skip:
+        print("\n── Phase 3: Create offset targets (before/after) ──")
+        offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets")
+        before_folder = get_or_create_folder(RDK, "before", parent=offsets_parent)
+        after_folder = get_or_create_folder(RDK, "after", parent=offsets_parent)
+        offsets_parent.setVisible(True)
+        before_folder.setVisible(True)
+        after_folder.setVisible(True)
 
-    create_offset_targets(RDK, robot, config["offsets_mm"], before_folder, after_folder)
+        create_offset_targets(RDK, robot, config["offsets_mm"], before_folder, after_folder)
+    else:
+        print("\n── Phase 3: SKIPPED ──")
 
     # ── Phase 4: solve IK with Z-rotation sweep ──────────────────────────
-    print("\n── Phase 4: Solve IK for all targets ──")
-    step_deg = config["z_rotation_step_deg"]
-    n_steps = int(360 / step_deg)
-    print(f"[INFO] Z-rotation sweep: {step_deg} deg steps = {n_steps} attempts per target")
-
+    # Always set up folder refs (needed by Phase 5A)
     rotated_root = get_or_create_folder(RDK, "targets_rotated_for_solution")
     rotated_extracted = get_or_create_folder(RDK, "extracted", parent=rotated_root)
     rotated_offsets = get_or_create_folder(
@@ -747,39 +760,55 @@ def main():
     rotated_before = get_or_create_folder(RDK, "before", parent=rotated_offsets)
     rotated_after = get_or_create_folder(RDK, "after", parent=rotated_offsets)
 
-    rotated_root.setVisible(True)
-    rotated_extracted.setVisible(True)
-    rotated_offsets.setVisible(True)
-    rotated_before.setVisible(True)
-    rotated_after.setVisible(True)
+    failures = []
 
-    failures = solve_and_create_targets(
-        RDK, robot, config, rotated_extracted, rotated_before, rotated_after
-    )
+    if "4" not in skip:
+        print("\n── Phase 4: Solve IK for all targets ──")
+        step_deg = config["z_rotation_step_deg"]
+        n_steps = int(360 / step_deg)
+        print(f"[INFO] Z-rotation sweep: {step_deg} deg steps = {n_steps} attempts per target")
 
-    if failures:
-        write_failure_report(failures)
-        print(f"\n[WARN] {len(failures)} target(s) failed — see {REPORT_PATH}")
+        rotated_root.setVisible(True)
+        rotated_extracted.setVisible(True)
+        rotated_offsets.setVisible(True)
+        rotated_before.setVisible(True)
+        rotated_after.setVisible(True)
+
+        failures = solve_and_create_targets(
+            RDK, robot, config, rotated_extracted, rotated_before, rotated_after
+        )
+
+        if failures:
+            write_failure_report(failures)
+            print(f"\n[WARN] {len(failures)} target(s) failed — see {REPORT_PATH}")
+        else:
+            if os.path.exists(REPORT_PATH):
+                os.remove(REPORT_PATH)
+            print("\n[OK] All targets solved successfully.")
     else:
-        if os.path.exists(REPORT_PATH):
-            os.remove(REPORT_PATH)
-        print("\n[OK] All targets solved successfully.")
+        print("\n── Phase 4: SKIPPED ──")
 
     # ── Phase 5A: build targets_to_use folder + JSON ────────────────────
-    print("\n── Phase 5A: Build targets_to_use folder ──")
-    targets_to_use = build_targets_to_use(
-        RDK, robot, cone_names, failures, config["offsets_mm"],
-        rotated_extracted, rotated_before, rotated_after
-    )
-    write_targets_to_use(targets_to_use)
+    if "5A" not in skip:
+        print("\n── Phase 5A: Build targets_to_use folder ──")
+        targets_to_use = build_targets_to_use(
+            RDK, robot, cone_names, failures, config["offsets_mm"],
+            rotated_extracted, rotated_before, rotated_after
+        )
+        write_targets_to_use(targets_to_use)
+    else:
+        print("\n── Phase 5A: SKIPPED ──")
 
     # ── Phase 5B: populate programs (commented out for now) ───────────
-    # print("\n── Phase 5B: Populate programs ──")
-    # ee_config = config["end_effectors"]
-    # populate_programs(
-    #     RDK, robot, targets_to_use, ee_config,
-    #     rotated_extracted, rotated_before, rotated_after
-    # )
+    # if "5B" not in skip:
+    #     print("\n── Phase 5B: Populate programs ──")
+    #     ee_config = config["end_effectors"]
+    #     populate_programs(
+    #         RDK, robot, targets_to_use, ee_config,
+    #         rotated_extracted, rotated_before, rotated_after
+    #     )
+    # else:
+    #     print("\n── Phase 5B: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 
