@@ -951,8 +951,6 @@ def main():
         complete = {c: v for c, v in targets_to_use.items()
                     if "grab" in v and "string_grab" in v}
 
-        # TODO: remove this filter — testing only Base_Left_0 for now
-        complete = {c: v for c, v in complete.items() if c == "Base_Left_0"}
         print(f"[INFO] {len(complete)} cone(s) with both grab + string_grab")
 
         ee_config = config["end_effectors"]
