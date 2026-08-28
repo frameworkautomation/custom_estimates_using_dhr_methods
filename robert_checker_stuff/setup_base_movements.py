@@ -53,6 +53,7 @@ from robodk.robolink import (
     Robolink, ITEM_TYPE_TARGET, ITEM_TYPE_OBJECT,
     ITEM_TYPE_FOLDER, ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON,
     ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
+    INSTRUCTION_CALL_PROGRAM,
 )
 from robodk.robomath import transl, rotz, Pose_2_TxyzRxyz
 
@@ -634,6 +635,28 @@ def install_replace_cones_script(RDK, programs_folder):
         print(f"[WARN] Failed to add replace_cone.py to station")
 
 
+ATTACH_SCRIPTS_DIR = os.path.join(SCRIPT_DIR, "attach_scripts")
+
+
+def _write_attach_script(cone_name):
+    """Write a tiny Python script that attaches a specific cone to the pickup tool."""
+    os.makedirs(ATTACH_SCRIPTS_DIR, exist_ok=True)
+    script_path = os.path.join(ATTACH_SCRIPTS_DIR, f"attach_{cone_name}.py")
+    if not os.path.exists(script_path):
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_OBJECT
+RDK = Robolink()
+tool = RDK.Item("pickup", ITEM_TYPE_TOOL)
+cone = RDK.Item("{cone_name}", ITEM_TYPE_OBJECT)
+if tool.Valid() and cone.Valid():
+    cone.setParentStatic(tool)
+    print("Attached: {cone_name}")
+else:
+    print("Failed to attach {cone_name}")
+''')
+    return script_path
+
+
 def find_cone_object(RDK, cone_name):
     """Find the cone mesh object in the station by cone name."""
     obj = RDK.Item(cone_name, ITEM_TYPE_OBJECT)
@@ -664,11 +687,22 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
     pickup_tool = find_tool(RDK, ee_config["grab"])
     home_target = get_or_create_home_target(RDK, robot, extracted_folder)
 
-    # Save original cone poses before any attaching
+    # Save original cone poses (before any attaching happens)
     cone_poses = {}
     if os.path.exists(CONE_POSES_PATH):
         with open(CONE_POSES_PATH, "r", encoding="utf-8") as f:
             cone_poses = json.load(f)
+
+    all_objects = RDK.ItemList(ITEM_TYPE_OBJECT)
+    for obj in all_objects:
+        name = obj.Name()
+        if CONE_PATTERN.match(name) and name not in cone_poses:
+            cone_poses[name] = Pose_2_TxyzRxyz(obj.PoseAbs())
+
+    if cone_poses:
+        with open(CONE_POSES_PATH, "w", encoding="utf-8") as f:
+            json.dump(cone_poses, f, indent=2)
+        print(f"[SAVE] Cone original poses saved ({len(cone_poses)} cones)")
 
     for cone_name, entries in targets_to_use.items():
         prog = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
@@ -722,14 +756,19 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         prog.MoveL(gr_before)
         prog.MoveL(gr_target)
 
-        # Attach cone to pickup tool so it moves with the robot
-        cone_obj = find_cone_object(RDK, cone_name)
-        if cone_obj is not None:
-            # Save original pose before attaching
-            if cone_name not in cone_poses:
-                cone_poses[cone_name] = Pose_2_TxyzRxyz(cone_obj.PoseAbs())
-            cone_obj.setParentStatic(pickup_tool)
-            print(f"    [ATTACH] {cone_name} attached to {ee_config['grab']}")
+        # Create per-cone attach script and call it during playback
+        attach_name = f"attach_{cone_name}"
+        attach_prog = RDK.Item(attach_name, ITEM_TYPE_PROGRAM_PYTHON)
+        if not attach_prog.Valid():
+            attach_script = _write_attach_script(cone_name)
+            attach_path = to_robodk_path(attach_script)
+            attach_prog = RDK.AddFile(attach_path)
+            if attach_prog.Valid():
+                programs_folder_ref = RDK.Item("programs", ITEM_TYPE_FOLDER)
+                if programs_folder_ref.Valid():
+                    attach_prog.setParent(programs_folder_ref)
+
+        prog.RunInstruction(attach_name, INSTRUCTION_CALL_PROGRAM)
 
         prog.MoveL(gr_after)
 
@@ -737,13 +776,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         prog.MoveJ(home_target)
 
         populated += 1
-        print(f"  [OK]   {cone_name} — 9 instructions added")
-
-    # Save original poses for replace_cone.py
-    if cone_poses:
-        with open(CONE_POSES_PATH, "w", encoding="utf-8") as f:
-            json.dump(cone_poses, f, indent=2)
-        print(f"[SAVE] Cone original poses saved to {os.path.basename(CONE_POSES_PATH)}")
+        print(f"  [OK]   {cone_name} — 10 instructions added")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
@@ -917,6 +950,9 @@ def main():
         # Only populate cones that have both grab and string_grab
         complete = {c: v for c, v in targets_to_use.items()
                     if "grab" in v and "string_grab" in v}
+
+        # TODO: remove this filter — testing only Base_Left_0 for now
+        complete = {c: v for c, v in complete.items() if c == "Base_Left_0"}
         print(f"[INFO] {len(complete)} cone(s) with both grab + string_grab")
 
         ee_config = config["end_effectors"]

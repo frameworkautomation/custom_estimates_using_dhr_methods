@@ -25,8 +25,8 @@ sys.path.append("C:/RoboDK/Python")
 from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_FOLDER
 from robodk.robomath import TxyzRxyz_2_Pose
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-POSES_PATH = os.path.join(SCRIPT_DIR, "cone_original_poses.json")
+# Hardcoded path — __file__ is unreliable when RoboDK copies scripts to temp
+POSES_PATH = r"C:\Users\samst\Framework\clones\custom_estimates_using_dhr_methods\robert_checker_stuff\cone_original_poses.json"
 CONE_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+$")
 
 
