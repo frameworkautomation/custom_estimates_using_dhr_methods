@@ -23,9 +23,11 @@ Phase 4 — solve IK for all targets with Z-axis rotation sweep:
   - Solved offsets in targets_rotated_for_solution/auto_generated_offsets/before|after
   - Failures written to ik_failure_report.txt
 
-Phase 5 — build targets_to_use.json and populate programs:
-  - Merges solved targets from Phase 4 into a lookup file
-  - Populates each cone's program with MoveL instructions:
+Phase 5 — build targets_to_use folder + JSON:
+  - Merges solved targets from Phase 4 into a single folder + lookup file
+
+Phase 6 — populate programs with movement instructions:
+  - Each cone's program gets MoveL instructions:
     home → knotting(before→string_grab→after) → pickup(before→grab→after)
 
 Reads settings from setup_base_movements_config.json (same directory).
@@ -600,20 +602,22 @@ def get_or_create_home_target(RDK, robot, rotated_extracted):
 
 
 def populate_programs(RDK, robot, targets_to_use, ee_config,
-                      rotated_extracted, rotated_before, rotated_after):
+                      extracted_folder, before_folder, after_folder):
     """Populate each cone's program with MoveL instructions.
 
     Sequence per program:
     1. MoveJ to home
     2. Set knotting tool → MoveL before string_grab → MoveL string_grab → MoveL after string_grab
     3. Set pickup tool → MoveL before grab → MoveL grab → MoveL after grab
+
+    Targets are looked up from the targets_to_use folder subfolders.
     """
     populated = 0
     skipped = 0
 
     knotting_tool = find_tool(RDK, ee_config["string_grab"])
     pickup_tool = find_tool(RDK, ee_config["grab"])
-    home_target = get_or_create_home_target(RDK, robot, rotated_extracted)
+    home_target = get_or_create_home_target(RDK, robot, extracted_folder)
 
     for cone_name, entries in targets_to_use.items():
         prog = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
@@ -628,17 +632,17 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             skipped += 1
             continue
 
-        # Look up all 6 targets from the rotated folders
+        # Look up all 6 targets from the targets_to_use folders
         sg = entries["string_grab"]
         gr = entries["grab"]
 
-        sg_before = find_target_in_folder(rotated_before, sg["before"])
-        sg_target = find_target_in_folder(rotated_extracted, sg["target"])
-        sg_after = find_target_in_folder(rotated_after, sg["after"])
+        sg_before = find_target_in_folder(before_folder, sg["before"])
+        sg_target = find_target_in_folder(extracted_folder, sg["target"])
+        sg_after = find_target_in_folder(after_folder, sg["after"])
 
-        gr_before = find_target_in_folder(rotated_before, gr["before"])
-        gr_target = find_target_in_folder(rotated_extracted, gr["target"])
-        gr_after = find_target_in_folder(rotated_after, gr["after"])
+        gr_before = find_target_in_folder(before_folder, gr["before"])
+        gr_target = find_target_in_folder(extracted_folder, gr["target"])
+        gr_after = find_target_in_folder(after_folder, gr["after"])
 
         missing = []
         for label, item in [
@@ -684,7 +688,7 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3 4 5A 5B")
+                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6")
     args = ap.parse_args()
 
     skip = {s.upper() for s in args.skip}
@@ -788,27 +792,46 @@ def main():
     else:
         print("\n── Phase 4: SKIPPED ──")
 
-    # ── Phase 5A: build targets_to_use folder + JSON ────────────────────
-    if "5A" not in skip:
-        print("\n── Phase 5A: Build targets_to_use folder ──")
+    # ── Phase 5: build targets_to_use folder + JSON ─────────────────────
+    if "5" not in skip:
+        print("\n── Phase 5: Build targets_to_use folder ──")
         targets_to_use = build_targets_to_use(
             RDK, robot, cone_names, failures, config["offsets_mm"],
             rotated_extracted, rotated_before, rotated_after
         )
         write_targets_to_use(targets_to_use)
     else:
-        print("\n── Phase 5A: SKIPPED ──")
+        print("\n── Phase 5: SKIPPED ──")
+        targets_to_use = {}
 
-    # ── Phase 5B: populate programs (commented out for now) ───────────
-    # if "5B" not in skip:
-    #     print("\n── Phase 5B: Populate programs ──")
-    #     ee_config = config["end_effectors"]
-    #     populate_programs(
-    #         RDK, robot, targets_to_use, ee_config,
-    #         rotated_extracted, rotated_before, rotated_after
-    #     )
-    # else:
-    #     print("\n── Phase 5B: SKIPPED ──")
+    # ── Phase 6: populate programs ────────────────────────────────────
+    if "6" not in skip:
+        print("\n── Phase 6: Populate programs ──")
+        if not targets_to_use:
+            # Load from JSON if Phase 5 was skipped
+            if os.path.exists(TARGETS_TO_USE_PATH):
+                with open(TARGETS_TO_USE_PATH, "r", encoding="utf-8") as f:
+                    targets_to_use = json.load(f)
+                print(f"[LOAD] Loaded targets_to_use.json — {len(targets_to_use)} cone(s)")
+            else:
+                print("[WARN] No targets_to_use.json found — skipping program population")
+                targets_to_use = {}
+
+        if targets_to_use:
+            # Need folder refs for target lookup
+            ttu_root = get_or_create_folder(RDK, "targets_to_use")
+            ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
+            ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
+            ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
+            ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
+
+            ee_config = config["end_effectors"]
+            populate_programs(
+                RDK, robot, targets_to_use, ee_config,
+                ttu_extracted, ttu_before, ttu_after
+            )
+    else:
+        print("\n── Phase 6: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 
