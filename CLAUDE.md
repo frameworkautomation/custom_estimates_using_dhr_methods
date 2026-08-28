@@ -134,6 +134,58 @@ Instead, implement z_axis_free as a rotation sweep using RoboDK frame manipulati
 - Called from `solve_point()` when `z_axis_free=True`
 - The checker instantiates the class once after connecting to RoboDK
 
+**TODO (script 2, Phase 5): targets_to_use.json + program population**
+
+Two steps: (A) build a merged target lookup file, (B) populate each RoboDK program.
+
+**A. `targets_to_use.json`** — written by `setup_base_movements.py`
+
+All solved targets (whether they needed Z-rotation or not) end up in
+`targets_rotated_for_solution/`. Phase 4 creates the main target in `extracted/`
+and its before/after offsets in `auto_generated_offsets/before|after` — always as
+a group based on the solved pose. So everything the programs need lives in one
+place.
+
+`targets_to_use.json` lists only cones where **both** grab and string_grab solved.
+Cones with any failure are excluded entirely.
+
+```json
+{
+  "Base_Right_0": {
+    "grab": {
+      "target": "Base_Right_0_grab",
+      "before": "offset_before_for_Base_Right_0_grab",
+      "after": "offset_after_for_Base_Right_0_grab"
+    },
+    "string_grab": {
+      "target": "Base_Right_0_string_grab",
+      "before": "offset_before_for_Base_Right_0_string_grab",
+      "after": "offset_after_for_Base_Right_0_string_grab"
+    }
+  }
+}
+```
+
+All names refer to items inside `targets_rotated_for_solution/` subfolders.
+
+**B. Program population** — also in `setup_base_movements.py` Phase 5
+
+For each cone program (e.g. `Base_Right_0`), add instructions:
+
+1. MoveJ to home (joint target at all-zeros)
+2. **String grab sequence** (set knotting tool):
+   - MoveL to `offset_before_for_<cone>_string_grab`
+   - MoveL to `<cone>_string_grab`
+   - MoveL to `offset_after_for_<cone>_string_grab`
+3. **Pickup grab sequence** (set pickup tool):
+   - MoveL to `offset_before_for_<cone>_grab`
+   - MoveL to `<cone>_grab`
+   - MoveL to `offset_after_for_<cone>_grab`
+
+All moves are MoveL. All targets come from `targets_rotated_for_solution/` subfolders.
+
+Programs that reference failed targets are skipped (not populated).
+
 **TODO (cutting):**
 - Implement linear moves for cutting sequence (approach→top→bottom→pull_away should
   use MoveL between top/bottom/pull_away, not MoveJ — deferred for now)

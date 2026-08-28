@@ -23,6 +23,11 @@ Phase 4 — solve IK for all targets with Z-axis rotation sweep:
   - Solved offsets in targets_rotated_for_solution/auto_generated_offsets/before|after
   - Failures written to ik_failure_report.txt
 
+Phase 5 — build targets_to_use.json and populate programs:
+  - Merges solved targets from Phase 4 into a lookup file
+  - Populates each cone's program with MoveL instructions:
+    home → knotting(before→string_grab→after) → pickup(before→grab→after)
+
 Reads settings from setup_base_movements_config.json (same directory).
 
 Caching: folders, item placements, programs, and solved targets are reused
@@ -52,6 +57,7 @@ from robodk.robomath import transl, rotz
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "setup_base_movements_config.json")
 REPORT_PATH = os.path.join(SCRIPT_DIR, "ik_failure_report.txt")
+TARGETS_TO_USE_PATH = os.path.join(SCRIPT_DIR, "targets_to_use.json")
 
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
@@ -150,16 +156,23 @@ def get_or_create_folder(RDK, name, parent=None):
     """
     if parent is not None:
         # Check children of parent for this name
-        children = parent.Childs()
-        for child in children:
+        for child in parent.Childs():
             if child.Name() == name and child.Type() == ITEM_TYPE_FOLDER:
                 return child
 
-        # Not found under parent — create it
+        # Snapshot root folders before creation so we can find the new one
+        existing_ids = {f.item for f in RDK.ItemList(ITEM_TYPE_FOLDER)}
+
         RDK.Command("AddFolder", name)
-        # AddFolder creates at root, find it and reparent
-        folder = RDK.Item(name, ITEM_TYPE_FOLDER)
-        assert folder.Valid(), f"Failed to create folder '{name}'"
+
+        # Find the newly created folder (not in the snapshot)
+        folder = None
+        for f in RDK.ItemList(ITEM_TYPE_FOLDER):
+            if f.item not in existing_ids and f.Name() == name:
+                folder = f
+                break
+
+        assert folder is not None, f"Failed to create folder '{name}'"
         folder.setParent(parent)
         print(f"[CREATE] Created folder '{name}' under '{parent.Name()}'")
         return folder
@@ -449,6 +462,219 @@ def write_failure_report(failures):
     print(f"[REPORT] Written to {REPORT_PATH}")
 
 
+# ── PHASE 5: targets_to_use.json + program population ───────────────────────
+
+def build_targets_to_use(RDK, robot, cone_names, failures, offsets_config,
+                         rotated_extracted, rotated_before, rotated_after):
+    """Build the targets_to_use folder in RoboDK and a JSON summary.
+
+    For each cone where both grab and string_grab solved, copies the solved
+    targets and their offsets into the targets_to_use folder so everything
+    needed for programs is in one place.
+
+    Folder structure:
+      targets_to_use/
+        extracted/
+          <cone>_grab
+          <cone>_string_grab
+        auto_generated_offsets/
+          before/
+            offset_before_for_<cone>_grab
+            offset_before_for_<cone>_string_grab
+          after/
+            offset_after_for_<cone>_grab
+            offset_after_for_<cone>_string_grab
+    """
+    failed_names = {name for name, _ in failures}
+
+    solved_children = set()
+    for child in rotated_extracted.Childs():
+        solved_children.add(child.Name())
+
+    # Create folder structure
+    ttu_root = get_or_create_folder(RDK, "targets_to_use")
+    ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
+    ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
+    ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
+    ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
+    ttu_root.setVisible(True)
+    ttu_extracted.setVisible(True)
+    ttu_offsets.setVisible(True)
+    ttu_before.setVisible(True)
+    ttu_after.setVisible(True)
+
+    # Track what's already in each folder for caching
+    existing_in_extracted = {c.Name() for c in ttu_extracted.Childs() if c.Type() == ITEM_TYPE_TARGET}
+    existing_in_before = {c.Name() for c in ttu_before.Childs() if c.Type() == ITEM_TYPE_TARGET}
+    existing_in_after = {c.Name() for c in ttu_after.Childs() if c.Type() == ITEM_TYPE_TARGET}
+
+    targets_to_use = {}
+    created = 0
+    cached = 0
+
+    for cone in cone_names:
+        grab_name = f"{cone}_grab"
+        string_grab_name = f"{cone}_string_grab"
+
+        if grab_name in failed_names or string_grab_name in failed_names:
+            continue
+        if grab_name not in solved_children or string_grab_name not in solved_children:
+            continue
+
+        targets_to_use[cone] = {
+            "grab": {
+                "target": grab_name,
+                "before": f"offset_before_for_{grab_name}",
+                "after": f"offset_after_for_{grab_name}",
+            },
+            "string_grab": {
+                "target": string_grab_name,
+                "before": f"offset_before_for_{string_grab_name}",
+                "after": f"offset_after_for_{string_grab_name}",
+            },
+        }
+
+        # Copy targets into targets_to_use/extracted
+        for target_name in (grab_name, string_grab_name):
+            if target_name in existing_in_extracted:
+                cached += 1
+                continue
+            src = find_target_in_folder(rotated_extracted, target_name)
+            if src is None:
+                continue
+            tgt = RDK.AddTarget(target_name, ttu_extracted, robot)
+            tgt.setPose(src.Pose())
+            tgt.setJoints(src.Joints())
+            created += 1
+
+        # Copy before/after offsets
+        for target_name in (grab_name, string_grab_name):
+            before_name = f"offset_before_for_{target_name}"
+            after_name = f"offset_after_for_{target_name}"
+
+            if before_name not in existing_in_before:
+                src = find_target_in_folder(rotated_before, before_name)
+                if src is not None:
+                    tgt = RDK.AddTarget(before_name, ttu_before, robot)
+                    tgt.setPose(src.Pose())
+                    created += 1
+            else:
+                cached += 1
+
+            if after_name not in existing_in_after:
+                src = find_target_in_folder(rotated_after, after_name)
+                if src is not None:
+                    tgt = RDK.AddTarget(after_name, ttu_after, robot)
+                    tgt.setPose(src.Pose())
+                    created += 1
+            else:
+                cached += 1
+
+    print(f"[targets_to_use] {len(targets_to_use)} cone(s): {created} targets created, {cached} cached")
+    return targets_to_use
+
+
+def write_targets_to_use(targets_to_use):
+    with open(TARGETS_TO_USE_PATH, "w", encoding="utf-8") as f:
+        json.dump(targets_to_use, f, indent=2)
+    print(f"[WRITE] {TARGETS_TO_USE_PATH} — {len(targets_to_use)} cone(s)")
+
+
+def find_target_in_folder(folder, name):
+    """Find a target by name within a folder's children."""
+    for child in folder.Childs():
+        if child.Name() == name and child.Type() == ITEM_TYPE_TARGET:
+            return child
+    return None
+
+
+def get_or_create_home_target(RDK, robot, rotated_extracted):
+    """Get or create a 'home' target at all-zeros joints in the extracted folder."""
+    home = find_target_in_folder(rotated_extracted, "home")
+    if home is not None:
+        return home
+    home = RDK.AddTarget("home", rotated_extracted, robot)
+    home.setJoints(HOME_SEED_6DOF)
+    home.setAsJointTarget()
+    return home
+
+
+def populate_programs(RDK, robot, targets_to_use, ee_config,
+                      rotated_extracted, rotated_before, rotated_after):
+    """Populate each cone's program with MoveL instructions.
+
+    Sequence per program:
+    1. MoveJ to home
+    2. Set knotting tool → MoveL before string_grab → MoveL string_grab → MoveL after string_grab
+    3. Set pickup tool → MoveL before grab → MoveL grab → MoveL after grab
+    """
+    populated = 0
+    skipped = 0
+
+    knotting_tool = find_tool(RDK, ee_config["string_grab"])
+    pickup_tool = find_tool(RDK, ee_config["grab"])
+    home_target = get_or_create_home_target(RDK, robot, rotated_extracted)
+
+    for cone_name, entries in targets_to_use.items():
+        prog = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
+        if not prog.Valid():
+            print(f"  [SKIP] Program '{cone_name}' not found")
+            skipped += 1
+            continue
+
+        # Check if program already has instructions (caching)
+        n_ins = prog.InstructionCount()
+        if n_ins > 0:
+            skipped += 1
+            continue
+
+        # Look up all 6 targets from the rotated folders
+        sg = entries["string_grab"]
+        gr = entries["grab"]
+
+        sg_before = find_target_in_folder(rotated_before, sg["before"])
+        sg_target = find_target_in_folder(rotated_extracted, sg["target"])
+        sg_after = find_target_in_folder(rotated_after, sg["after"])
+
+        gr_before = find_target_in_folder(rotated_before, gr["before"])
+        gr_target = find_target_in_folder(rotated_extracted, gr["target"])
+        gr_after = find_target_in_folder(rotated_after, gr["after"])
+
+        missing = []
+        for label, item in [
+            (sg["before"], sg_before), (sg["target"], sg_target), (sg["after"], sg_after),
+            (gr["before"], gr_before), (gr["target"], gr_target), (gr["after"], gr_after),
+        ]:
+            if item is None:
+                missing.append(label)
+
+        if missing:
+            print(f"  [SKIP] {cone_name} — missing targets: {missing}")
+            skipped += 1
+            continue
+
+        # Build the program — MoveJ to home, then tool changes + MoveL sequences
+        prog.MoveJ(home_target)
+
+        # String grab sequence with knotting tool
+        prog.setPoseTool(knotting_tool)
+        prog.MoveL(sg_before)
+        prog.MoveL(sg_target)
+        prog.MoveL(sg_after)
+
+        # Pickup grab sequence with pickup tool
+        prog.setPoseTool(pickup_tool)
+        prog.MoveL(gr_before)
+        prog.MoveL(gr_target)
+        prog.MoveL(gr_after)
+
+        populated += 1
+        print(f"  [OK]   {cone_name} — 8 instructions added")
+
+    total = populated + skipped
+    print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
+
+
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -535,10 +761,25 @@ def main():
         write_failure_report(failures)
         print(f"\n[WARN] {len(failures)} target(s) failed — see {REPORT_PATH}")
     else:
-        # Clear any old report
         if os.path.exists(REPORT_PATH):
             os.remove(REPORT_PATH)
         print("\n[OK] All targets solved successfully.")
+
+    # ── Phase 5A: build targets_to_use folder + JSON ────────────────────
+    print("\n── Phase 5A: Build targets_to_use folder ──")
+    targets_to_use = build_targets_to_use(
+        RDK, robot, cone_names, failures, config["offsets_mm"],
+        rotated_extracted, rotated_before, rotated_after
+    )
+    write_targets_to_use(targets_to_use)
+
+    # ── Phase 5B: populate programs (commented out for now) ───────────
+    # print("\n── Phase 5B: Populate programs ──")
+    # ee_config = config["end_effectors"]
+    # populate_programs(
+    #     RDK, robot, targets_to_use, ee_config,
+    #     rotated_extracted, rotated_before, rotated_after
+    # )
 
     print("\n[DONE] Station setup complete.")
 
