@@ -662,7 +662,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
         # String grab sequence with knotting tool
         prog.setPoseTool(knotting_tool)
-        prog.MoveL(sg_before)
+        prog.MoveJ(sg_before)
         prog.MoveL(sg_target)
         prog.MoveL(sg_after)
 
@@ -672,8 +672,11 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         prog.MoveL(gr_target)
         prog.MoveL(gr_after)
 
+        # Return home
+        prog.MoveJ(home_target)
+
         populated += 1
-        print(f"  [OK]   {cone_name} — 8 instructions added")
+        print(f"  [OK]   {cone_name} — 9 instructions added")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
