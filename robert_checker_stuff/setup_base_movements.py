@@ -431,26 +431,29 @@ def solve_and_create_targets(RDK, robot, config, extracted_folder,
             solved_target.setJoints(joints)
 
             # Create before/after offsets for the solved pose, with IK solutions
+            # Use full Z-rotation sweep — the offset pose may need a different rotation
             before_pose = solved_pose * transl(0, 0, -offset_distances["before"])
-            before_joints = try_ik(robot, before_pose)
+            before_solved, before_joints, _ = solve_with_z_sweep(robot, before_pose, step_deg)
             before_target = RDK.AddTarget(
                 f"offset_before_for_{name}", before_folder, robot
             )
-            before_target.setPose(before_pose)
-            if before_joints is not None:
+            if before_solved is not None:
+                before_target.setPose(before_solved)
                 before_target.setJoints(before_joints)
             else:
+                before_target.setPose(before_pose)
                 print(f"    [WARN] No IK for offset_before_for_{name}")
 
             after_pose = solved_pose * transl(0, 0, -offset_distances["after"])
-            after_joints = try_ik(robot, after_pose)
+            after_solved, after_joints, _ = solve_with_z_sweep(robot, after_pose, step_deg)
             after_target = RDK.AddTarget(
                 f"offset_after_for_{name}", after_folder, robot
             )
-            after_target.setPose(after_pose)
-            if after_joints is not None:
+            if after_solved is not None:
+                after_target.setPose(after_solved)
                 after_target.setJoints(after_joints)
             else:
+                after_target.setPose(after_pose)
                 print(f"    [WARN] No IK for offset_after_for_{name}")
 
             solved += 1
