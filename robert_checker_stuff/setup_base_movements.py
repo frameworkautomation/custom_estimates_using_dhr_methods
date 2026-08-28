@@ -802,34 +802,58 @@ def main():
         write_targets_to_use(targets_to_use)
     else:
         print("\n── Phase 5: SKIPPED ──")
-        targets_to_use = {}
 
     # ── Phase 6: populate programs ────────────────────────────────────
     if "6" not in skip:
         print("\n── Phase 6: Populate programs ──")
-        if not targets_to_use:
-            # Load from JSON if Phase 5 was skipped
-            if os.path.exists(TARGETS_TO_USE_PATH):
-                with open(TARGETS_TO_USE_PATH, "r", encoding="utf-8") as f:
-                    targets_to_use = json.load(f)
-                print(f"[LOAD] Loaded targets_to_use.json — {len(targets_to_use)} cone(s)")
+
+        # Get folder refs from the RoboDK station — these must already exist
+        ttu_root = RDK.Item("targets_to_use", ITEM_TYPE_FOLDER)
+        assert ttu_root.Valid(), \
+            "targets_to_use folder not found — run Phase 5 first"
+
+        ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
+        ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
+        ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
+        ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
+
+        # Build targets_to_use dict from the folder contents
+        extracted_targets = {c.Name(): c for c in ttu_extracted.Childs()
+                            if c.Type() == ITEM_TYPE_TARGET}
+        assert len(extracted_targets) > 0, \
+            "targets_to_use/extracted is empty — run Phase 5 first"
+        print(f"[INFO] Found {len(extracted_targets)} target(s) in targets_to_use/extracted")
+
+        # Reconstruct cone → target mapping from folder contents
+        targets_to_use = {}
+        for name in extracted_targets:
+            if GRAB_PATTERN.match(name):
+                cone = name.rsplit("_grab", 1)[0]
+                kind = "grab"
+            elif STRING_GRAB_PATTERN.match(name):
+                cone = name.rsplit("_string_grab", 1)[0]
+                kind = "string_grab"
             else:
-                print("[WARN] No targets_to_use.json found — skipping program population")
-                targets_to_use = {}
+                continue
 
-        if targets_to_use:
-            # Need folder refs for target lookup
-            ttu_root = get_or_create_folder(RDK, "targets_to_use")
-            ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
-            ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
-            ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
-            ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
+            if cone not in targets_to_use:
+                targets_to_use[cone] = {}
+            targets_to_use[cone][kind] = {
+                "target": name,
+                "before": f"offset_before_for_{name}",
+                "after": f"offset_after_for_{name}",
+            }
 
-            ee_config = config["end_effectors"]
-            populate_programs(
-                RDK, robot, targets_to_use, ee_config,
-                ttu_extracted, ttu_before, ttu_after
-            )
+        # Only populate cones that have both grab and string_grab
+        complete = {c: v for c, v in targets_to_use.items()
+                    if "grab" in v and "string_grab" in v}
+        print(f"[INFO] {len(complete)} cone(s) with both grab + string_grab")
+
+        ee_config = config["end_effectors"]
+        populate_programs(
+            RDK, robot, complete, ee_config,
+            ttu_extracted, ttu_before, ttu_after
+        )
     else:
         print("\n── Phase 6: SKIPPED ──")
 
