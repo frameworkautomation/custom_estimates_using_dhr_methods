@@ -14,30 +14,36 @@
 5. Check the cutting operation in simulation — verify the tool can perform the
    cut motion without collisions or reachability issues
 
-**TODO (top priority): Base cone vacuum pickup movement sequence**
+**DONE: Base cone vacuum pickup movement sequence**
 
-Verify the end effector can execute the full pickup sequence at each base cone.
-This goes beyond single-point reachability — we need to solve each step and
-observe whether the transitions between them are sensible (no excessive joint
-rotation between steps).
+Phases 1–6 of `setup_base_movements.py` are working. IK solving, offset
+generation, and program population all complete. 24/24 targets solved on the
+6-DOF extracted station.
 
-**Sequence (per base cone):**
-1. Move in with vacuum — approach the cone with vacuum engaged
-2. Move up with vacuum — lift the cone out of its holder
-3. Move to pickup offset — reposition to the pickup tool's offset pose
-4. Do pickup — engage the pickup tool
+**TODO (top priority): Collision-aware movement sequences**
 
-**Simplification:** Remove j7 from the solver so the track is not used. This
-keeps the problem simpler — base cones are right next to the robot base anyway.
+Three tasks, in order:
 
-**What we're looking for:** Whether the joint configurations at each step are
-compatible — specifically that the transition from the vacuum position (just
-before move-up) to the pickup offset position doesn't require excessive arm
-rotation. Collisions are not a concern yet.
+1. **Attach cone to end effector at grab point.** After the robot reaches the
+   grab target, parent the cone mesh to the tool so it moves with the robot for
+   the rest of the sequence. This is needed so collision checking includes the
+   held cone geometry.
 
-**Purpose:** Determine whether the current end-effector and base cone positions
-are viable for this movement aspect. If the solver produces wildly different arm
-configs between steps, the layout may need adjustment.
+2. **Collision avoidance for the movement sequence.** Currently the programs use
+   direct MoveJ/MoveL between targets with no intermediate waypoints. Some of
+   these moves may collide with the cone holder, adjacent cones, or the bin.
+   Options to investigate:
+   - Add more offset waypoints (coded in config or auto-generated) to route
+     around obstacles
+   - Use `MoveJ_Test` / `MoveL_Test` to detect collisions and insert
+     intermediate waypoints where needed
+   - Manual intermediate frames placed in RoboDK
+
+3. **Debug MoveJ failures to certain targets.** Some MoveJ instructions in the
+   populated programs fail at runtime (robot can't reach or path is invalid).
+   Investigate why — could be IK config mismatch between the solve-time pose and
+   the program target, or the joint seed differing between Phase 4 solving and
+   program execution.
 
 **TODO (script 1): Station extraction — `extract_station.py`**
 
