@@ -51,15 +51,16 @@ sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import (
     Robolink, ITEM_TYPE_TARGET, ITEM_TYPE_OBJECT,
-    ITEM_TYPE_FOLDER, ITEM_TYPE_PROGRAM, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL,
-    ITEM_TYPE_FRAME,
+    ITEM_TYPE_FOLDER, ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON,
+    ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
 )
-from robodk.robomath import transl, rotz
+from robodk.robomath import transl, rotz, Pose_2_TxyzRxyz
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "setup_base_movements_config.json")
 REPORT_PATH = os.path.join(SCRIPT_DIR, "ik_failure_report.txt")
 TARGETS_TO_USE_PATH = os.path.join(SCRIPT_DIR, "targets_to_use.json")
+CONE_POSES_PATH = os.path.join(SCRIPT_DIR, "cone_original_poses.json")
 
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
@@ -601,14 +602,58 @@ def get_or_create_home_target(RDK, robot, rotated_extracted):
     return home
 
 
+def to_robodk_path(path):
+    """Convert path for RoboDK. Handles WSL /mnt/c/... -> C:/... conversion."""
+    abs_path = os.path.abspath(path)
+    try:
+        if abs_path.startswith("/mnt/"):
+            parts = abs_path.split("/")
+            drive = parts[2].upper()
+            rest = "/".join(parts[3:])
+            return f"{drive}:/{rest}"
+    except (IndexError, AttributeError):
+        pass
+    return abs_path
+
+
+REPLACE_CONE_SCRIPT = os.path.join(SCRIPT_DIR, "replace_cone.py")
+
+
+def install_replace_cones_script(RDK, programs_folder):
+    """Add replace_cone.py as a Python program in the RoboDK programs folder."""
+    existing = RDK.Item("replace_cone", ITEM_TYPE_PROGRAM_PYTHON)
+    if existing.Valid():
+        print("[CACHE] replace_cone script already in station")
+        return
+
+    script_path = to_robodk_path(REPLACE_CONE_SCRIPT)
+    item = RDK.AddFile(script_path, programs_folder)
+    if item.Valid():
+        print(f"[CREATE] Added replace_cone script to programs folder")
+    else:
+        print(f"[WARN] Failed to add replace_cone.py to station")
+
+
+def find_cone_object(RDK, cone_name):
+    """Find the cone mesh object in the station by cone name."""
+    obj = RDK.Item(cone_name, ITEM_TYPE_OBJECT)
+    if obj.Valid():
+        return obj
+    return None
+
+
 def populate_programs(RDK, robot, targets_to_use, ee_config,
                       extracted_folder, before_folder, after_folder):
     """Populate each cone's program with MoveL instructions.
 
     Sequence per program:
     1. MoveJ to home
-    2. Set knotting tool → MoveL before string_grab → MoveL string_grab → MoveL after string_grab
-    3. Set pickup tool → MoveL before grab → MoveL grab → MoveL after grab
+    2. Set knotting tool → MoveJ before string_grab → MoveL string_grab → MoveL after string_grab
+    3. Set pickup tool → MoveL before grab → MoveL grab → [attach cone] → MoveL after grab
+    4. MoveJ to home
+
+    After the grab target is reached, the cone object is parented to the pickup
+    tool so it moves with the robot for the remainder of the sequence.
 
     Targets are looked up from the targets_to_use folder subfolders.
     """
@@ -618,6 +663,12 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
     knotting_tool = find_tool(RDK, ee_config["string_grab"])
     pickup_tool = find_tool(RDK, ee_config["grab"])
     home_target = get_or_create_home_target(RDK, robot, extracted_folder)
+
+    # Save original cone poses before any attaching
+    cone_poses = {}
+    if os.path.exists(CONE_POSES_PATH):
+        with open(CONE_POSES_PATH, "r", encoding="utf-8") as f:
+            cone_poses = json.load(f)
 
     for cone_name, entries in targets_to_use.items():
         prog = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
@@ -670,6 +721,16 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         prog.setPoseTool(pickup_tool)
         prog.MoveL(gr_before)
         prog.MoveL(gr_target)
+
+        # Attach cone to pickup tool so it moves with the robot
+        cone_obj = find_cone_object(RDK, cone_name)
+        if cone_obj is not None:
+            # Save original pose before attaching
+            if cone_name not in cone_poses:
+                cone_poses[cone_name] = Pose_2_TxyzRxyz(cone_obj.PoseAbs())
+            cone_obj.setParentStatic(pickup_tool)
+            print(f"    [ATTACH] {cone_name} attached to {ee_config['grab']}")
+
         prog.MoveL(gr_after)
 
         # Return home
@@ -677,6 +738,12 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
         populated += 1
         print(f"  [OK]   {cone_name} — 9 instructions added")
+
+    # Save original poses for replace_cone.py
+    if cone_poses:
+        with open(CONE_POSES_PATH, "w", encoding="utf-8") as f:
+            json.dump(cone_poses, f, indent=2)
+        print(f"[SAVE] Cone original poses saved to {os.path.basename(CONE_POSES_PATH)}")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
@@ -857,6 +924,11 @@ def main():
             RDK, robot, complete, ee_config,
             ttu_extracted, ttu_before, ttu_after
         )
+
+        # Add replace_cone.py to the station so user can restore cones from GUI
+        programs_folder = RDK.Item("programs", ITEM_TYPE_FOLDER)
+        if programs_folder.Valid():
+            install_replace_cones_script(RDK, programs_folder)
     else:
         print("\n── Phase 6: SKIPPED ──")
 
