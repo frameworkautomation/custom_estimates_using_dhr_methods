@@ -764,9 +764,9 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             attach_path = to_robodk_path(attach_script)
             attach_prog = RDK.AddFile(attach_path)
             if attach_prog.Valid():
-                programs_folder_ref = RDK.Item("programs", ITEM_TYPE_FOLDER)
-                if programs_folder_ref.Valid():
-                    attach_prog.setParent(programs_folder_ref)
+                progs = RDK.Item("programs", ITEM_TYPE_FOLDER)
+                attach_folder = get_or_create_folder(RDK, "attach_scripts", parent=progs)
+                attach_prog.setParent(attach_folder)
 
         prog.RunInstruction(attach_name, INSTRUCTION_CALL_PROGRAM)
 
