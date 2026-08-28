@@ -430,18 +430,28 @@ def solve_and_create_targets(RDK, robot, config, extracted_folder,
             solved_target.setPose(solved_pose)
             solved_target.setJoints(joints)
 
-            # Create before/after offsets for the solved pose
+            # Create before/after offsets for the solved pose, with IK solutions
             before_pose = solved_pose * transl(0, 0, -offset_distances["before"])
+            before_joints = try_ik(robot, before_pose)
             before_target = RDK.AddTarget(
                 f"offset_before_for_{name}", before_folder, robot
             )
             before_target.setPose(before_pose)
+            if before_joints is not None:
+                before_target.setJoints(before_joints)
+            else:
+                print(f"    [WARN] No IK for offset_before_for_{name}")
 
             after_pose = solved_pose * transl(0, 0, -offset_distances["after"])
+            after_joints = try_ik(robot, after_pose)
             after_target = RDK.AddTarget(
                 f"offset_after_for_{name}", after_folder, robot
             )
             after_target.setPose(after_pose)
+            if after_joints is not None:
+                after_target.setJoints(after_joints)
+            else:
+                print(f"    [WARN] No IK for offset_after_for_{name}")
 
             solved += 1
             break
@@ -561,6 +571,7 @@ def build_targets_to_use(RDK, robot, cone_names, failures, offsets_config,
                 if src is not None:
                     tgt = RDK.AddTarget(before_name, ttu_before, robot)
                     tgt.setPose(src.Pose())
+                    tgt.setJoints(src.Joints())
                     created += 1
             else:
                 cached += 1
@@ -570,6 +581,7 @@ def build_targets_to_use(RDK, robot, cone_names, failures, offsets_config,
                 if src is not None:
                     tgt = RDK.AddTarget(after_name, ttu_after, robot)
                     tgt.setPose(src.Pose())
+                    tgt.setJoints(src.Joints())
                     created += 1
             else:
                 cached += 1
