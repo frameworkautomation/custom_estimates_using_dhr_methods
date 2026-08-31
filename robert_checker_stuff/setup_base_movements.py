@@ -718,10 +718,17 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         # MoveL to the group's final pullaway target
         m = GROUP_PATTERN.match(cone_name)
         if m:
-            pullaway_name = f"{m.group(1)}_final_pullaway"
+            group = m.group(1)
+            pullaway_name = f"{group}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
                 prog.MoveL(pullaway_target)
+
+            # Alt cones also route through Base_Left's pullaway before home
+            if group.startswith("alt_"):
+                bl_pullaway = find_target_in_folder(after_folder, "Base_Left_final_pullaway")
+                if bl_pullaway is not None:
+                    prog.MoveJ(bl_pullaway)
 
         prog.MoveJ(home_target)
 
