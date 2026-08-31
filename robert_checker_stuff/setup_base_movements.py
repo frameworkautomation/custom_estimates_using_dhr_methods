@@ -715,20 +715,54 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
         prog.MoveL(gr_after)
 
-        # MoveL to the group's final pullaway target
+        # MoveL to the group's final pullaway (config matching gr_after)
         m = GROUP_PATTERN.match(cone_name)
         if m:
             group = m.group(1)
             pullaway_name = f"{group}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                prog.MoveL(pullaway_target)
+                # Create per-cone retract pullaway seeded from gr_after
+                retract_name = f"{cone_name}_retract_pullaway"
+                retract_tgt = find_target_in_folder(after_folder, retract_name)
+                if retract_tgt is None:
+                    gr_after_joints = gr_after.Joints()
+                    pullaway_pose = pullaway_target.Pose()
+                    retract_joints = robot.SolveIK(pullaway_pose, gr_after_joints)
+                    try:
+                        jlist = retract_joints.list()
+                    except AttributeError:
+                        jlist = list(retract_joints)
+                    retract_tgt = RDK.AddTarget(retract_name, after_folder, robot)
+                    retract_tgt.setPose(pullaway_pose)
+                    if len(jlist) >= 6 and not all(abs(j) < 1e-6 for j in jlist):
+                        retract_tgt.setJoints(jlist)
+                    else:
+                        retract_tgt.setJoints(pullaway_target.Joints())
+                prog.MoveL(retract_tgt)
 
-            # Alt cones also route through Base_Left's pullaway before home
+            # Alt cones also route through Base_Left's pullaway (config matching retract)
             if group.startswith("alt_"):
                 bl_pullaway = find_target_in_folder(after_folder, "Base_Left_final_pullaway")
                 if bl_pullaway is not None:
-                    prog.MoveJ(bl_pullaway)
+                    bl_retract_name = f"{cone_name}_bl_retract_pullaway"
+                    bl_retract_tgt = find_target_in_folder(after_folder, bl_retract_name)
+                    if bl_retract_tgt is None:
+                        # Seed from the group's retract pullaway joints
+                        seed_joints = retract_tgt.Joints() if retract_tgt is not None else gr_after.Joints()
+                        bl_pose = bl_pullaway.Pose()
+                        bl_joints = robot.SolveIK(bl_pose, seed_joints)
+                        try:
+                            jlist = bl_joints.list()
+                        except AttributeError:
+                            jlist = list(bl_joints)
+                        bl_retract_tgt = RDK.AddTarget(bl_retract_name, after_folder, robot)
+                        bl_retract_tgt.setPose(bl_pose)
+                        if len(jlist) >= 6 and not all(abs(j) < 1e-6 for j in jlist):
+                            bl_retract_tgt.setJoints(jlist)
+                        else:
+                            bl_retract_tgt.setJoints(bl_pullaway.Joints())
+                    prog.MoveJ(bl_retract_tgt)
 
         prog.MoveJ(home_target)
 
