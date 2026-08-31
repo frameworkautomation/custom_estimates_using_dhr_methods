@@ -335,12 +335,14 @@ def main():
         reparent_items_under_offset_frame(RDK, offset_frame)
     else:
         print("\n── Phase 1: SKIPPED ──")
+        offset_frame = RDK.Item(OFFSET_FRAME_NAME, ITEM_TYPE_FRAME)
 
     # ── Phase 2: organize items into folders ──────────────────────────
     if "2" not in skip:
         print("\n── Phase 2: Organize items into folders ──")
         for folder_name, spec in FOLDER_DEFS.items():
-            folder = get_or_create_folder(RDK, folder_name)
+            # Create folders under the offset frame so they move with it
+            folder = get_or_create_folder(RDK, folder_name, parent=offset_frame)
             matched = items_matching(RDK, spec["item_type"], spec["filter"])
 
             moved = 0
@@ -355,9 +357,10 @@ def main():
             print(f"[{folder_name}] {total} item(s): {moved} moved, {skipped_count} already in place")
 
         for folder_name in FOLDER_DEFS:
-            folder = RDK.Item(folder_name, ITEM_TYPE_FOLDER)
-            if folder.Valid():
-                folder.setVisible(True)
+            for child in offset_frame.Childs():
+                if child.Name() == folder_name:
+                    child.setVisible(True)
+                    break
     else:
         print("\n── Phase 2: SKIPPED ──")
 
@@ -379,7 +382,7 @@ def main():
     # ── Phase 4: create offset targets ────────────────────────────────
     if "4" not in skip:
         print("\n── Phase 4: Create offset targets (before/after) ──")
-        offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets")
+        offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets", parent=offset_frame)
         before_folder = get_or_create_folder(RDK, "before", parent=offsets_parent)
         after_folder = get_or_create_folder(RDK, "after", parent=offsets_parent)
         offsets_parent.setVisible(True)
