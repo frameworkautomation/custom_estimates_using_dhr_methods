@@ -2186,3 +2186,218 @@
 [trays] Status: OK — HEAD: 6d4c2a9bd26d85335365044be9092f6ececbae98
 === Done: 2026-06-03 13:05:45 ===
 
+=== Update run: 2026-08-31 11:19:23 ===
+[atomic-knitting-machine-tending-cell] Pulling from main...
+[atomic-knitting-machine-tending-cell]   From gitlab.com:framework2813905/atomic-knitting-machine-tending-cell
+[atomic-knitting-machine-tending-cell]    * branch            main       -> FETCH_HEAD
+[atomic-knitting-machine-tending-cell]      1a8951c..7d84890  main       -> origin/main
+[atomic-knitting-machine-tending-cell]   Updating 1a8951c..7d84890
+[atomic-knitting-machine-tending-cell]   Updating files: 100% (2/2)Updating files: 100% (2/2), done.
+[atomic-knitting-machine-tending-cell]   Fast-forward
+[atomic-knitting-machine-tending-cell]    V3-28-04-new-fence/Layout-V3-28-04.SLDASM | Bin 92335652 -> 114356664 bytes
+[atomic-knitting-machine-tending-cell]    V3-28-04-new-fence/Layout-V3-floor.SLDPRT | Bin 0 -> 53003 bytes
+[atomic-knitting-machine-tending-cell]    2 files changed, 0 insertions(+), 0 deletions(-)
+[atomic-knitting-machine-tending-cell]    create mode 100644 V3-28-04-new-fence/Layout-V3-floor.SLDPRT
+[atomic-knitting-machine-tending-cell] Status: OK — HEAD: 7d84890e9d1e137ed50636628ab29d83553efc68
+[buffer-rack] Pulling from main...
+[buffer-rack]   From gitlab.com:framework2813905/buffer-rack
+[buffer-rack]    * branch            main       -> FETCH_HEAD
+[buffer-rack]   Already up to date.
+[buffer-rack] Status: OK — HEAD: c57c771ae365529a20476492024dea7cb9fd333f
+[carts] Pulling from main...
+[carts]   From gitlab.com:framework2813905/carts
+[carts]    * branch            main       -> FETCH_HEAD
+[carts]      19afa57..98e9e21  main       -> origin/main
+[carts]   Updating 19afa57..98e9e21
+[carts]   Fast-forward
+[carts]    material-cart/Cart V3/cart-V3-assy.SLDASM   | Bin 5342797 -> 5362271 bytes
+[carts]    material-cart/Cart V3/~$cart-V3-assy.SLDASM | Bin 6 -> 0 bytes
+[carts]    2 files changed, 0 insertions(+), 0 deletions(-)
+[carts]    delete mode 100644 material-cart/Cart V3/~$cart-V3-assy.SLDASM
+[carts] Status: OK — HEAD: 98e9e21569488d7021a830919825f169a3ab9504
+[eoats] Pulling from main...
+[eoats]   From gitlab.com:framework2813905/eoats
+[eoats]    * branch            main       -> FETCH_HEAD
+[eoats]      3827ad5..5cf2891  main       -> origin/main
+[eoats]   hint: You have divergent branches and need to specify how to reconcile them.
+[eoats]   hint: You can do so by running one of the following commands sometime before
+[eoats]   hint: your next pull:
+[eoats]   hint: 
+[eoats]   hint:   git config pull.rebase false  # merge
+[eoats]   hint:   git config pull.rebase true   # rebase
+[eoats]   hint:   git config pull.ff only       # fast-forward only
+[eoats]   hint: 
+[eoats]   hint: You can replace "git config" with "git config --global" to set a default
+[eoats]   hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+[eoats]   hint: or --ff-only on the command line to override the configured default per
+[eoats]   hint: invocation.
+[eoats]   fatal: Need to specify how to reconcile divergent branches.
+[eoats] Status: FAILED — HEAD: 289aee7e3426f9ab5c9b7f63c43a2d45ab25eea1
+[knitting-machines] Pulling from main...
+[knitting-machines]   From gitlab.com:framework2813905/knitting-machines
+[knitting-machines]    * branch            main       -> FETCH_HEAD
+[knitting-machines]      3cfc637..fb8b655  main       -> origin/main
+[knitting-machines]   Updating 3cfc637..fb8b655
+[knitting-machines]   Updating files:  66% (2/3)Updating files: 100% (3/3)Updating files: 100% (3/3), done.
+[knitting-machines]   Fast-forward
+[knitting-machines]    ...02.18.26_Shima_Seiki_Knitting_Machine_mm.SLDPRT | Bin 79476252 -> 87525309 bytes
+[knitting-machines]    ...a_Seiki_Knitting_Machine-Small_Closed_mm.SLDPRT | Bin 7365568 -> 7556635 bytes
+[knitting-machines]    .../Shima_Seiki_15gg_anchoring_stencil-V1.SLDPRT   | Bin 138644 -> 148529 bytes
+[knitting-machines]    3 files changed, 0 insertions(+), 0 deletions(-)
+[knitting-machines] Status: OK — HEAD: fb8b65543d10d18842bc73b8736c13adac336f8d
+[knitwear-cell] Pulling from develop...
+[knitwear-cell]   From github.com:DHREngineering/knitwear-cell
+[knitwear-cell]    * branch            develop    -> FETCH_HEAD
+[knitwear-cell]    + d74eb5f...f0a4a6a develop    -> origin/develop  (forced update)
+[knitwear-cell]   hint: You have divergent branches and need to specify how to reconcile them.
+[knitwear-cell]   hint: You can do so by running one of the following commands sometime before
+[knitwear-cell]   hint: your next pull:
+[knitwear-cell]   hint: 
+[knitwear-cell]   hint:   git config pull.rebase false  # merge
+[knitwear-cell]   hint:   git config pull.rebase true   # rebase
+[knitwear-cell]   hint:   git config pull.ff only       # fast-forward only
+[knitwear-cell]   hint: 
+[knitwear-cell]   hint: You can replace "git config" with "git config --global" to set a default
+[knitwear-cell]   hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+[knitwear-cell]   hint: or --ff-only on the command line to override the configured default per
+[knitwear-cell]   hint: invocation.
+[knitwear-cell]   fatal: Need to specify how to reconcile divergent branches.
+[knitwear-cell] Status: FAILED — HEAD: d74eb5f38e5ab6466b3dbc8e4bb61393db9688dc
+[linear-rails] Pulling from main...
+[linear-rails]   From gitlab.com:framework2813905/linear-rails
+[linear-rails]    * branch            main       -> FETCH_HEAD
+[linear-rails]      386f5c0..ddc4f79  main       -> origin/main
+[linear-rails]   Updating 386f5c0..ddc4f79
+[linear-rails]   Updating files:  97% (40/41)Updating files: 100% (41/41)Updating files: 100% (41/41), done.
+[linear-rails]   Fast-forward
+[linear-rails]    .../robot-base-plate-assy-V1.SLDASM                | Bin 556390 -> 11087784 bytes
+[linear-rails]    Custom Rail/Robot Base Plate/robot-plate-V1.SLDPRT | Bin 241010 -> 301930 bytes
+[linear-rails]    .../robot-plate-full-assy-V1.SLDASM                | Bin 3482836 -> 18271726 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x1220.SLDPRT      | Bin 0 -> 394102 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x1230.SLDPRT      | Bin 0 -> 402001 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x200.SLDPRT       | Bin 0 -> 402784 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x250.SLDPRT       | Bin 0 -> 390081 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x330.SLDPRT       | Bin 0 -> 390545 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x400.SLDPRT       | Bin 0 -> 403652 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x600.SLDPRT       | Bin 0 -> 390821 bytes
+[linear-rails]    .../Robot buffer/Components/40x40x700.SLDPRT       | Bin 0 -> 401955 bytes
+[linear-rails]    .../Centring-pin-holder-plate_FRM.SLDPRT           | Bin 0 -> 193537 bytes
+[linear-rails]    Custom Rail/Robot buffer/Components/FD24x34.SLDPRT | Bin 0 -> 89335 bytes
+[linear-rails]    Custom Rail/Robot buffer/Components/M24-nut.SLDPRT | Bin 0 -> 66390 bytes
+[linear-rails]    .../Oiling-tool-holder-base-V2_FRM.SLDPRT          | Bin 0 -> 165313 bytes
+[linear-rails]    .../Components/Oiling-tool-holder_FRM.SLDASM       | Bin 0 -> 87810 bytes
+[linear-rails]    Custom Rail/Robot buffer/Components/T plate.SLDPRT | Bin 0 -> 85024 bytes
+[linear-rails]    Custom Rail/Robot buffer/Components/V plate.SLDPRT | Bin 0 -> 82814 bytes
+[linear-rails]    Custom Rail/Robot buffer/Components/X plate.SLDPRT | Bin 0 -> 96780 bytes
+[linear-rails]    .../base-plate-gripper-holder-festo-FRM.SLDPRT     | Bin 0 -> 204889 bytes
+[linear-rails]    .../centering-part1-left-festo_FRM.SLDPRT          | Bin 0 -> 200115 bytes
+[linear-rails]    .../centering-part1-right-festo_FRM.SLDPRT         | Bin 0 -> 186423 bytes
+[linear-rails]    .../centering-part2-left-festo_FRM.SLDPRT          | Bin 0 -> 221707 bytes
+[linear-rails]    .../centering-part2-right-festo_FRM.SLDPRT         | Bin 0 -> 137074 bytes
+[linear-rails]    .../connecting-plate-160x160x5-90deg.SLDPRT        | Bin 0 -> 69565 bytes
+[linear-rails]    .../Components/end-position-plate-left.SLDPRT      | Bin 0 -> 154190 bytes
+[linear-rails]    .../Components/end-position-plate-right.SLDPRT     | Bin 0 -> 148719 bytes
+[linear-rails]    .../gripper-storage-for-FESTO_FRM.SLDASM           | Bin 0 -> 122153 bytes
+[linear-rails]    .../inner-plate-left-robot-buffer_FRM.SLDPRT       | Bin 0 -> 226119 bytes
+[linear-rails]    .../inner-plate-right-robot-buffer_FRM.SLDPRT      | Bin 0 -> 222580 bytes
+[linear-rails]    .../Robot buffer/Components/left-plate.SLDPRT      | Bin 0 -> 267460 bytes
+[linear-rails]    .../Robot buffer/Components/right-plate.SLDPRT     | Bin 0 -> 268008 bytes
+[linear-rails]    .../side-plate-left-robot-buffer-V2_FRM.SLDPRT     | Bin 0 -> 324804 bytes
+[linear-rails]    .../side-plate-right-robot-buffer-V2_FRM.SLDPRT    | Bin 0 -> 285775 bytes
+[linear-rails]    .../Robot buffer/Components/spacer-8x8x14.SLDPRT   | Bin 0 -> 71437 bytes
+[linear-rails]    .../support-part-oiling-tool-V3_FRM.SLDPRT         | Bin 0 -> 273686 bytes
+[linear-rails]    Custom Rail/Robot buffer/robot-buffer-V4.SLDASM    | Bin 0 -> 2048708 bytes
+[linear-rails]    .../Parts/~$linear-rail-plate-V1.SLDPRT            | Bin 6 -> 0 bytes
+[linear-rails]    .../linear-rail-long-assy-V1.SLDASM                | Bin 5276727 -> 15797563 bytes
+[linear-rails]    .../linear-rail-weldment-assy-V3.SLDASM            | Bin 341728 -> 337024 bytes
+[linear-rails]    Gudel TMF-5/~$tmf-5-v32-9000-rail.SLDPRT           | Bin 8 -> 0 bytes
+[linear-rails]    41 files changed, 0 insertions(+), 0 deletions(-)
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x1220.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x1230.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x200.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x250.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x330.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x400.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x600.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/40x40x700.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/Centring-pin-holder-plate_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/FD24x34.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/M24-nut.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/Oiling-tool-holder-base-V2_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/Oiling-tool-holder_FRM.SLDASM
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/T plate.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/V plate.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/X plate.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/base-plate-gripper-holder-festo-FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/centering-part1-left-festo_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/centering-part1-right-festo_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/centering-part2-left-festo_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/centering-part2-right-festo_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/connecting-plate-160x160x5-90deg.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/end-position-plate-left.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/end-position-plate-right.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/gripper-storage-for-FESTO_FRM.SLDASM
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/inner-plate-left-robot-buffer_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/inner-plate-right-robot-buffer_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/left-plate.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/right-plate.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/side-plate-left-robot-buffer-V2_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/side-plate-right-robot-buffer-V2_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/spacer-8x8x14.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/Components/support-part-oiling-tool-V3_FRM.SLDPRT
+[linear-rails]    create mode 100644 Custom Rail/Robot buffer/robot-buffer-V4.SLDASM
+[linear-rails]    delete mode 100644 Custom Rail/Welded Rail Base/Parts/~$linear-rail-plate-V1.SLDPRT
+[linear-rails]    delete mode 100644 Gudel TMF-5/~$tmf-5-v32-9000-rail.SLDPRT
+[linear-rails] Status: OK — HEAD: ddc4f79f0cfd4cca8ac4b3c62f362ac77dfa9cf7
+[mock-knitwear-cell-robotics-framework] Pulling from main...
+[mock-knitwear-cell-robotics-framework]   From github.com:DHREngineering/mock-knitwear-cell-robotics-framework
+[mock-knitwear-cell-robotics-framework]    * branch            main       -> FETCH_HEAD
+[mock-knitwear-cell-robotics-framework]   Already up to date.
+[mock-knitwear-cell-robotics-framework] Status: OK — HEAD: 9bae29d33bb20110f8f9dc35a2ea4d960f417df9
+[mock-knitwear-cell-safety] Pulling from main...
+[mock-knitwear-cell-safety]   From github.com:DHREngineering/mock-knitwear-cell-safety
+[mock-knitwear-cell-safety]    * branch            main       -> FETCH_HEAD
+[mock-knitwear-cell-safety]   Already up to date.
+[mock-knitwear-cell-safety] Status: OK — HEAD: ec99d93c2610faec2ed1812bb20beccc9c027d9a
+[rdkconfig] Pulling from main...
+[rdkconfig]   From github.com:DHREngineering/rdkconfig
+[rdkconfig]    * branch            main       -> FETCH_HEAD
+[rdkconfig]      6be0ee2..058dfdc  main       -> origin/main
+[rdkconfig]   Updating 6be0ee2..058dfdc
+[rdkconfig]   Fast-forward
+[rdkconfig]    .gitattributes | 2 ++
+[rdkconfig]    1 file changed, 2 insertions(+)
+[rdkconfig] Status: OK — HEAD: 058dfdc312d1fac1e35e3624a207ac40a702fbb1
+[robots] Pulling from main...
+[robots]   From gitlab.com:framework2813905/robots
+[robots]    * branch            main       -> FETCH_HEAD
+[robots]      6957ab6..0ddfb95  main       -> origin/main
+[robots]   fatal: It seems that there is already a rebase-merge directory, and
+[robots]   I wonder if you are in the middle of another rebase.  If that is the
+[robots]   case, please try
+[robots]   	git rebase (--continue | --abort | --skip)
+[robots]   If that is not the case, please
+[robots]   	rm -fr ".git/rebase-merge"
+[robots]   and run me again.  I am stopping in case you still have something
+[robots]   valuable there.
+[robots] Status: FAILED — HEAD: af696a98397375ad46d58a2c13feb548e6eb1514
+[safety-fencing] Pulling from main...
+[safety-fencing]   Connection reset by 172.65.251.78 port 22
+[safety-fencing]   fatal: Could not read from remote repository.
+[safety-fencing]   
+[safety-fencing]   Please make sure you have the correct access rights
+[safety-fencing]   and the repository exists.
+[safety-fencing] Status: FAILED — HEAD: 83614ede1731859c9b2505054c672b8563aa7548
+[trays] Pulling from main...
+[trays]   From gitlab.com:framework2813905/trays
+[trays]    * branch            main       -> FETCH_HEAD
+[trays]      6d4c2a9..2e05393  main       -> origin/main
+[trays]   Updating 6d4c2a9..2e05393
+[trays]   Fast-forward
+[trays]    Garment Tray Atomic Cell/V3/Funnel_V3.SLDPRT   | Bin 617378 -> 594175 bytes
+[trays]    Yarn Tray Atomic Cell/V1/~$yarn-tray-V1.SLDPRT | Bin 6 -> 0 bytes
+[trays]    2 files changed, 0 insertions(+), 0 deletions(-)
+[trays]    delete mode 100644 Yarn Tray Atomic Cell/V1/~$yarn-tray-V1.SLDPRT
+[trays] Status: OK — HEAD: 2e05393596024d8e2f093dbe853aa91803ff6e2a
+=== Done: 2026-08-31 11:55:40 ===
+

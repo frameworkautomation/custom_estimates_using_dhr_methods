@@ -163,7 +163,7 @@ waypoints:
     note: "cone grab - robot-relative, j7 free"
   - name: alt_Base_Right_0_grab_approach
     x: 1139.8814
-    y: 462.036
+    y: 246.036
     z: 1257.7053
     rx: 180.0
     ry: 25.0
@@ -177,7 +177,7 @@ waypoints:
     note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Right_0_grab
     x: 1266.6669
-    y: 462.036
+    y: 246.036
     z: 985.8129
     rx: 180.0
     ry: 25.0
@@ -190,7 +190,7 @@ waypoints:
     note: "cone grab - robot-relative, j7 free"
   - name: alt_Base_Right_1_grab_approach
     x: 973.1208
-    y: 462.036
+    y: 246.036
     z: 1179.9435
     rx: 180.0
     ry: 25.0
@@ -204,7 +204,7 @@ waypoints:
     note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Right_1_grab
     x: 1099.9063
-    y: 462.036
+    y: 246.036
     z: 908.0512
     rx: 180.0
     ry: 25.0
@@ -217,7 +217,7 @@ waypoints:
     note: "cone grab - robot-relative, j7 free"
   - name: alt_Base_Right_2_grab_approach
     x: 806.3602
-    y: 462.036
+    y: 246.036
     z: 1102.1817
     rx: 180.0
     ry: 25.0
@@ -231,7 +231,7 @@ waypoints:
     note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Right_2_grab
     x: 933.1456
-    y: 462.036
+    y: 246.036
     z: 830.2894
     rx: 180.0
     ry: 25.0
@@ -244,7 +244,7 @@ waypoints:
     note: "cone grab - robot-relative, j7 free"
   - name: alt_Base_Left_0_grab_approach
     x: 1139.8814
-    y: 246.036
+    y: 462.036
     z: 1257.7053
     rx: 180.0
     ry: 25.0
@@ -258,7 +258,7 @@ waypoints:
     note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Left_0_grab
     x: 1266.6669
-    y: 246.036
+    y: 462.036
     z: 985.8129
     rx: 180.0
     ry: 25.0
@@ -271,7 +271,7 @@ waypoints:
     note: "cone grab - robot-relative, j7 free"
   - name: alt_Base_Left_1_grab_approach
     x: 973.1208
-    y: 246.036
+    y: 462.036
     z: 1179.9435
     rx: 180.0
     ry: 25.0
@@ -285,7 +285,7 @@ waypoints:
     note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Left_1_grab
     x: 1099.9063
-    y: 246.036
+    y: 462.036
     z: 908.0512
     rx: 180.0
     ry: 25.0
@@ -298,7 +298,7 @@ waypoints:
     note: "cone grab - robot-relative, j7 free"
   - name: alt_Base_Left_2_grab_approach
     x: 806.3602
-    y: 246.036
+    y: 462.036
     z: 1102.1817
     rx: 180.0
     ry: 25.0
@@ -312,7 +312,7 @@ waypoints:
     note: "cone approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Left_2_grab
     x: 933.1456
-    y: 246.036
+    y: 462.036
     z: 830.2894
     rx: 180.0
     ry: 25.0
@@ -487,7 +487,7 @@ waypoints:
     note: "string grab - robot-relative, j7 free"
   - name: alt_Base_Right_0_string_grab_approach
     x: 1139.8814
-    y: 462.036
+    y: 246.036
     z: 1257.7053
     rx: -155.0
     ry: -0.0
@@ -501,7 +501,7 @@ waypoints:
     note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Right_0_string_grab
     x: 1266.6669
-    y: 462.036
+    y: 246.036
     z: 985.8129
     rx: -155.0
     ry: -0.0
@@ -514,7 +514,7 @@ waypoints:
     note: "string grab - robot-relative, j7 free"
   - name: alt_Base_Right_1_string_grab_approach
     x: 973.1208
-    y: 462.036
+    y: 246.036
     z: 1179.9435
     rx: -155.0
     ry: -0.0
@@ -528,7 +528,7 @@ waypoints:
     note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Right_1_string_grab
     x: 1099.9063
-    y: 462.036
+    y: 246.036
     z: 908.0512
     rx: -155.0
     ry: -0.0
@@ -541,7 +541,7 @@ waypoints:
     note: "string grab - robot-relative, j7 free"
   - name: alt_Base_Right_2_string_grab_approach
     x: 806.3602
-    y: 462.036
+    y: 246.036
     z: 1102.1817
     rx: -155.0
     ry: -0.0
@@ -555,7 +555,7 @@ waypoints:
     note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Right_2_string_grab
     x: 933.1456
-    y: 462.036
+    y: 246.036
     z: 830.2894
     rx: -155.0
     ry: -0.0
@@ -568,7 +568,7 @@ waypoints:
     note: "string grab - robot-relative, j7 free"
   - name: alt_Base_Left_0_string_grab_approach
     x: 1139.8814
-    y: 246.036
+    y: 462.036
     z: 1257.7053
     rx: -155.0
     ry: -0.0
@@ -582,7 +582,7 @@ waypoints:
     note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Left_0_string_grab
     x: 1266.6669
-    y: 246.036
+    y: 462.036
     z: 985.8129
     rx: -155.0
     ry: -0.0
@@ -595,7 +595,7 @@ waypoints:
     note: "string grab - robot-relative, j7 free"
   - name: alt_Base_Left_1_string_grab_approach
     x: 973.1208
-    y: 246.036
+    y: 462.036
     z: 1179.9435
     rx: -155.0
     ry: -0.0
@@ -609,7 +609,7 @@ waypoints:
     note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Left_1_string_grab
     x: 1099.9063
-    y: 246.036
+    y: 462.036
     z: 908.0512
     rx: -155.0
     ry: -0.0
@@ -622,7 +622,7 @@ waypoints:
     note: "string grab - robot-relative, j7 free"
   - name: alt_Base_Left_2_string_grab_approach
     x: 806.3602
-    y: 246.036
+    y: 462.036
     z: 1102.1817
     rx: -155.0
     ry: -0.0
@@ -636,7 +636,7 @@ waypoints:
     note: "string grab approach - robot-relative, j7 free, rotation around cone Z axis free"
   - name: alt_Base_Left_2_string_grab
     x: 933.1456
-    y: 246.036
+    y: 462.036
     z: 830.2894
     rx: -155.0
     ry: -0.0
