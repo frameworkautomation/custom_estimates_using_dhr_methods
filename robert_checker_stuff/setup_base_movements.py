@@ -672,6 +672,14 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
         prog.MoveJ(home_target)
 
+        # MoveJ through the final pullaway as an intermediate approach
+        m = GROUP_PATTERN.match(cone_name)
+        if m:
+            pullaway_name = f"{m.group(1)}_final_pullaway"
+            pullaway_target = find_target_in_folder(after_folder, pullaway_name)
+            if pullaway_target is not None:
+                prog.MoveJ(pullaway_target)
+
         prog.setPoseTool(knotting_tool)
         prog.MoveJ(sg_before)
         prog.MoveL(sg_target)
