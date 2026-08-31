@@ -534,7 +534,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
     pickup_tool = find_tool(RDK, ee_config["grab"])
     home_target = get_or_create_home_target(RDK, robot, extracted_folder)
 
-    # Save original cone poses (before any attaching happens)
+    # Save original cone poses relative to parent (before any attaching happens)
     cone_poses = {}
     if os.path.exists(CONE_POSES_PATH):
         with open(CONE_POSES_PATH, "r", encoding="utf-8") as f:
@@ -544,7 +544,10 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
     for obj in all_objects:
         name = obj.Name()
         if CONE_PATTERN.match(name) and name not in cone_poses:
-            cone_poses[name] = Pose_2_TxyzRxyz(obj.PoseAbs())
+            cone_poses[name] = {
+                "pose": Pose_2_TxyzRxyz(obj.Pose()),
+                "parent": obj.Parent().Name() if obj.Parent().Valid() else "",
+            }
 
     if cone_poses:
         with open(CONE_POSES_PATH, "w", encoding="utf-8") as f:
