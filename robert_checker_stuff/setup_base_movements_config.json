@@ -12,6 +12,8 @@
     }
   },
 
+  "final_pullaway_mm": 60,
+
   "end_effectors": {
     "grab": "pickup",
     "string_grab": "knotting"
@@ -19,5 +21,6 @@
 
   "comment_z_rotation": "Step size in degrees for Z-axis rotation sweep (360 / step = attempts per target)",
   "comment_offsets": "Offset distances in mm along negative Z of the target pose. 'before' = approach, 'after' = retract.",
+  "comment_final_pullaway": "Distance in mm along negative X (red axis) from the _0 after-grab offset to create a final pullaway target per group.",
   "comment_end_effectors": "Which tool to activate when solving IK for each target type."
 }

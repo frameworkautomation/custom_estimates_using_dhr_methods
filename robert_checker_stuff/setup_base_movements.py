@@ -17,9 +17,15 @@ Phase 3 — create per-cone attach scripts:
   - One script per cone in attach_scripts/ folder
   - Each script parents its specific cone to the pickup tool during playback
 
-Phase 4 — populate programs with movement instructions:
+Phase 4 — create final pullaway targets:
+  - One per group (Base_Right, Base_Left, alt_Base_Right, alt_Base_Left)
+  - Offset along -X from the _0 cone's after-grab offset
+  - Stored in targets_to_use/auto_generated_offsets/after
+
+Phase 5 — populate programs with movement instructions:
   - Each cone's program gets MoveL instructions:
     home → knotting(before→string_grab→after) → pickup(before→grab→after)
+    → MoveL final_pullaway → MoveJ home
 
 Reads settings from setup_base_movements_config.json (same directory).
 
@@ -513,7 +519,81 @@ def create_attach_scripts(RDK, cone_names):
     print(f"[attach_scripts] {total} script(s): {created} created, {cached} cached")
 
 
-# ── PHASE 4: populate programs ───────────────────────────────────────────────
+# ── PHASE 4: create final pullaway targets ───────────────────────────────────
+
+# Regex to extract group base: "Base_Right_2" → "Base_Right", "alt_Base_Left_1" → "alt_Base_Left"
+GROUP_PATTERN = re.compile(r"^((alt_)?Base_(Right|Left))_\d+$")
+
+
+def create_final_pullaway_targets(RDK, robot, cone_names, config, after_folder):
+    """Create a final pullaway target for each cone group.
+
+    Takes the _0 cone's after-grab offset and offsets it along -X by
+    final_pullaway_mm. One target per group (Base_Right, Base_Left, etc.).
+    Also solves IK with Z-rotation sweep.
+    """
+    pullaway_mm = config.get("final_pullaway_mm", 60)
+    step_deg = config["z_rotation_step_deg"]
+
+    # Discover groups from cone names
+    groups = {}
+    for cone in cone_names:
+        m = GROUP_PATTERN.match(cone)
+        if m:
+            group = m.group(1)  # e.g. "Base_Right"
+            groups[group] = f"{group}_0"  # the _0 cone for this group
+
+    created = 0
+    cached = 0
+
+    for group, zero_cone in sorted(groups.items()):
+        pullaway_name = f"{group}_final_pullaway"
+
+        # Check if already exists
+        existing = find_target_in_folder(after_folder, pullaway_name)
+        if existing is not None:
+            cached += 1
+            continue
+
+        # Find the _0 cone's after-grab offset
+        zero_after_name = f"offset_after_for_{zero_cone}_grab"
+        zero_after = find_target_in_folder(after_folder, zero_after_name)
+        if zero_after is None:
+            print(f"  [WARN] {zero_after_name} not found — skipping {pullaway_name}")
+            continue
+
+        # Offset along -X (red axis) from the _0 after pose
+        zero_pose = zero_after.Pose()
+        pullaway_pose = zero_pose * transl(-pullaway_mm, 0, 0)
+
+        # Solve IK
+        tool = find_tool(RDK, config["end_effectors"]["grab"])
+        robot.setTool(tool)
+        world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+        if world_frame.Valid():
+            robot.setPoseFrame(world_frame)
+
+        solved_pose, joints, angle = solve_with_z_sweep(robot, pullaway_pose, step_deg)
+
+        tgt = RDK.AddTarget(pullaway_name, after_folder, robot)
+        if solved_pose is not None:
+            tgt.setPose(solved_pose)
+            tgt.setJoints(joints)
+            if angle == 0.0:
+                print(f"  [OK]   {pullaway_name} — solved at original pose")
+            else:
+                print(f"  [OK]   {pullaway_name} — solved at Z rotation {angle:.1f} deg")
+        else:
+            tgt.setPose(pullaway_pose)
+            print(f"  [WARN] No IK for {pullaway_name}")
+
+        created += 1
+
+    total = created + cached
+    print(f"[final_pullaway] {total} target(s): {created} created, {cached} cached")
+
+
+# ── PHASE 5: populate programs ───────────────────────────────────────────────
 
 def get_or_create_home_target(RDK, robot, extracted_folder):
     home = find_target_in_folder(extracted_folder, "home")
@@ -606,13 +686,13 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
         prog.MoveL(gr_after)
 
-        # MoveL to the _0 cone's after-offset as a clearance move
-        group_base = re.sub(r"_\d+$", "_0", cone_name)  # Base_Right_2 → Base_Right_0
-        if group_base != cone_name:
-            clearance_name = f"offset_after_for_{group_base}_grab"
-            clearance_target = find_target_in_folder(after_folder, clearance_name)
-            if clearance_target is not None:
-                prog.MoveL(clearance_target)
+        # MoveL to the group's final pullaway target
+        m = GROUP_PATTERN.match(cone_name)
+        if m:
+            pullaway_name = f"{m.group(1)}_final_pullaway"
+            pullaway_target = find_target_in_folder(after_folder, pullaway_name)
+            if pullaway_target is not None:
+                prog.MoveL(pullaway_target)
 
         prog.MoveJ(home_target)
 
@@ -634,7 +714,7 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3 4")
+                    help="Phases to skip, e.g. --skip 1 2 3 4 5")
     args = ap.parse_args()
 
     skip = {s.upper() for s in args.skip}
@@ -708,18 +788,25 @@ def main():
     else:
         print("\n── Phase 3: SKIPPED ──")
 
-    # ── Phase 4: populate programs ────────────────────────────────────
+    # ── Phase 4: create final pullaway targets ────────────────────────
+    # Need ttu folder refs for this and Phase 5
+    ttu_root = RDK.Item("targets_to_use", ITEM_TYPE_FOLDER)
+    assert ttu_root.Valid(), \
+        "targets_to_use folder not found — run Phase 2 first"
+    ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
+    ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
+    ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
+    ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
+
     if "4" not in skip:
-        print("\n── Phase 4: Populate programs ──")
+        print("\n── Phase 4: Create final pullaway targets ──")
+        create_final_pullaway_targets(RDK, robot, cone_names, config, ttu_after)
+    else:
+        print("\n── Phase 4: SKIPPED ──")
 
-        ttu_root = RDK.Item("targets_to_use", ITEM_TYPE_FOLDER)
-        assert ttu_root.Valid(), \
-            "targets_to_use folder not found — run Phase 2 first"
-
-        ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
-        ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
-        ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
-        ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
+    # ── Phase 5: populate programs ────────────────────────────────────
+    if "5" not in skip:
+        print("\n── Phase 5: Populate programs ──")
 
         extracted_targets = {c.Name(): c for c in ttu_extracted.Childs()
                             if c.Type() == ITEM_TYPE_TARGET}
@@ -756,7 +843,7 @@ def main():
             ttu_extracted, ttu_before, ttu_after
         )
     else:
-        print("\n── Phase 4: SKIPPED ──")
+        print("\n── Phase 5: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 
