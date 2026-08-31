@@ -762,7 +762,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
                             bl_retract_tgt.setJoints(jlist)
                         else:
                             bl_retract_tgt.setJoints(bl_pullaway.Joints())
-                    prog.MoveJ(bl_retract_tgt)
+                    prog.MoveL(bl_retract_tgt)
 
         prog.MoveJ(home_target)
 
