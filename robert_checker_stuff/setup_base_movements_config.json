@@ -12,7 +12,7 @@
     }
   },
 
-  "final_pullaway_mm": 60,
+  "final_pullaway_mm": 600,
 
   "end_effectors": {
     "grab": "pickup",
