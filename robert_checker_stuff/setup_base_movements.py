@@ -672,13 +672,34 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
         prog.MoveJ(home_target)
 
-        # MoveJ through the final pullaway as an intermediate approach
+        # MoveJ through pullaway with wrist config matching sg_before
         m = GROUP_PATTERN.match(cone_name)
         if m:
             pullaway_name = f"{m.group(1)}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                prog.MoveJ(pullaway_target)
+                # Create per-cone approach pullaway with sg_before's joint seed
+                approach_name = f"{cone_name}_approach_pullaway"
+                approach_tgt = find_target_in_folder(after_folder, approach_name)
+                if approach_tgt is None:
+                    sg_before_joints = sg_before.Joints()
+                    pullaway_pose = pullaway_target.Pose()
+                    # Solve IK for pullaway pose seeded with sg_before's joints
+                    approach_joints = robot.SolveIK(pullaway_pose, sg_before_joints)
+                    try:
+                        jlist = approach_joints.list()
+                    except AttributeError:
+                        jlist = list(approach_joints)
+
+                    approach_tgt = RDK.AddTarget(approach_name, after_folder, robot)
+                    approach_tgt.setPose(pullaway_pose)
+                    if len(jlist) >= 6 and not all(abs(j) < 1e-6 for j in jlist):
+                        approach_tgt.setJoints(jlist)
+                    else:
+                        # Fallback: use pullaway's joints
+                        approach_tgt.setJoints(pullaway_target.Joints())
+
+                prog.MoveJ(approach_tgt)
 
         prog.setPoseTool(knotting_tool)
         prog.MoveJ(sg_before)
