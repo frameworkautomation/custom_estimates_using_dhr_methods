@@ -605,10 +605,19 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
 
         prog.MoveL(gr_after)
+
+        # MoveL to the _0 cone's after-offset as a clearance move
+        group_base = re.sub(r"_\d+$", "_0", cone_name)  # Base_Right_2 → Base_Right_0
+        if group_base != cone_name:
+            clearance_name = f"offset_after_for_{group_base}_grab"
+            clearance_target = find_target_in_folder(after_folder, clearance_name)
+            if clearance_target is not None:
+                prog.MoveL(clearance_target)
+
         prog.MoveJ(home_target)
 
         populated += 1
-        print(f"  [OK]   {cone_name} — 10 instructions added")
+        print(f"  [OK]   {cone_name} — program populated")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
