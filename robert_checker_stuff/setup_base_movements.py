@@ -13,7 +13,11 @@ Phase 1 — solve IK for all targets with Z-axis rotation sweep:
 Phase 2 — build targets_to_use folder + JSON:
   - Copies solved targets from Phase 1 into a single folder for programs
 
-Phase 3 — populate programs with movement instructions:
+Phase 3 — create per-cone attach scripts:
+  - One script per cone in attach_scripts/ folder
+  - Each script parents its specific cone to the pickup tool during playback
+
+Phase 4 — populate programs with movement instructions:
   - Each cone's program gets MoveL instructions:
     home → knotting(before→string_grab→after) → pickup(before→grab→after)
 
@@ -432,7 +436,7 @@ def write_targets_to_use(targets_to_use):
     print(f"[WRITE] {TARGETS_TO_USE_PATH} — {len(targets_to_use)} cone(s)")
 
 
-# ── PHASE 3: populate programs ───────────────────────────────────────────────
+# ── PHASE 3: create attach scripts ───────────────────────────────────────────
 
 def to_robodk_path(path):
     abs_path = os.path.abspath(path)
@@ -478,6 +482,38 @@ else:
 ''')
     return script_path
 
+
+def create_attach_scripts(RDK, cone_names):
+    """Create per-cone attach scripts and add them to the station."""
+    programs_folder = RDK.Item("programs", ITEM_TYPE_FOLDER)
+    assert programs_folder.Valid(), "programs folder not found"
+    attach_folder = get_or_create_folder(RDK, "attach_scripts", parent=programs_folder)
+
+    created = 0
+    cached = 0
+
+    for cone_name in cone_names:
+        attach_name = f"attach_{cone_name}"
+        existing = RDK.Item(attach_name, ITEM_TYPE_PROGRAM_PYTHON)
+        if existing.Valid():
+            cached += 1
+            continue
+
+        attach_script = _write_attach_script(cone_name)
+        attach_path = to_robodk_path(attach_script)
+        attach_prog = RDK.AddFile(attach_path)
+        if attach_prog.Valid():
+            attach_prog.setParent(attach_folder)
+            created += 1
+
+    # Also install replace_cone.py
+    install_replace_cones_script(RDK, programs_folder)
+
+    total = created + cached
+    print(f"[attach_scripts] {total} script(s): {created} created, {cached} cached")
+
+
+# ── PHASE 4: populate programs ───────────────────────────────────────────────
 
 def get_or_create_home_target(RDK, robot, extracted_folder):
     home = find_target_in_folder(extracted_folder, "home")
@@ -562,19 +598,8 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         prog.MoveL(gr_before)
         prog.MoveL(gr_target)
 
-        # Per-cone attach script
-        attach_name = f"attach_{cone_name}"
-        attach_prog = RDK.Item(attach_name, ITEM_TYPE_PROGRAM_PYTHON)
-        if not attach_prog.Valid():
-            attach_script = _write_attach_script(cone_name)
-            attach_path = to_robodk_path(attach_script)
-            attach_prog = RDK.AddFile(attach_path)
-            if attach_prog.Valid():
-                progs = RDK.Item("programs", ITEM_TYPE_FOLDER)
-                attach_folder = get_or_create_folder(RDK, "attach_scripts", parent=progs)
-                attach_prog.setParent(attach_folder)
-
-        prog.RunInstruction(attach_name, INSTRUCTION_CALL_PROGRAM)
+        # Call the per-cone attach script (created in Phase 3)
+        prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
 
         prog.MoveL(gr_after)
         prog.MoveJ(home_target)
@@ -597,7 +622,7 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3")
+                    help="Phases to skip, e.g. --skip 1 2 3 4")
     args = ap.parse_args()
 
     skip = {s.upper() for s in args.skip}
@@ -664,9 +689,16 @@ def main():
     else:
         print("\n── Phase 2: SKIPPED ──")
 
-    # ── Phase 3: populate programs ────────────────────────────────────
+    # ── Phase 3: create attach scripts ──────────────────────────────
     if "3" not in skip:
-        print("\n── Phase 3: Populate programs ──")
+        print("\n── Phase 3: Create attach scripts ──")
+        create_attach_scripts(RDK, cone_names)
+    else:
+        print("\n── Phase 3: SKIPPED ──")
+
+    # ── Phase 4: populate programs ────────────────────────────────────
+    if "4" not in skip:
+        print("\n── Phase 4: Populate programs ──")
 
         ttu_root = RDK.Item("targets_to_use", ITEM_TYPE_FOLDER)
         assert ttu_root.Valid(), \
@@ -711,12 +743,8 @@ def main():
             RDK, robot, complete, ee_config,
             ttu_extracted, ttu_before, ttu_after
         )
-
-        programs_folder = RDK.Item("programs", ITEM_TYPE_FOLDER)
-        if programs_folder.Valid():
-            install_replace_cones_script(RDK, programs_folder)
     else:
-        print("\n── Phase 3: SKIPPED ──")
+        print("\n── Phase 4: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 
