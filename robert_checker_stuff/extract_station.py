@@ -39,7 +39,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 SAVES_DIR = os.path.join(PROJECT_DIR, "robo_dk_saves")
 
-DEFAULT_SOURCE = os.path.join(SAVES_DIR, "for_robert_n1.rdk")
+DEFAULT_SOURCE = os.path.join(SAVES_DIR, "generated_from_dhr_clone.rdk")
 DEFAULT_DEST = os.path.join(SAVES_DIR, "for_robert_relative_to_base.rdk")
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "station_extract_config.json")
 
@@ -200,6 +200,9 @@ def main():
     print(f"\n[TOTAL] {len(all_items)} item(s) to extract")
 
     # ── Verify all items exist in source ─────────────────────────────────
+    # Items that will be auto-created if missing from source
+    AUTO_CREATE_FRAMES = {"WorldFrame"}
+
     print("\n[VERIFY] Checking all items exist in source station...")
     for item_cfg in all_items:
         name = item_cfg["name"]
@@ -208,6 +211,10 @@ def main():
             robot = find_robot_in_station(RDK, name)
             assert robot is not None, \
                 f"Robot '{name}' not found in source station. Tried: {ROBOT_NAMES}"
+        elif type_str == "frame" and name in AUTO_CREATE_FRAMES:
+            item = RDK.Item(name, TYPE_MAP[type_str])
+            if not item.Valid():
+                print(f"  [INFO] '{name}' not in source — will auto-create at origin")
         else:
             item = RDK.Item(name, TYPE_MAP[type_str])
             assert item.Valid(), \
@@ -303,6 +310,18 @@ def main():
             RDK.setActiveStation(src_station_ref)
 
             src_item = RDK.Item(name, item_type)
+
+            # Auto-create frames that don't exist in source
+            if not src_item.Valid() and type_str == "frame" and name in AUTO_CREATE_FRAMES:
+                RDK.setActiveStation(dest_station_ref)
+                station_dst = RDK.ActiveStation()
+                auto_frame = RDK.AddFrame(name, station_dst)
+                # Identity pose = origin with no rotation
+                from robodk.robomath import eye
+                auto_frame.setPose(eye(4))
+                print(f"  [AUTO] Created '{name}' at origin")
+                continue
+
             assert src_item.Valid(), \
                 f"Item '{name}' (type={type_str}) not found in source station"
 

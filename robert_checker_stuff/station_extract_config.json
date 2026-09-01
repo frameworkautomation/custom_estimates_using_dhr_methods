@@ -26,6 +26,11 @@
       "name": "RobotPedestal",
       "type": "object",
       "comment": "Robot pedestal geometry"
+    },
+    {
+      "name": "Rack1GarmentTrayBase",
+      "type": "frame",
+      "comment": "Garment tray rack with all slots — copied with children"
     }
   ],
   "patterns": [
