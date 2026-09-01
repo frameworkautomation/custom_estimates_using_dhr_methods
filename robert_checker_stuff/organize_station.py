@@ -323,9 +323,14 @@ def organize_bin_groups(RDK, config, offset_frame):
             if not cone_pat.match(cone_name):
                 continue
 
-            # Create a frame for this specific cone
+            # Create a frame for this specific cone, positioned at its string_grab target
             cone_frame = get_or_create_frame(RDK, f"{cone_name}_frame", group_frame)
             cone_frame.setVisible(True)
+
+            # Set cone frame pose to the string_grab target location
+            string_grab = RDK.Item(f"{cone_name}_string_grab", ITEM_TYPE_TARGET)
+            if string_grab.Valid():
+                cone_frame.setPoseAbs(string_grab.PoseAbs())
 
             # Move cone object into its frame
             if move_item_to_parent(obj, cone_frame):
