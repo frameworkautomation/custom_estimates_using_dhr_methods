@@ -3,18 +3,23 @@ Organize the extracted station for base cone movement sequence testing.
 
 Phase 1 — create Offset_relative_to_schematic frame:
   - Child of WorldFrame, at identity (same position as WorldFrame)
-  - All items except WorldFrame and RobotBase are reparented under it
+  - All items except WorldFrame, RobotBase, and skip list are reparented under it
 
-Phase 2 — organize items into visible GUI folders:
-  - extracted_targets  — all Target items (grab + string_grab only)
-  - cones              — Base cone objects (Base_Right_*, Base_Left_*, alt_Base_*)
-  - bins               — Bin objects (bin_*)
+Phase 2 — organize items into bin_positioner frame hierarchy:
+  - bin_positioner (frame, under Offset_relative_to_schematic)
+    - bin_0_group (frame)
+      - bin_0 (object)
+      - cone_frame (folder) — contains Base_Right_*, Base_Left_* cones + targets
+    - bin_1_group (frame)
+      - bin_1 (object)
+      - cone_frame (folder) — contains alt_Base_Right_*, alt_Base_Left_* cones + targets
+  Grouping controlled by organize_station_config.json
 
 Phase 3 — create empty programs for each grab/string_grab pair:
   - One program per base cone, named after the cone (e.g. "Base_Right_0")
   - All programs go under a "programs" folder
 
-Caching: folders, item placements, and programs are reused if they already exist.
+Caching: frames, folders, item placements, and programs are reused if they already exist.
 
 Usage:
     python robert_checker_stuff/organize_station.py
@@ -24,6 +29,7 @@ Usage:
 import sys
 import os
 import re
+import json
 import argparse
 
 sys.path.append("C:/RoboDK/Python")
@@ -36,32 +42,27 @@ from robodk.robolink import (
 from robodk.robomath import eye
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "organize_station_config.json")
 
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
-CONE_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+$")
-BIN_PATTERN = re.compile(r"^bin_\d+$")
 GRAB_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_grab$")
 STRING_GRAB_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_string_grab$")
-EXTRACTED_TARGET_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_(grab|string_grab)$")
 
 OFFSET_FRAME_NAME = "Offset_relative_to_schematic"
-SKIP_REPARENT = {"WorldFrame", "RobotBase", OFFSET_FRAME_NAME, "Rack1GarmentTrayBase", "FrontWall", "RobotPedestal"}
+SKIP_REPARENT = {"WorldFrame", "RobotBase", OFFSET_FRAME_NAME,
+                 "Rack1GarmentTrayBase", "FrontWall", "RobotPedestal"}
 
-FOLDER_DEFS = {
-    "extracted_targets": {
-        "item_type": ITEM_TYPE_TARGET,
-        "filter": EXTRACTED_TARGET_PATTERN,
-    },
-    "cones": {
-        "item_type": ITEM_TYPE_OBJECT,
-        "filter": CONE_PATTERN,
-    },
-    "bins": {
-        "item_type": ITEM_TYPE_OBJECT,
-        "filter": BIN_PATTERN,
-    },
-}
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+
+def load_config(path):
+    assert os.path.exists(path), f"Config not found: {path}"
+    with open(path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    assert "bin_groups" in config, "Config missing 'bin_groups'"
+    assert len(config["bin_groups"]) > 0, "bin_groups is empty"
+    return config
 
 
 # ── CONNECT ───────────────────────────────────────────────────────────────────
@@ -87,14 +88,21 @@ def find_robot(RDK):
     raise RuntimeError(f"Robot not found. Tried: {ROBOT_NAMES}")
 
 
-# ── FOLDERS ───────────────────────────────────────────────────────────────────
+# ── FRAMES & FOLDERS ─────────────────────────────────────────────────────────
+
+def get_or_create_frame(RDK, name, parent):
+    """Return existing frame under parent, or create one at identity."""
+    for child in parent.Childs():
+        if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
+            return child
+    frame = RDK.AddFrame(name, parent)
+    frame.setPose(eye(4))
+    print(f"[CREATE] Created frame '{name}' under '{parent.Name()}'")
+    return frame
+
 
 def get_or_create_folder(RDK, name, parent=None):
-    """Return existing folder named `name`, or create one.
-
-    When parent is given, checks children of parent first to handle duplicate
-    folder names at different levels.
-    """
+    """Return existing folder named `name`, or create one."""
     if parent is not None:
         for child in parent.Childs():
             if child.Name() == name and child.Type() == ITEM_TYPE_FOLDER:
@@ -127,19 +135,13 @@ def get_or_create_folder(RDK, name, parent=None):
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
-def items_matching(RDK, item_type, pattern):
-    all_items = RDK.ItemList(item_type)
-    if pattern is None:
-        return all_items
-    return [it for it in all_items if pattern.match(it.Name())]
-
-
-def move_item_to_folder(item, folder):
+def move_item_to_parent(item, new_parent):
+    """Reparent item, preserving world pose. Returns True if moved."""
     parent = item.Parent()
-    if parent.Valid() and parent.Name() == folder.Name():
+    if parent.Valid() and parent.Name() == new_parent.Name():
         return False
     world_pose = item.PoseAbs()
-    item.setParent(folder)
+    item.setParent(new_parent)
     item.setPoseAbs(world_pose)
     return True
 
@@ -161,12 +163,6 @@ def discover_cone_names(RDK):
 # ── PHASE 1: OFFSET FRAME ────────────────────────────────────────────────────
 
 def create_offset_frame(RDK):
-    """Create Offset_relative_to_schematic frame under WorldFrame.
-
-    Reparents all station-root children (except WorldFrame and RobotBase)
-    under this frame, preserving their world poses.
-    """
-    # Check if already exists
     existing = RDK.Item(OFFSET_FRAME_NAME, ITEM_TYPE_FRAME)
     if existing.Valid():
         print(f"[CACHE] '{OFFSET_FRAME_NAME}' already exists")
@@ -176,15 +172,12 @@ def create_offset_frame(RDK):
     assert world_frame.Valid(), "WorldFrame not found"
 
     offset_frame = RDK.AddFrame(OFFSET_FRAME_NAME, world_frame)
-    offset_frame.setPose(eye(4))  # identity — same position as WorldFrame
+    offset_frame.setPose(eye(4))
     print(f"[CREATE] Created '{OFFSET_FRAME_NAME}' under WorldFrame")
-
     return offset_frame
 
 
 def reparent_items_under_offset_frame(RDK, offset_frame):
-    """Move all station-root items (except WorldFrame, RobotBase, and the offset
-    frame itself) under the offset frame, preserving world poses."""
     station = RDK.ActiveStation()
     children = station.Childs()
 
@@ -193,10 +186,8 @@ def reparent_items_under_offset_frame(RDK, offset_frame):
         name = child.Name()
         if name in SKIP_REPARENT:
             continue
-        # Skip the robot (it's under RobotBase)
         if child.Type() == ITEM_TYPE_ROBOT:
             continue
-        # Skip station-level items that shouldn't move
         if child.Type() == ITEM_TYPE_STATION:
             continue
 
@@ -206,6 +197,70 @@ def reparent_items_under_offset_frame(RDK, offset_frame):
         moved += 1
 
     print(f"[REPARENT] Moved {moved} item(s) under '{OFFSET_FRAME_NAME}'")
+
+
+# ── PHASE 2: BIN POSITIONER HIERARCHY ───────────────────────────────────────
+
+def organize_bin_groups(RDK, config, offset_frame):
+    """Create bin_positioner hierarchy from config.
+
+    Structure:
+      Offset_relative_to_schematic/
+        bin_positioner/
+          bin_0_group/
+            bin_0 (object)
+            cone_frame/ (folder)
+              Base_Right_0 (object)
+              Base_Right_0_grab (target)
+              ...
+          bin_1_group/
+            bin_1 (object)
+            cone_frame/ (folder)
+              alt_Base_Right_0 (object)
+              ...
+    """
+    positioner = get_or_create_frame(RDK, "bin_positioner", offset_frame)
+    positioner.setVisible(True)
+
+    for group_cfg in config["bin_groups"]:
+        frame_name = group_cfg["frame_name"]
+        bin_name = group_cfg["bin_object"]
+        cone_pat = re.compile(group_cfg["cone_pattern"])
+        target_pat = re.compile(group_cfg["target_pattern"])
+
+        # Create group frame under bin_positioner
+        group_frame = get_or_create_frame(RDK, frame_name, positioner)
+        group_frame.setVisible(True)
+
+        # Move bin object into group frame
+        bin_obj = RDK.Item(bin_name, ITEM_TYPE_OBJECT)
+        if bin_obj.Valid():
+            if move_item_to_parent(bin_obj, group_frame):
+                print(f"  [MOVE] {bin_name} → {frame_name}")
+        else:
+            print(f"  [WARN] Bin '{bin_name}' not found")
+
+        # Create cone_frame folder inside group frame
+        cone_folder = get_or_create_folder(RDK, "cone_frame", parent=group_frame)
+        cone_folder.setVisible(True)
+
+        # Move matching cone objects into cone_frame
+        all_objects = RDK.ItemList(ITEM_TYPE_OBJECT)
+        moved_cones = 0
+        for obj in all_objects:
+            if cone_pat.match(obj.Name()):
+                if move_item_to_parent(obj, cone_folder):
+                    moved_cones += 1
+
+        # Move matching targets into cone_frame
+        all_targets = RDK.ItemList(ITEM_TYPE_TARGET)
+        moved_targets = 0
+        for tgt in all_targets:
+            if target_pat.match(tgt.Name()):
+                if move_item_to_parent(tgt, cone_folder):
+                    moved_targets += 1
+
+        print(f"  [{frame_name}] {moved_cones} cone(s), {moved_targets} target(s) moved into cone_frame")
 
 
 # ── PHASE 3: PROGRAMS ────────────────────────────────────────────────────────
@@ -233,6 +288,8 @@ def main():
     ap = argparse.ArgumentParser(description="Organize extracted station for base cone movement testing")
     ap.add_argument("--robodk-ip", default=None,
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
+    ap.add_argument("--config", default=DEFAULT_CONFIG,
+                    help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
                     help="Phases to skip, e.g. --skip 1 2 3")
     args = ap.parse_args()
@@ -241,6 +298,7 @@ def main():
     if skip:
         print(f"[SKIP] Skipping phases: {', '.join(sorted(skip))}")
 
+    config = load_config(args.config)
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
@@ -253,30 +311,10 @@ def main():
         print("\n── Phase 1: SKIPPED ──")
         offset_frame = RDK.Item(OFFSET_FRAME_NAME, ITEM_TYPE_FRAME)
 
-    # ── Phase 2: organize items into folders ──────────────────────────
+    # ── Phase 2: organize into bin_positioner hierarchy ───────────────
     if "2" not in skip:
-        print("\n── Phase 2: Organize items into folders ──")
-        for folder_name, spec in FOLDER_DEFS.items():
-            # Create folders under the offset frame so they move with it
-            folder = get_or_create_folder(RDK, folder_name, parent=offset_frame)
-            matched = items_matching(RDK, spec["item_type"], spec["filter"])
-
-            moved = 0
-            skipped_count = 0
-            for item in matched:
-                if move_item_to_folder(item, folder):
-                    moved += 1
-                else:
-                    skipped_count += 1
-
-            total = moved + skipped_count
-            print(f"[{folder_name}] {total} item(s): {moved} moved, {skipped_count} already in place")
-
-        for folder_name in FOLDER_DEFS:
-            for child in offset_frame.Childs():
-                if child.Name() == folder_name:
-                    child.setVisible(True)
-                    break
+        print("\n── Phase 2: Organize into bin_positioner hierarchy ──")
+        organize_bin_groups(RDK, config, offset_frame)
     else:
         print("\n── Phase 2: SKIPPED ──")
 

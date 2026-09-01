@@ -1,0 +1,18 @@
+{
+  "bin_groups": [
+    {
+      "frame_name": "bin_0_group",
+      "bin_object": "bin_0",
+      "cone_pattern": "^Base_(Right|Left)_\\d+$",
+      "target_pattern": "^Base_(Right|Left)_\\d+_(grab|string_grab)$",
+      "comment": "bin_0 with all non-alt base cones and their targets"
+    },
+    {
+      "frame_name": "bin_1_group",
+      "bin_object": "bin_1",
+      "cone_pattern": "^alt_Base_(Right|Left)_\\d+$",
+      "target_pattern": "^alt_Base_(Right|Left)_\\d+_(grab|string_grab)$",
+      "comment": "bin_1 with all alt base cones and their targets"
+    }
+  ]
+}
