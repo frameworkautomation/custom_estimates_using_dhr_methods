@@ -29,8 +29,10 @@ Phase 5 — create final pullaway targets:
 
 Phase 6 — populate programs with movement instructions:
   - Each cone's program gets MoveL instructions:
-    home → knotting(before→string_grab→after) → pickup(before→grab→after)
-    → MoveL final_pullaway → MoveJ home
+    home/new_home → knotting(before→string_grab→after) → pickup(before→grab→after)
+    → MoveL final_pullaway → MoveJ home/new_home
+  - Picks whichever home (j1=0 or j1=180) is closer to the first target
+  - Creates 'main' program that runs all cone programs + replace_cone
 
 Reads settings from setup_base_movements_config.json (same directory).
 
@@ -254,6 +256,10 @@ def create_offset_targets(RDK, robot, offsets_config, before_folder, after_folde
 
 _OPT_AXES_6DOF = {
     "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+    # Absolute constraints to lock j2/j3 near default configuration
+    "AbsJnt_2": 0, "AbsOn_2": 1, "AbsW_2": 30,
+    "AbsJnt_3": 0, "AbsOn_3": 1, "AbsW_3": 30,
+    # Relative weights for all joints
     "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1,
     "RelOn_4": 1, "RelOn_5": 1, "RelOn_6": 1,
     "RelW_1": 50, "RelW_2": 50, "RelW_3": 50,
@@ -261,6 +267,7 @@ _OPT_AXES_6DOF = {
 }
 
 HOME_SEED_6DOF = [0.0] * 6
+NEW_HOME_SEED_6DOF = [180.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
 def try_ik(robot, pose):
@@ -652,14 +659,39 @@ def create_final_pullaway_targets(RDK, robot, cone_names, config, after_folder):
 
 # ── PHASE 5: populate programs ───────────────────────────────────────────────
 
-def get_or_create_home_target(RDK, robot, extracted_folder):
+def get_or_create_home_targets(RDK, robot, extracted_folder):
+    """Create both home (j1=0) and new_home (j1=180) joint targets."""
     home = find_target_in_folder(extracted_folder, "home")
-    if home is not None:
-        return home
-    home = RDK.AddTarget("home", extracted_folder, robot)
-    home.setJoints(HOME_SEED_6DOF)
-    home.setAsJointTarget()
-    return home
+    if home is None:
+        home = RDK.AddTarget("home", extracted_folder, robot)
+        home.setJoints(HOME_SEED_6DOF)
+        home.setAsJointTarget()
+
+    new_home = find_target_in_folder(extracted_folder, "new_home")
+    if new_home is None:
+        new_home = RDK.AddTarget("new_home", extracted_folder, robot)
+        new_home.setJoints(NEW_HOME_SEED_6DOF)
+        new_home.setAsJointTarget()
+
+    return home, new_home
+
+
+def pick_closer_home(home, new_home, first_target):
+    """Pick whichever home is closer to first_target in joint space."""
+    try:
+        first_joints = first_target.Joints().list()
+    except AttributeError:
+        first_joints = list(first_target.Joints())
+
+    home_joints = HOME_SEED_6DOF
+    new_home_joints = NEW_HOME_SEED_6DOF
+
+    home_dist = sum((a - b) ** 2 for a, b in zip(home_joints, first_joints))
+    new_home_dist = sum((a - b) ** 2 for a, b in zip(new_home_joints, first_joints))
+
+    if new_home_dist < home_dist:
+        return new_home, "new_home"
+    return home, "home"
 
 
 def populate_programs(RDK, robot, targets_to_use, ee_config,
@@ -669,7 +701,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
     knotting_tool = find_tool(RDK, ee_config["string_grab"])
     pickup_tool = find_tool(RDK, ee_config["grab"])
-    home_target = get_or_create_home_target(RDK, robot, extracted_folder)
+    home_target, new_home_target = get_or_create_home_targets(RDK, robot, extracted_folder)
 
     # Save original cone poses relative to parent (before any attaching happens)
     cone_poses = {}
@@ -727,7 +759,10 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             skipped += 1
             continue
 
-        prog.MoveJ(home_target)
+        # Pick whichever home is closer to the first target in the sequence
+        first_target = sg_before  # the first working target after pullaway
+        start_home, start_name = pick_closer_home(home_target, new_home_target, first_target)
+        prog.MoveJ(start_home)
 
         # MoveJ through pullaway with wrist config matching sg_before
         m = GROUP_PATTERN.match(cone_name)
@@ -821,13 +856,34 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
                             bl_retract_tgt.setJoints(bl_pullaway.Joints())
                     prog.MoveL(bl_retract_tgt)
 
-        prog.MoveJ(home_target)
+        prog.MoveJ(start_home)
 
         populated += 1
-        print(f"  [OK]   {cone_name} — program populated")
+        print(f"  [OK]   {cone_name} — program populated (start={start_name})")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
+
+
+def create_main_program(RDK, robot, targets_to_use, extracted_folder):
+    """Create a 'main' program that runs each cone program then replace_cone."""
+    existing = RDK.Item("main", ITEM_TYPE_PROGRAM)
+    if existing.Valid():
+        if existing.InstructionCount() > 0:
+            print("[CACHE] 'main' program already exists")
+            return
+        main_prog = existing
+    else:
+        main_prog = RDK.AddProgram("main", robot)
+        programs_folder = RDK.Item("programs", ITEM_TYPE_FOLDER)
+        if programs_folder.Valid():
+            main_prog.setParent(programs_folder)
+
+    for cone_name in sorted(targets_to_use.keys()):
+        main_prog.RunInstruction(cone_name, INSTRUCTION_CALL_PROGRAM)
+        main_prog.RunInstruction("replace_cone", INSTRUCTION_CALL_PROGRAM)
+
+    print(f"[CREATE] 'main' program with {len(targets_to_use)} cone sequences")
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -981,6 +1037,9 @@ def main():
             RDK, robot, complete, ee_config,
             ttu_extracted, ttu_before, ttu_after
         )
+
+        # Create main program that runs all cone programs + replace_cone
+        create_main_program(RDK, robot, complete, ttu_extracted)
     else:
         print("\n── Phase 6: SKIPPED ──")
 
