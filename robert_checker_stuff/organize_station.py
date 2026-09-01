@@ -240,27 +240,33 @@ def organize_bin_groups(RDK, config, offset_frame):
         else:
             print(f"  [WARN] Bin '{bin_name}' not found")
 
-        # Create cone_frame folder inside group frame
-        cone_folder = get_or_create_folder(RDK, "cone_frame", parent=group_frame)
-        cone_folder.setVisible(True)
-
-        # Move matching cone objects into cone_frame
+        # Find matching cone objects and create a cone_frame for each
         all_objects = RDK.ItemList(ITEM_TYPE_OBJECT)
-        moved_cones = 0
-        for obj in all_objects:
-            if cone_pat.match(obj.Name()):
-                if move_item_to_parent(obj, cone_folder):
-                    moved_cones += 1
-
-        # Move matching targets into cone_frame
         all_targets = RDK.ItemList(ITEM_TYPE_TARGET)
+        moved_cones = 0
         moved_targets = 0
-        for tgt in all_targets:
-            if target_pat.match(tgt.Name()):
-                if move_item_to_parent(tgt, cone_folder):
-                    moved_targets += 1
 
-        print(f"  [{frame_name}] {moved_cones} cone(s), {moved_targets} target(s) moved into cone_frame")
+        for obj in all_objects:
+            cone_name = obj.Name()
+            if not cone_pat.match(cone_name):
+                continue
+
+            # Create a frame for this specific cone
+            cone_frame = get_or_create_folder(RDK, f"{cone_name}_frame", parent=group_frame)
+            cone_frame.setVisible(True)
+
+            # Move cone object into its frame
+            if move_item_to_parent(obj, cone_frame):
+                moved_cones += 1
+
+            # Move matching targets (grab + string_grab) into the same frame
+            for tgt in all_targets:
+                tgt_name = tgt.Name()
+                if tgt_name == f"{cone_name}_grab" or tgt_name == f"{cone_name}_string_grab":
+                    if move_item_to_parent(tgt, cone_frame):
+                        moved_targets += 1
+
+        print(f"  [{frame_name}] {moved_cones} cone(s), {moved_targets} target(s) organized")
 
 
 # ── PHASE 3: PROGRAMS ────────────────────────────────────────────────────────
