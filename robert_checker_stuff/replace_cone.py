@@ -1,12 +1,11 @@
 """
 Detach any cone from the end effector and restore it to its original position.
 
-Reads original cone poses from cone_original_poses.json (saved by Phase 4
+Reads original cone poses from cone_original_poses.json (saved by Phase 6
 of setup_base_movements.py before attaching). Finds cones attached to tools,
-reparents them back to the 'cones' folder, and restores their original pose
-relative to that folder.
+reparents them back to their cone_frame, and restores their original pose.
 
-Can be run standalone or from inside RoboDK (added to station by Phase 3).
+Can be run standalone or from inside RoboDK (added to station by Phase 4).
 
 Usage (standalone):
     python robert_checker_stuff/replace_cone.py
@@ -23,7 +22,7 @@ import json
 
 sys.path.append("C:/RoboDK/Python")
 
-from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_FOLDER
+from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_FRAME
 from robodk.robomath import TxyzRxyz_2_Pose
 
 # Hardcoded path — __file__ is unreliable when RoboDK copies scripts to temp
@@ -42,9 +41,6 @@ def run(RDK=None):
     with open(POSES_PATH, "r", encoding="utf-8") as f:
         original_poses = json.load(f)
 
-    cones_folder = RDK.Item("cones", ITEM_TYPE_FOLDER)
-    assert cones_folder.Valid(), "cones folder not found"
-
     all_objects = RDK.ItemList(ITEM_TYPE_OBJECT)
     cones = [obj for obj in all_objects if CONE_PATTERN.match(obj.Name())]
 
@@ -55,7 +51,9 @@ def run(RDK=None):
         name = cone.Name()
         parent = cone.Parent()
 
-        if parent.Valid() and parent.Name() == "cones":
+        # Check if cone is already in its _frame
+        expected_parent = f"{name}_frame"
+        if parent.Valid() and parent.Name() == expected_parent:
             already_ok += 1
             continue
 
@@ -64,20 +62,26 @@ def run(RDK=None):
             continue
 
         saved = original_poses[name]
-        # Handle both old format (list) and new format (dict with pose + parent)
         if isinstance(saved, dict):
             pose_data = saved["pose"]
+            parent_name = saved.get("parent", expected_parent)
         else:
             pose_data = saved
+            parent_name = expected_parent
 
         original_pose = TxyzRxyz_2_Pose(pose_data)
 
-        # Reparent to cones folder and restore the relative pose
-        cone.setParent(cones_folder)
+        # Find the parent frame to restore to
+        target_parent = RDK.Item(parent_name, ITEM_TYPE_FRAME)
+        if not target_parent.Valid():
+            print(f"  [WARN] Parent '{parent_name}' not found for '{name}' — skipping")
+            continue
+
+        cone.setParent(target_parent)
         cone.setPose(original_pose)
 
         restored += 1
-        print(f"  [RESTORE] {name}")
+        print(f"  [RESTORE] {name} → {parent_name}")
 
     print(f"\n[DONE] {restored} cone(s) restored, {already_ok} already in place")
 
