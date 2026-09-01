@@ -252,7 +252,7 @@ def organize_bin_groups(RDK, config, offset_frame):
                 continue
 
             # Create a frame for this specific cone
-            cone_frame = get_or_create_folder(RDK, f"{cone_name}_frame", parent=group_frame)
+            cone_frame = get_or_create_frame(RDK, f"{cone_name}_frame", group_frame)
             cone_frame.setVisible(True)
 
             # Move cone object into its frame
