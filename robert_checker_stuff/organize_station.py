@@ -56,7 +56,7 @@ STRING_GRAB_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_string_grab$")
 EXTRACTED_TARGET_PATTERN = re.compile(r"^(alt_)?Base_(Right|Left)_\d+_(grab|string_grab)$")
 
 OFFSET_FRAME_NAME = "Offset_relative_to_schematic"
-SKIP_REPARENT = {"WorldFrame", "RobotBase", OFFSET_FRAME_NAME}
+SKIP_REPARENT = {"WorldFrame", "RobotBase", OFFSET_FRAME_NAME, "Rack1GarmentTrayBase", "FrontWall", "RobotPedestal"}
 
 FOLDER_DEFS = {
     "extracted_targets": {
