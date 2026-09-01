@@ -14,14 +14,6 @@ Phase 3 — create empty programs for each grab/string_grab pair:
   - One program per base cone, named after the cone (e.g. "Base_Right_0")
   - All programs go under a "programs" folder
 
-Phase 4 — create offset targets for each grab and string_grab:
-  - offset_before_for_<name> — offset along -Z before the target (approach)
-  - offset_after_for_<name>  — offset along -Z after the target (retract)
-  - Distances from config (grab: 50/300mm, string_grab: 50/50mm)
-  - Stored under auto_generated_offsets/before and auto_generated_offsets/after
-
-Reads settings from setup_base_movements_config.json (same directory).
-
 Caching: folders, item placements, and programs are reused if they already exist.
 
 Usage:
@@ -32,7 +24,6 @@ Usage:
 import sys
 import os
 import re
-import json
 import argparse
 
 sys.path.append("C:/RoboDK/Python")
@@ -42,10 +33,9 @@ from robodk.robolink import (
     ITEM_TYPE_FOLDER, ITEM_TYPE_PROGRAM, ITEM_TYPE_ROBOT, ITEM_TYPE_FRAME,
     ITEM_TYPE_STATION,
 )
-from robodk.robomath import transl, eye
+from robodk.robomath import eye
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "setup_base_movements_config.json")
 
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
@@ -72,25 +62,6 @@ FOLDER_DEFS = {
         "filter": BIN_PATTERN,
     },
 }
-
-
-# ── CONFIG ────────────────────────────────────────────────────────────────────
-
-def load_config(path):
-    assert os.path.exists(path), f"Config not found: {path}"
-    with open(path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
-    offsets = config.get("offsets_mm")
-    assert offsets is not None, "Config missing 'offsets_mm'"
-    for key in ("grab", "string_grab"):
-        assert key in offsets, f"offsets_mm missing '{key}'"
-        for direction in ("before", "after"):
-            assert direction in offsets[key], f"offsets_mm.{key} missing '{direction}'"
-
-    print(f"[CONFIG] offsets_mm.grab: before={offsets['grab']['before']}mm, after={offsets['grab']['after']}mm")
-    print(f"[CONFIG] offsets_mm.string_grab: before={offsets['string_grab']['before']}mm, after={offsets['string_grab']['after']}mm")
-    return config
 
 
 # ── CONNECT ───────────────────────────────────────────────────────────────────
@@ -256,75 +227,20 @@ def create_programs(RDK, robot, cone_names, programs_folder):
     print(f"[programs] {total} program(s): {created} created, {skipped} already exist")
 
 
-# ── PHASE 4: OFFSET TARGETS ─────────────────────────────────────────────────
-
-def create_offset_target(RDK, robot, source_target, offset_name, offset_mm, folder):
-    existing = RDK.Item(offset_name, ITEM_TYPE_TARGET)
-    if existing.Valid():
-        return existing, False
-
-    source_pose = source_target.Pose()
-    offset_pose = source_pose * transl(0, 0, -offset_mm)
-
-    target = RDK.AddTarget(offset_name, folder, robot)
-    target.setPose(offset_pose)
-    return target, True
-
-
-def create_offset_targets(RDK, robot, offsets_config, before_folder, after_folder):
-    created = 0
-    skipped = 0
-
-    offset_rules = [
-        (GRAB_PATTERN, offsets_config["grab"]),
-        (STRING_GRAB_PATTERN, offsets_config["string_grab"]),
-    ]
-
-    all_targets = RDK.ItemList(ITEM_TYPE_TARGET)
-
-    for target_item in all_targets:
-        name = target_item.Name()
-        for pattern, distances in offset_rules:
-            if not pattern.match(name):
-                continue
-
-            before_name = f"offset_before_for_{name}"
-            _, was_created = create_offset_target(
-                RDK, robot, target_item, before_name, distances["before"], before_folder
-            )
-            created += was_created
-            skipped += (not was_created)
-
-            after_name = f"offset_after_for_{name}"
-            _, was_created = create_offset_target(
-                RDK, robot, target_item, after_name, distances["after"], after_folder
-            )
-            created += was_created
-            skipped += (not was_created)
-
-            break
-
-    total = created + skipped
-    print(f"[offsets] {total} offset target(s): {created} created, {skipped} already exist")
-
-
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser(description="Organize extracted station for base cone movement testing")
     ap.add_argument("--robodk-ip", default=None,
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
-    ap.add_argument("--config", default=DEFAULT_CONFIG,
-                    help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3 4")
+                    help="Phases to skip, e.g. --skip 1 2 3")
     args = ap.parse_args()
 
     skip = {s.upper() for s in args.skip}
     if skip:
         print(f"[SKIP] Skipping phases: {', '.join(sorted(skip))}")
 
-    config = load_config(args.config)
     RDK = connect(args.robodk_ip)
     robot = find_robot(RDK)
 
@@ -378,20 +294,6 @@ def main():
         create_programs(RDK, robot, cone_names, programs_folder)
     else:
         print("\n── Phase 3: SKIPPED ──")
-
-    # ── Phase 4: create offset targets ────────────────────────────────
-    if "4" not in skip:
-        print("\n── Phase 4: Create offset targets (before/after) ──")
-        offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets", parent=offset_frame)
-        before_folder = get_or_create_folder(RDK, "before", parent=offsets_parent)
-        after_folder = get_or_create_folder(RDK, "after", parent=offsets_parent)
-        offsets_parent.setVisible(True)
-        before_folder.setVisible(True)
-        after_folder.setVisible(True)
-
-        create_offset_targets(RDK, robot, config["offsets_mm"], before_folder, after_folder)
-    else:
-        print("\n── Phase 4: SKIPPED ──")
 
     print("\n[DONE] Station organization complete.")
 
