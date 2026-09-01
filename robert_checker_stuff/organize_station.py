@@ -39,7 +39,8 @@ from robodk.robolink import (
     ITEM_TYPE_FOLDER, ITEM_TYPE_PROGRAM, ITEM_TYPE_ROBOT, ITEM_TYPE_FRAME,
     ITEM_TYPE_STATION,
 )
-from robodk.robomath import eye
+from robodk.robomath import eye, Mat, Pose_2_TxyzRxyz
+import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "organize_station_config.json")
@@ -199,6 +200,49 @@ def reparent_items_under_offset_frame(RDK, offset_frame):
     print(f"[REPARENT] Moved {moved} item(s) under '{OFFSET_FRAME_NAME}'")
 
 
+# ── POSE HELPERS ─────────────────────────────────────────────────────────────
+
+def pose_to_axes(pose):
+    """Extract X, Y, Z axis vectors and position from a 4x4 pose matrix."""
+    m = np.array(pose.rows)
+    x_axis = m[0:3, 0]
+    y_axis = m[0:3, 1]
+    z_axis = m[0:3, 2]
+    pos = m[0:3, 3]
+    return x_axis, y_axis, z_axis, pos
+
+
+def axes_to_pose(x_axis, y_axis, z_axis, pos):
+    """Build a 4x4 pose matrix from axis vectors and position."""
+    return Mat([
+        [x_axis[0], y_axis[0], z_axis[0], pos[0]],
+        [x_axis[1], y_axis[1], z_axis[1], pos[1]],
+        [x_axis[2], y_axis[2], z_axis[2], pos[2]],
+        [0, 0, 0, 1],
+    ])
+
+
+def compute_frame_pose(RDK, ref_target_name, offset_x_mm, offset_y_mm,
+                       flip_x=False, flip_z=False):
+    """Compute a frame pose based on a reference target's orientation and offsets."""
+    ref = RDK.Item(ref_target_name, ITEM_TYPE_TARGET)
+    assert ref.Valid(), f"Reference target '{ref_target_name}' not found"
+
+    ref_pose = ref.PoseAbs()
+    x_axis, y_axis, z_axis, ref_pos = pose_to_axes(ref_pose)
+
+    # Apply flips
+    new_x = -x_axis if flip_x else x_axis.copy()
+    new_z = -z_axis if flip_z else z_axis.copy()
+    # Recompute Y to maintain right-handedness
+    new_y = np.cross(new_z, new_x)
+
+    # Compute position: ref position + offsets along ref axes
+    new_pos = ref_pos + offset_x_mm * x_axis + offset_y_mm * y_axis
+
+    return axes_to_pose(new_x, new_y, new_z, new_pos)
+
+
 # ── PHASE 2: BIN POSITIONER HIERARCHY ───────────────────────────────────────
 
 def organize_bin_groups(RDK, config, offset_frame):
@@ -222,6 +266,21 @@ def organize_bin_groups(RDK, config, offset_frame):
     positioner = get_or_create_frame(RDK, "bin_positioner", offset_frame)
     positioner.setVisible(True)
 
+    # Set bin_positioner pose from config
+    bp_cfg = config.get("bin_positioner", {})
+    if "reference_target" in bp_cfg:
+        bp_pose = compute_frame_pose(
+            RDK,
+            bp_cfg["reference_target"],
+            bp_cfg.get("offset_along_ref_x_mm", 0),
+            bp_cfg.get("offset_along_ref_y_mm", 0),
+            flip_x=bp_cfg.get("flip_x", False),
+            flip_z=bp_cfg.get("flip_z", False),
+        )
+        positioner.setPoseAbs(bp_pose)
+        txyz = Pose_2_TxyzRxyz(bp_pose)
+        print(f"  [POSE] bin_positioner at x={txyz[0]:.1f} y={txyz[1]:.1f} z={txyz[2]:.1f}")
+
     for group_cfg in config["bin_groups"]:
         frame_name = group_cfg["frame_name"]
         bin_name = group_cfg["bin_object"]
@@ -231,6 +290,19 @@ def organize_bin_groups(RDK, config, offset_frame):
         # Create group frame under bin_positioner
         group_frame = get_or_create_frame(RDK, frame_name, positioner)
         group_frame.setVisible(True)
+
+        # Set group frame pose from config
+        ref_target = group_cfg.get("reference_target")
+        if ref_target:
+            group_pose = compute_frame_pose(
+                RDK,
+                ref_target,
+                group_cfg.get("offset_along_ref_x_mm", 0),
+                group_cfg.get("offset_along_ref_y_mm", 0),
+            )
+            group_frame.setPoseAbs(group_pose)
+            txyz = Pose_2_TxyzRxyz(group_pose)
+            print(f"  [POSE] {frame_name} at x={txyz[0]:.1f} y={txyz[1]:.1f} z={txyz[2]:.1f}")
 
         # Move bin object into group frame
         bin_obj = RDK.Item(bin_name, ITEM_TYPE_OBJECT)

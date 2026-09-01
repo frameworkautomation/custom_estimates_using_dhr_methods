@@ -1,18 +1,33 @@
 {
+  "bin_positioner": {
+    "reference_target": "alt_Base_Left_2_grab",
+    "flip_x": true,
+    "flip_z": true,
+    "offset_along_ref_x_mm": 110,
+    "offset_along_ref_y_mm": 110,
+    "comment": "Blue axis = -Z of ref, Red axis = -X of ref, center offset 11cm along ref X and Y"
+  },
+
   "bin_groups": [
     {
       "frame_name": "bin_0_group",
       "bin_object": "bin_0",
       "cone_pattern": "^Base_(Right|Left)_\\d+$",
       "target_pattern": "^Base_(Right|Left)_\\d+_(grab|string_grab)$",
-      "comment": "bin_0 with all non-alt base cones and their targets"
+      "reference_target": "Base_Right_0_grab",
+      "offset_along_ref_x_mm": -110,
+      "offset_along_ref_y_mm": -110,
+      "comment": "Same orientation as Base_Right_0_grab, offset -11cm along X and Y"
     },
     {
       "frame_name": "bin_1_group",
       "bin_object": "bin_1",
       "cone_pattern": "^alt_Base_(Right|Left)_\\d+$",
       "target_pattern": "^alt_Base_(Right|Left)_\\d+_(grab|string_grab)$",
-      "comment": "bin_1 with all alt base cones and their targets"
+      "reference_target": "alt_Base_Right_0_grab",
+      "offset_along_ref_x_mm": -110,
+      "offset_along_ref_y_mm": -110,
+      "comment": "Same orientation as alt_Base_Right_0_grab, offset -11cm along X and Y"
     }
   ]
 }
