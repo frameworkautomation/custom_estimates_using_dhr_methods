@@ -1,28 +1,4 @@
 {
-  "Base_Left_0": {
-    "grab": {
-      "target": "Base_Left_0_grab",
-      "before": "offset_before_for_Base_Left_0_grab",
-      "after": "offset_after_for_Base_Left_0_grab"
-    },
-    "string_grab": {
-      "target": "Base_Left_0_string_grab",
-      "before": "offset_before_for_Base_Left_0_string_grab",
-      "after": "offset_after_for_Base_Left_0_string_grab"
-    }
-  },
-  "Base_Left_1": {
-    "grab": {
-      "target": "Base_Left_1_grab",
-      "before": "offset_before_for_Base_Left_1_grab",
-      "after": "offset_after_for_Base_Left_1_grab"
-    },
-    "string_grab": {
-      "target": "Base_Left_1_string_grab",
-      "before": "offset_before_for_Base_Left_1_string_grab",
-      "after": "offset_after_for_Base_Left_1_string_grab"
-    }
-  },
   "Base_Left_2": {
     "grab": {
       "target": "Base_Left_2_grab",
@@ -33,18 +9,6 @@
       "target": "Base_Left_2_string_grab",
       "before": "offset_before_for_Base_Left_2_string_grab",
       "after": "offset_after_for_Base_Left_2_string_grab"
-    }
-  },
-  "Base_Right_0": {
-    "grab": {
-      "target": "Base_Right_0_grab",
-      "before": "offset_before_for_Base_Right_0_grab",
-      "after": "offset_after_for_Base_Right_0_grab"
-    },
-    "string_grab": {
-      "target": "Base_Right_0_string_grab",
-      "before": "offset_before_for_Base_Right_0_string_grab",
-      "after": "offset_after_for_Base_Right_0_string_grab"
     }
   },
   "Base_Right_1": {
@@ -105,18 +69,6 @@
       "target": "alt_Base_Left_2_string_grab",
       "before": "offset_before_for_alt_Base_Left_2_string_grab",
       "after": "offset_after_for_alt_Base_Left_2_string_grab"
-    }
-  },
-  "alt_Base_Right_0": {
-    "grab": {
-      "target": "alt_Base_Right_0_grab",
-      "before": "offset_before_for_alt_Base_Right_0_grab",
-      "after": "offset_after_for_alt_Base_Right_0_grab"
-    },
-    "string_grab": {
-      "target": "alt_Base_Right_0_string_grab",
-      "before": "offset_before_for_alt_Base_Right_0_string_grab",
-      "after": "offset_after_for_alt_Base_Right_0_string_grab"
     }
   },
   "alt_Base_Right_1": {
