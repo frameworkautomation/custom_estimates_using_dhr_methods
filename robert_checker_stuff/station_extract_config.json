@@ -16,6 +16,16 @@
     {
       "name": "bin_1",
       "type": "object"
+    },
+    {
+      "name": "FrontWall",
+      "type": "object",
+      "comment": "Front wall geometry for collision reference"
+    },
+    {
+      "name": "RobotPedestal",
+      "type": "object",
+      "comment": "Robot pedestal geometry"
     }
   ],
   "patterns": [
