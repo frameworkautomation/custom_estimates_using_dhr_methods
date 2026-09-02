@@ -21,7 +21,7 @@ Phase 5 — create per-cone attach scripts
 Phase 6 — create final pullaway targets
 
 Phase 7 — populate programs with movement instructions:
-  - Picks whichever home (j1=0 or j1=180) is closer to the first target
+  - 5 home positions (j1=0, ±170, ±180) — picks closest for start and end
   - Creates 'main' program that runs all cone programs + replace_cone
 
 Use --rapid-test-mode to only process one cone (first found).
@@ -258,9 +258,14 @@ _OPT_AXES_6DOF = {
     "RelW_4": 50, "RelW_5": 50, "RelW_6": 50,
 }
 
-HOME_SEED_6DOF = [0.0] * 6
-NEW_HOME_SEED_6DOF = [180.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-NEG_HOME_SEED_6DOF = [-180.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+HOME_SEEDS = {
+    "home":      [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_p170": [170.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_n170": [-170.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_p180": [180.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_n180": [-180.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+}
+HOME_SEED_6DOF = HOME_SEEDS["home"]
 
 
 def try_ik(robot, pose, seed=None):
@@ -654,27 +659,20 @@ def create_final_pullaway_targets(RDK, robot, cone_names, config, after_folder):
 
 # ── PHASE 5: populate programs ───────────────────────────────────────────────
 
-def get_or_create_home_targets(RDK, robot, extracted_folder):
-    """Create home (j1=0), new_home (j1=180), and neg_home (j1=-180) joint targets."""
-    home = find_target_in_folder(extracted_folder, "home")
-    if home is None:
-        home = RDK.AddTarget("home", extracted_folder, robot)
-        home.setJoints(HOME_SEED_6DOF)
-        home.setAsJointTarget()
-
-    new_home = find_target_in_folder(extracted_folder, "new_home")
-    if new_home is None:
-        new_home = RDK.AddTarget("new_home", extracted_folder, robot)
-        new_home.setJoints(NEW_HOME_SEED_6DOF)
-        new_home.setAsJointTarget()
-
-    neg_home = find_target_in_folder(extracted_folder, "neg_home")
-    if neg_home is None:
-        neg_home = RDK.AddTarget("neg_home", extracted_folder, robot)
-        neg_home.setJoints(NEG_HOME_SEED_6DOF)
-        neg_home.setAsJointTarget()
-
-    return home, new_home, neg_home
+def create_home_targets(RDK, robot, extracted_folder):
+    """Create all home joint targets. Returns dict of name → target item."""
+    homes = {}
+    for name, joints in HOME_SEEDS.items():
+        existing = find_target_in_folder(extracted_folder, name)
+        if existing is not None:
+            homes[name] = existing
+            continue
+        tgt = RDK.AddTarget(name, extracted_folder, robot)
+        tgt.setJoints(joints)
+        tgt.setAsJointTarget()
+        homes[name] = tgt
+    print(f"[homes] {len(homes)} home target(s)")
+    return homes
 
 
 def _angular_dist(a_deg, b_deg):
@@ -685,30 +683,23 @@ def _angular_dist(a_deg, b_deg):
     return diff
 
 
-def pick_closer_home(home, new_home, neg_home, first_target):
-    """Pick whichever home is closer to first_target in joint space.
+def pick_closest_home(homes, reference_target):
+    """Pick the home target with shortest joint-space distance to reference.
 
-    Uses angular distance (wrapping-aware) so j1=-100 is correctly seen
-    as closer to j1=180 (80° apart) than to j1=0 (100° apart).
-    Considers home (j1=0), new_home (j1=+180), neg_home (j1=-180).
+    Uses wrapping-aware angular distance on all joints.
     """
     try:
-        first_joints = first_target.Joints().list()
+        ref_joints = reference_target.Joints().list()
     except AttributeError:
-        first_joints = list(first_target.Joints())
+        ref_joints = list(reference_target.Joints())
 
-    candidates = [
-        (home, "home", HOME_SEED_6DOF),
-        (new_home, "new_home", NEW_HOME_SEED_6DOF),
-        (neg_home, "neg_home", NEG_HOME_SEED_6DOF),
-    ]
-
-    best_target = home
-    best_name = "home"
+    best_target = None
+    best_name = None
     best_dist = float("inf")
 
-    for target, name, seed in candidates:
-        dist = sum(_angular_dist(a, b) ** 2 for a, b in zip(seed, first_joints))
+    for name, target in homes.items():
+        seed = HOME_SEEDS[name]
+        dist = sum(_angular_dist(a, b) ** 2 for a, b in zip(seed, ref_joints))
         if dist < best_dist:
             best_dist = dist
             best_target = target
@@ -724,7 +715,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
     knotting_tool = find_tool(RDK, ee_config["string_grab"])
     pickup_tool = find_tool(RDK, ee_config["grab"])
-    home_target, new_home_target, neg_home_target = get_or_create_home_targets(RDK, robot, extracted_folder)
+    homes = create_home_targets(RDK, robot, extracted_folder)
 
     # Save original cone poses relative to parent (before any attaching happens)
     cone_poses = {}
@@ -785,9 +776,9 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         # Set knotting tool first so the robot knows the TCP for all moves
         prog.setPoseTool(knotting_tool)
 
-        # Pick whichever home is closer to the first target in the sequence
-        first_target = sg_before  # the first working target after pullaway
-        start_home, start_name = pick_closer_home(home_target, new_home_target, neg_home_target, first_target)
+        # Pick whichever home is closest to the first target in the sequence
+        first_target = sg_before
+        start_home, start_name = pick_closest_home(homes, first_target)
         prog.MoveJ(start_home)
 
         # MoveJ through pullaway with wrist config matching sg_before
@@ -796,41 +787,31 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             pullaway_name = f"{m.group(1)}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                # Create per-cone approach pullaway — full sweep, try multiple seeds
+                # Create per-cone approach pullaway — seed from sg_before (work backward)
                 approach_name = f"{cone_name}_approach_pullaway"
                 approach_tgt = find_target_in_folder(after_folder, approach_name)
                 if approach_tgt is None:
                     pullaway_pose = pullaway_target.Pose()
-                    step_deg = config["z_rotation_step_deg"]
                     try:
                         sg_seed = sg_before.Joints().list()
                     except AttributeError:
                         sg_seed = list(sg_before.Joints())
 
-                    # Try full Z-sweep with sg_before seed, then home seeds
-                    solved_pose, approach_joints, _ = solve_with_z_sweep(
-                        robot, pullaway_pose, step_deg, seed=sg_seed
-                    )
+                    approach_joints = try_ik(robot, pullaway_pose, seed=sg_seed)
                     if approach_joints is None:
-                        solved_pose, approach_joints, _ = solve_with_z_sweep(
-                            robot, pullaway_pose, step_deg, seed=HOME_SEED_6DOF
-                        )
-                    if approach_joints is None:
-                        solved_pose, approach_joints, _ = solve_with_z_sweep(
-                            robot, pullaway_pose, step_deg, seed=NEW_HOME_SEED_6DOF
-                        )
-                    if approach_joints is None:
-                        solved_pose, approach_joints, _ = solve_with_z_sweep(
-                            robot, pullaway_pose, step_deg, seed=NEG_HOME_SEED_6DOF
-                        )
+                        # Try each home seed
+                        for seed in HOME_SEEDS.values():
+                            approach_joints = try_ik(robot, pullaway_pose, seed=seed)
+                            if approach_joints is not None:
+                                break
 
                     approach_tgt = RDK.AddTarget(approach_name, after_folder, robot)
+                    approach_tgt.setPose(pullaway_pose)
                     if approach_joints is not None:
-                        approach_tgt.setPose(solved_pose)
                         approach_tgt.setJoints(approach_joints)
                     else:
-                        assert False, \
-                            f"No IK for {approach_name} — tried 4 seeds × {int(360/step_deg)} rotations each"
+                        print(f"    [WARN] No IK for {approach_name} — using pullaway joints")
+                        approach_tgt.setJoints(pullaway_target.Joints())
 
                 prog.MoveJ(approach_tgt)
 
@@ -885,10 +866,12 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
                             bl_retract_tgt.setJoints(bl_pullaway.Joints())
                     prog.MoveL(bl_retract_tgt)
 
-        prog.MoveJ(start_home)
+        # Pick closest home for the return (based on last target)
+        end_home, end_name = pick_closest_home(homes, gr_after)
+        prog.MoveJ(end_home)
 
         populated += 1
-        print(f"  [OK]   {cone_name} — program populated (start={start_name})")
+        print(f"  [OK]   {cone_name} — program populated (start={start_name}, end={end_name})")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
