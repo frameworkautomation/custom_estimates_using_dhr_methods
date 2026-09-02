@@ -54,7 +54,8 @@ from robodk.robolink import (
     ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
     INSTRUCTION_CALL_PROGRAM,
 )
-from robodk.robomath import transl, rotz, Pose_2_TxyzRxyz
+from robodk.robomath import transl, rotz, Pose_2_TxyzRxyz, Mat
+import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "setup_base_movements_config.json")
@@ -725,22 +726,47 @@ def create_obstacle_avoidance_targets(RDK, robot, config, targets_to_use,
                     tgt.setJoints(pullaway_tgt.Joints())
                 created += 1
 
-        # 2. approach_pull_in — offset from sg_before along -X
-        if sg_before is not None:
+        # 2. approach_pull_in — sg_before offset by the same vector as final_pullaway
+        #    (i.e. the vector from _0 after-grab to the pullaway position)
+        if sg_before is not None and pullaway_tgt is not None:
             name = f"{cone_name}_approach_pull_in"
             existing = find_target_in_folder(avoidance_folder, name)
             if existing:
                 cached += 1
             else:
-                pose = sg_before.Pose() * transl(-pullaway_mm, 0, 0)
-                joints = try_ik(robot, pose, seed=sg_seed)
+                # Get the pullaway offset vector in world space
+                zero_after_name = f"offset_after_for_{group}_0_grab"
+                zero_after = find_target_in_folder(ttu_after, zero_after_name)
+                if zero_after is not None:
+                    pa_pos = np.array(Pose_2_TxyzRxyz(pullaway_tgt.PoseAbs())[:3])
+                    za_pos = np.array(Pose_2_TxyzRxyz(zero_after.PoseAbs())[:3])
+                    offset_vec = pa_pos - za_pos  # world-space offset vector
+
+                    # Apply same vector to sg_before's world position, keep sg_before orientation
+                    sg_abs = sg_before.PoseAbs()
+                    sg_pos = np.array(Pose_2_TxyzRxyz(sg_abs)[:3])
+                    new_pos = sg_pos + offset_vec
+
+                    # Build pose: sg_before rotation + new position
+                    sg_axes = np.array(sg_abs.rows)
+                    pull_in_pose = Mat([
+                        [sg_axes[0][0], sg_axes[0][1], sg_axes[0][2], new_pos[0]],
+                        [sg_axes[1][0], sg_axes[1][1], sg_axes[1][2], new_pos[1]],
+                        [sg_axes[2][0], sg_axes[2][1], sg_axes[2][2], new_pos[2]],
+                        [0, 0, 0, 1],
+                    ])
+                else:
+                    # Fallback: offset along sg_before's -X
+                    pull_in_pose = sg_before.PoseAbs() * transl(-pullaway_mm, 0, 0)
+
+                joints = try_ik(robot, pull_in_pose, seed=sg_seed)
                 if joints is None:
                     for seed in HOME_SEEDS.values():
-                        joints = try_ik(robot, pose, seed=seed)
+                        joints = try_ik(robot, pull_in_pose, seed=seed)
                         if joints is not None:
                             break
                 tgt = RDK.AddTarget(name, avoidance_folder, robot)
-                tgt.setPose(pose)
+                tgt.setPose(pull_in_pose)
                 if joints is not None:
                     tgt.setJoints(joints)
                 else:
