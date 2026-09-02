@@ -248,9 +248,9 @@ def create_offset_targets(RDK, robot, offsets_config, before_folder, after_folde
 
 _OPT_AXES_6DOF = {
     "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
-    # Absolute constraints to lock j2/j3 near default configuration
-    "AbsJnt_2": 0, "AbsOn_2": 1, "AbsW_2": 30,
-    "AbsJnt_3": 0, "AbsOn_3": 1, "AbsW_3": 30,
+    # Absolute constraints to lock j2/j3 near default (forward) configuration
+    "AbsJnt_2": 0, "AbsOn_2": 1, "AbsW_2": 100,
+    "AbsJnt_3": 0, "AbsOn_3": 1, "AbsW_3": 100,
     # Relative weights for all joints
     "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1,
     "RelOn_4": 1, "RelOn_5": 1, "RelOn_6": 1,
