@@ -815,6 +815,34 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
                 prog.MoveJ(approach_tgt)
 
+        # Create per-cone pull_in target — offset from sg_before along -X
+        pull_in_name = f"{cone_name}_approach_pull_in"
+        pull_in_tgt = find_target_in_folder(before_folder, pull_in_name)
+        if pull_in_tgt is None:
+            pullaway_mm = config.get("final_pullaway_mm", 600)
+            sg_before_pose = sg_before.Pose()
+            pull_in_pose = sg_before_pose * transl(-pullaway_mm, 0, 0)
+            try:
+                sg_seed = sg_before.Joints().list()
+            except AttributeError:
+                sg_seed = list(sg_before.Joints())
+
+            pull_in_joints = try_ik(robot, pull_in_pose, seed=sg_seed)
+            if pull_in_joints is None:
+                for seed in HOME_SEEDS.values():
+                    pull_in_joints = try_ik(robot, pull_in_pose, seed=seed)
+                    if pull_in_joints is not None:
+                        break
+
+            pull_in_tgt = RDK.AddTarget(pull_in_name, before_folder, robot)
+            pull_in_tgt.setPose(pull_in_pose)
+            if pull_in_joints is not None:
+                pull_in_tgt.setJoints(pull_in_joints)
+            else:
+                print(f"    [WARN] No IK for {pull_in_name}")
+                pull_in_tgt.setJoints(sg_before.Joints())
+
+        prog.MoveJ(pull_in_tgt)
         prog.MoveJ(sg_before)
         prog.MoveL(sg_target)
         prog.MoveL(sg_after)
