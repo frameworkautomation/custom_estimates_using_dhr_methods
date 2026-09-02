@@ -20,7 +20,12 @@ Phase 5 — create per-cone attach scripts
 
 Phase 6 — create final pullaway targets
 
-Phase 7 — populate programs with movement instructions:
+Phase 7 — create obstacle avoidance targets:
+  - approach_pullaway, approach_pull_in, retract_pullaway, bl_retract_pullaway
+  - All in created_for_obstacle_avoidance folder
+  - IK seeded from offset solutions
+
+Phase 8 — populate programs with movement instructions:
   - 5 home positions (j1=0, ±170, ±180) — picks closest for start and end
   - Creates 'main' program that runs all cone programs + replace_cone
 
@@ -657,7 +662,147 @@ def create_final_pullaway_targets(RDK, robot, cone_names, config, after_folder):
     print(f"[final_pullaway] {total} target(s): {created} created, {cached} cached")
 
 
-# ── PHASE 5: populate programs ───────────────────────────────────────────────
+# ── PHASE 7: create obstacle avoidance targets ──────────────────────────────
+
+def create_obstacle_avoidance_targets(RDK, robot, config, targets_to_use,
+                                      ttu_before, ttu_after, avoidance_folder):
+    """Create approach/retract pullaway and pull_in targets for each cone.
+
+    All targets go in created_for_obstacle_avoidance folder.
+    IK seeded from the corresponding offset solutions.
+    """
+    pullaway_mm = config.get("final_pullaway_mm", 600)
+
+    created = 0
+    cached = 0
+
+    for cone_name, entries in targets_to_use.items():
+        sg = entries["string_grab"]
+        gr = entries["grab"]
+
+        sg_before = find_target_in_folder(ttu_before, sg["before"])
+        gr_after = find_target_in_folder(ttu_after, gr["after"])
+
+        m = GROUP_PATTERN.match(cone_name)
+        if not m:
+            continue
+        group = m.group(1)
+
+        # Get seeds from offset solutions
+        try:
+            sg_seed = sg_before.Joints().list() if sg_before else HOME_SEED_6DOF
+        except AttributeError:
+            sg_seed = list(sg_before.Joints()) if sg_before else HOME_SEED_6DOF
+        try:
+            gr_seed = gr_after.Joints().list() if gr_after else HOME_SEED_6DOF
+        except AttributeError:
+            gr_seed = list(gr_after.Joints()) if gr_after else HOME_SEED_6DOF
+
+        # Find the group's final pullaway target
+        pullaway_name = f"{group}_final_pullaway"
+        pullaway_tgt = find_target_in_folder(ttu_after, pullaway_name)
+
+        # 1. approach_pullaway — same pose as group pullaway, seeded from sg_before
+        if pullaway_tgt is not None:
+            name = f"{cone_name}_approach_pullaway"
+            existing = find_target_in_folder(avoidance_folder, name)
+            if existing:
+                cached += 1
+            else:
+                pose = pullaway_tgt.Pose()
+                joints = try_ik(robot, pose, seed=sg_seed)
+                if joints is None:
+                    for seed in HOME_SEEDS.values():
+                        joints = try_ik(robot, pose, seed=seed)
+                        if joints is not None:
+                            break
+                tgt = RDK.AddTarget(name, avoidance_folder, robot)
+                tgt.setPose(pose)
+                if joints is not None:
+                    tgt.setJoints(joints)
+                else:
+                    print(f"    [WARN] No IK for {name}")
+                    tgt.setJoints(pullaway_tgt.Joints())
+                created += 1
+
+        # 2. approach_pull_in — offset from sg_before along -X
+        if sg_before is not None:
+            name = f"{cone_name}_approach_pull_in"
+            existing = find_target_in_folder(avoidance_folder, name)
+            if existing:
+                cached += 1
+            else:
+                pose = sg_before.Pose() * transl(-pullaway_mm, 0, 0)
+                joints = try_ik(robot, pose, seed=sg_seed)
+                if joints is None:
+                    for seed in HOME_SEEDS.values():
+                        joints = try_ik(robot, pose, seed=seed)
+                        if joints is not None:
+                            break
+                tgt = RDK.AddTarget(name, avoidance_folder, robot)
+                tgt.setPose(pose)
+                if joints is not None:
+                    tgt.setJoints(joints)
+                else:
+                    print(f"    [WARN] No IK for {name}")
+                    tgt.setJoints(sg_before.Joints())
+                created += 1
+
+        # 3. retract_pullaway — same pose as group pullaway, seeded from gr_after
+        if pullaway_tgt is not None:
+            name = f"{cone_name}_retract_pullaway"
+            existing = find_target_in_folder(avoidance_folder, name)
+            if existing:
+                cached += 1
+            else:
+                pose = pullaway_tgt.Pose()
+                joints = try_ik(robot, pose, seed=gr_seed)
+                if joints is None:
+                    for seed in HOME_SEEDS.values():
+                        joints = try_ik(robot, pose, seed=seed)
+                        if joints is not None:
+                            break
+                tgt = RDK.AddTarget(name, avoidance_folder, robot)
+                tgt.setPose(pose)
+                if joints is not None:
+                    tgt.setJoints(joints)
+                else:
+                    print(f"    [WARN] No IK for {name}")
+                    tgt.setJoints(pullaway_tgt.Joints())
+                created += 1
+
+        # 4. bl_retract_pullaway — for alt cones, route through Base_Left pullaway
+        if group.startswith("alt_"):
+            bl_pullaway = find_target_in_folder(ttu_after, "Base_Left_final_pullaway")
+            if bl_pullaway is not None:
+                name = f"{cone_name}_bl_retract_pullaway"
+                existing = find_target_in_folder(avoidance_folder, name)
+                if existing:
+                    cached += 1
+                else:
+                    pose = bl_pullaway.Pose()
+                    joints = try_ik(robot, pose, seed=gr_seed)
+                    if joints is None:
+                        for seed in HOME_SEEDS.values():
+                            joints = try_ik(robot, pose, seed=seed)
+                            if joints is not None:
+                                break
+                    tgt = RDK.AddTarget(name, avoidance_folder, robot)
+                    tgt.setPose(pose)
+                    if joints is not None:
+                        tgt.setJoints(joints)
+                    else:
+                        print(f"    [WARN] No IK for {name}")
+                        tgt.setJoints(bl_pullaway.Joints())
+                    created += 1
+
+        print(f"  [OK] {cone_name}")
+
+    total = created + cached
+    print(f"[avoidance] {total} target(s): {created} created, {cached} cached")
+
+
+# ── PHASE 8: populate programs ───────────────────────────────────────────────
 
 def create_home_targets(RDK, robot, extracted_folder):
     """Create all home joint targets. Returns dict of name → target item."""
@@ -709,7 +854,9 @@ def pick_closest_home(homes, reference_target):
 
 
 def populate_programs(RDK, robot, targets_to_use, ee_config,
-                      extracted_folder, before_folder, after_folder):
+                      extracted_folder, before_folder, after_folder,
+                      avoidance_folder):
+    """Populate programs — references only, no target creation."""
     populated = 0
     skipped = 0
 
@@ -717,7 +864,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
     pickup_tool = find_tool(RDK, ee_config["grab"])
     homes = create_home_targets(RDK, robot, extracted_folder)
 
-    # Save original cone poses relative to parent (before any attaching happens)
+    # Save original cone poses
     cone_poses = {}
     if os.path.exists(CONE_POSES_PATH):
         with open(CONE_POSES_PATH, "r", encoding="utf-8") as f:
@@ -767,139 +914,56 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         ]:
             if item is None:
                 missing.append(label)
-
         if missing:
             print(f"  [SKIP] {cone_name} — missing targets: {missing}")
             skipped += 1
             continue
 
-        # Set knotting tool first so the robot knows the TCP for all moves
+        # Look up avoidance targets
+        approach_pullaway = find_target_in_folder(avoidance_folder, f"{cone_name}_approach_pullaway")
+        approach_pull_in = find_target_in_folder(avoidance_folder, f"{cone_name}_approach_pull_in")
+        retract_pullaway = find_target_in_folder(avoidance_folder, f"{cone_name}_retract_pullaway")
+        bl_retract = find_target_in_folder(avoidance_folder, f"{cone_name}_bl_retract_pullaway")
+
+        # Set knotting tool first
         prog.setPoseTool(knotting_tool)
 
-        # Pick whichever home is closest to the first target in the sequence
-        first_target = sg_before
-        start_home, start_name = pick_closest_home(homes, first_target)
+        # Start from closest home
+        start_home, start_name = pick_closest_home(homes, sg_before)
         prog.MoveJ(start_home)
 
-        # MoveJ through pullaway with wrist config matching sg_before
-        m = GROUP_PATTERN.match(cone_name)
-        if m:
-            pullaway_name = f"{m.group(1)}_final_pullaway"
-            pullaway_target = find_target_in_folder(after_folder, pullaway_name)
-            if pullaway_target is not None:
-                # Create per-cone approach pullaway — seed from sg_before (work backward)
-                approach_name = f"{cone_name}_approach_pullaway"
-                approach_tgt = find_target_in_folder(after_folder, approach_name)
-                if approach_tgt is None:
-                    pullaway_pose = pullaway_target.Pose()
-                    try:
-                        sg_seed = sg_before.Joints().list()
-                    except AttributeError:
-                        sg_seed = list(sg_before.Joints())
+        # Approach sequence
+        if approach_pullaway is not None:
+            prog.MoveJ(approach_pullaway)
+        if approach_pull_in is not None:
+            prog.MoveJ(approach_pull_in)
 
-                    approach_joints = try_ik(robot, pullaway_pose, seed=sg_seed)
-                    if approach_joints is None:
-                        # Try each home seed
-                        for seed in HOME_SEEDS.values():
-                            approach_joints = try_ik(robot, pullaway_pose, seed=seed)
-                            if approach_joints is not None:
-                                break
-
-                    approach_tgt = RDK.AddTarget(approach_name, after_folder, robot)
-                    approach_tgt.setPose(pullaway_pose)
-                    if approach_joints is not None:
-                        approach_tgt.setJoints(approach_joints)
-                    else:
-                        print(f"    [WARN] No IK for {approach_name} — using pullaway joints")
-                        approach_tgt.setJoints(pullaway_target.Joints())
-
-                prog.MoveJ(approach_tgt)
-
-        # Create per-cone pull_in target — offset from sg_before along -X
-        pull_in_name = f"{cone_name}_approach_pull_in"
-        pull_in_tgt = find_target_in_folder(before_folder, pull_in_name)
-        if pull_in_tgt is None:
-            pullaway_mm = config.get("final_pullaway_mm", 600)
-            sg_before_pose = sg_before.Pose()
-            pull_in_pose = sg_before_pose * transl(-pullaway_mm, 0, 0)
-            try:
-                sg_seed = sg_before.Joints().list()
-            except AttributeError:
-                sg_seed = list(sg_before.Joints())
-
-            pull_in_joints = try_ik(robot, pull_in_pose, seed=sg_seed)
-            if pull_in_joints is None:
-                for seed in HOME_SEEDS.values():
-                    pull_in_joints = try_ik(robot, pull_in_pose, seed=seed)
-                    if pull_in_joints is not None:
-                        break
-
-            pull_in_tgt = RDK.AddTarget(pull_in_name, before_folder, robot)
-            pull_in_tgt.setPose(pull_in_pose)
-            if pull_in_joints is not None:
-                pull_in_tgt.setJoints(pull_in_joints)
-            else:
-                print(f"    [WARN] No IK for {pull_in_name}")
-                pull_in_tgt.setJoints(sg_before.Joints())
-
-        prog.MoveJ(pull_in_tgt)
+        # String grab sequence
         prog.MoveJ(sg_before)
         prog.MoveL(sg_target)
         prog.MoveL(sg_after)
 
+        # Pickup grab sequence
         prog.setPoseTool(pickup_tool)
         prog.MoveL(gr_before)
         prog.MoveL(gr_target)
 
-        # Call the per-cone attach script (created in Phase 3)
+        # Attach cone
         prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
 
+        # Retract sequence
         prog.MoveL(gr_after)
+        if retract_pullaway is not None:
+            prog.MoveL(retract_pullaway)
+        if bl_retract is not None:
+            prog.MoveL(bl_retract)
 
-        # MoveL to the group's final pullaway (config matching gr_after)
-        m = GROUP_PATTERN.match(cone_name)
-        if m:
-            group = m.group(1)
-            pullaway_name = f"{group}_final_pullaway"
-            pullaway_target = find_target_in_folder(after_folder, pullaway_name)
-            if pullaway_target is not None:
-                # Create per-cone retract pullaway using OptimAxes (j2/j3 constrained)
-                retract_name = f"{cone_name}_retract_pullaway"
-                retract_tgt = find_target_in_folder(after_folder, retract_name)
-                if retract_tgt is None:
-                    pullaway_pose = pullaway_target.Pose()
-                    retract_joints = try_ik(robot, pullaway_pose)
-                    retract_tgt = RDK.AddTarget(retract_name, after_folder, robot)
-                    retract_tgt.setPose(pullaway_pose)
-                    if retract_joints is not None:
-                        retract_tgt.setJoints(retract_joints)
-                    else:
-                        retract_tgt.setJoints(pullaway_target.Joints())
-                prog.MoveL(retract_tgt)
-
-            # Alt cones also route through Base_Left's pullaway (config matching retract)
-            if group.startswith("alt_"):
-                bl_pullaway = find_target_in_folder(after_folder, "Base_Left_final_pullaway")
-                if bl_pullaway is not None:
-                    bl_retract_name = f"{cone_name}_bl_retract_pullaway"
-                    bl_retract_tgt = find_target_in_folder(after_folder, bl_retract_name)
-                    if bl_retract_tgt is None:
-                        bl_pose = bl_pullaway.Pose()
-                        bl_joints = try_ik(robot, bl_pose)
-                        bl_retract_tgt = RDK.AddTarget(bl_retract_name, after_folder, robot)
-                        bl_retract_tgt.setPose(bl_pose)
-                        if bl_joints is not None:
-                            bl_retract_tgt.setJoints(bl_joints)
-                        else:
-                            bl_retract_tgt.setJoints(bl_pullaway.Joints())
-                    prog.MoveL(bl_retract_tgt)
-
-        # Pick closest home for the return (based on last target)
+        # Return to closest home
         end_home, end_name = pick_closest_home(homes, gr_after)
         prog.MoveJ(end_home)
 
         populated += 1
-        print(f"  [OK]   {cone_name} — program populated (start={start_name}, end={end_name})")
+        print(f"  [OK]   {cone_name} (start={start_name}, end={end_name})")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
@@ -937,7 +1001,7 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6 7")
+                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6 7 8")
     ap.add_argument("--rapid-test-mode", action="store_true",
                     help="Only process one cone for quick testing")
     args = ap.parse_args()
@@ -1065,48 +1129,60 @@ def main():
     else:
         print("\n── Phase 6: SKIPPED ──")
 
-    # ── Phase 7: populate programs ────────────────────────────────────
-    if "7" not in skip:
-        print("\n── Phase 7: Populate programs ──")
+    # ── Build targets_to_use dict for phases 7-8 ─────────────────────
+    extracted_targets = {c.Name(): c for c in ttu_extracted.Childs()
+                        if c.Type() == ITEM_TYPE_TARGET}
+    targets_to_use_dict = {}
+    for name in extracted_targets:
+        if GRAB_PATTERN.match(name):
+            cone = name.rsplit("_grab", 1)[0]
+            kind = "grab"
+        elif STRING_GRAB_PATTERN.match(name):
+            cone = name.rsplit("_string_grab", 1)[0]
+            kind = "string_grab"
+        else:
+            continue
+        if cone not in targets_to_use_dict:
+            targets_to_use_dict[cone] = {}
+        targets_to_use_dict[cone][kind] = {
+            "target": name,
+            "before": f"offset_before_for_{name}",
+            "after": f"offset_after_for_{name}",
+        }
+    complete = {c: v for c, v in targets_to_use_dict.items()
+                if "grab" in v and "string_grab" in v}
 
-        extracted_targets = {c.Name(): c for c in ttu_extracted.Childs()
-                            if c.Type() == ITEM_TYPE_TARGET}
+    # ── Phase 7: create obstacle avoidance targets ────────────────────
+    avoidance_folder = get_or_create_folder(RDK, "created_for_obstacle_avoidance")
+    avoidance_folder.setVisible(True)
+
+    if "7" not in skip:
+        print("\n── Phase 7: Create obstacle avoidance targets ──")
+        print(f"[INFO] {len(complete)} cone(s) with both grab + string_grab")
+        create_obstacle_avoidance_targets(
+            RDK, robot, config, complete,
+            ttu_before, ttu_after, avoidance_folder
+        )
+    else:
+        print("\n── Phase 7: SKIPPED ──")
+
+    # ── Phase 8: populate programs ────────────────────────────────────
+    if "8" not in skip:
+        print("\n── Phase 8: Populate programs ──")
         assert len(extracted_targets) > 0, \
             "targets_to_use/extracted is empty — run Phase 4 first"
-        print(f"[INFO] Found {len(extracted_targets)} target(s) in targets_to_use/extracted")
-
-        targets_to_use = {}
-        for name in extracted_targets:
-            if GRAB_PATTERN.match(name):
-                cone = name.rsplit("_grab", 1)[0]
-                kind = "grab"
-            elif STRING_GRAB_PATTERN.match(name):
-                cone = name.rsplit("_string_grab", 1)[0]
-                kind = "string_grab"
-            else:
-                continue
-
-            if cone not in targets_to_use:
-                targets_to_use[cone] = {}
-            targets_to_use[cone][kind] = {
-                "target": name,
-                "before": f"offset_before_for_{name}",
-                "after": f"offset_after_for_{name}",
-            }
-
-        complete = {c: v for c, v in targets_to_use.items()
-                    if "grab" in v and "string_grab" in v}
-        print(f"[INFO] {len(complete)} cone(s) with both grab + string_grab")
+        print(f"[INFO] {len(complete)} cone(s)")
 
         ee_config = config["end_effectors"]
         populate_programs(
             RDK, robot, complete, ee_config,
-            ttu_extracted, ttu_before, ttu_after
+            ttu_extracted, ttu_before, ttu_after,
+            avoidance_folder
         )
 
         create_main_program(RDK, robot, complete, ttu_extracted)
     else:
-        print("\n── Phase 7: SKIPPED ──")
+        print("\n── Phase 8: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 
