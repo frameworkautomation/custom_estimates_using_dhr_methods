@@ -16,7 +16,7 @@ Phase 3 — solve IK for all targets with Z-axis rotation sweep:
 
 Phase 4 — build targets_to_use folder + JSON
 
-Phase 5 — create per-cone attach scripts
+Phase 5 — create helper scripts (attach + replace_cone) in helper_scripts folder
 
 Phase 6 — create final pullaway targets
 
@@ -559,11 +559,12 @@ else:
     return script_path
 
 
-def create_attach_scripts(RDK, cone_names):
-    """Create per-cone attach scripts and add them to the station."""
-    programs_folder = RDK.Item("programs", ITEM_TYPE_FOLDER)
-    assert programs_folder.Valid(), "programs folder not found"
-    attach_folder = get_or_create_folder(RDK, "attach_scripts", parent=programs_folder)
+def create_helper_scripts(RDK, cone_names):
+    """Create per-cone attach scripts and replace_cone in their own folder."""
+    scripts_folder = get_or_create_folder(RDK, "helper_scripts")
+    scripts_folder.setVisible(True)
+
+    attach_folder = get_or_create_folder(RDK, "attach_scripts", parent=scripts_folder)
 
     created = 0
     cached = 0
@@ -582,11 +583,11 @@ def create_attach_scripts(RDK, cone_names):
             attach_prog.setParent(attach_folder)
             created += 1
 
-    # Also install replace_cone.py
-    install_replace_cones_script(RDK, programs_folder)
+    # Install replace_cone.py in the same folder
+    install_replace_cones_script(RDK, scripts_folder)
 
     total = created + cached
-    print(f"[attach_scripts] {total} script(s): {created} created, {cached} cached")
+    print(f"[helper_scripts] {total} attach script(s): {created} created, {cached} cached")
 
 
 # ── PHASE 4: create final pullaway targets ───────────────────────────────────
@@ -1133,10 +1134,10 @@ def main():
     else:
         print("\n── Phase 4: SKIPPED ──")
 
-    # ── Phase 5: create attach scripts ──────────────────────────────
+    # ── Phase 5: create helper scripts (attach + replace_cone) ─────
     if "5" not in skip:
-        print("\n── Phase 5: Create attach scripts ──")
-        create_attach_scripts(RDK, cone_names)
+        print("\n── Phase 5: Create helper scripts ──")
+        create_helper_scripts(RDK, cone_names)
     else:
         print("\n── Phase 5: SKIPPED ──")
 
