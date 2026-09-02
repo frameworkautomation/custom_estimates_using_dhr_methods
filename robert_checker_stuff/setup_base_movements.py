@@ -959,9 +959,7 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         start_home, start_name = pick_closest_home(homes, sg_before)
         prog.MoveJ(start_home)
 
-        # Approach sequence
-        if approach_pullaway is not None:
-            prog.MoveJ(approach_pullaway)
+        # Approach sequence — only pull_in (pullaway is for retract only)
         if approach_pull_in is not None:
             prog.MoveJ(approach_pull_in)
 
