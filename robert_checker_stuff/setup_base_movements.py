@@ -779,25 +779,18 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             pullaway_name = f"{m.group(1)}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                # Create per-cone approach pullaway with sg_before's joint seed
+                # Create per-cone approach pullaway using OptimAxes (j2/j3 constrained)
                 approach_name = f"{cone_name}_approach_pullaway"
                 approach_tgt = find_target_in_folder(after_folder, approach_name)
                 if approach_tgt is None:
-                    sg_before_joints = sg_before.Joints()
                     pullaway_pose = pullaway_target.Pose()
-                    # Solve IK for pullaway pose seeded with sg_before's joints
-                    approach_joints = robot.SolveIK(pullaway_pose, sg_before_joints)
-                    try:
-                        jlist = approach_joints.list()
-                    except AttributeError:
-                        jlist = list(approach_joints)
+                    approach_joints = try_ik(robot, pullaway_pose)
 
                     approach_tgt = RDK.AddTarget(approach_name, after_folder, robot)
                     approach_tgt.setPose(pullaway_pose)
-                    if len(jlist) >= 6 and not all(abs(j) < 1e-6 for j in jlist):
-                        approach_tgt.setJoints(jlist)
+                    if approach_joints is not None:
+                        approach_tgt.setJoints(approach_joints)
                     else:
-                        # Fallback: use pullaway's joints
                         approach_tgt.setJoints(pullaway_target.Joints())
 
                 prog.MoveJ(approach_tgt)
@@ -823,21 +816,16 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             pullaway_name = f"{group}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                # Create per-cone retract pullaway seeded from gr_after
+                # Create per-cone retract pullaway using OptimAxes (j2/j3 constrained)
                 retract_name = f"{cone_name}_retract_pullaway"
                 retract_tgt = find_target_in_folder(after_folder, retract_name)
                 if retract_tgt is None:
-                    gr_after_joints = gr_after.Joints()
                     pullaway_pose = pullaway_target.Pose()
-                    retract_joints = robot.SolveIK(pullaway_pose, gr_after_joints)
-                    try:
-                        jlist = retract_joints.list()
-                    except AttributeError:
-                        jlist = list(retract_joints)
+                    retract_joints = try_ik(robot, pullaway_pose)
                     retract_tgt = RDK.AddTarget(retract_name, after_folder, robot)
                     retract_tgt.setPose(pullaway_pose)
-                    if len(jlist) >= 6 and not all(abs(j) < 1e-6 for j in jlist):
-                        retract_tgt.setJoints(jlist)
+                    if retract_joints is not None:
+                        retract_tgt.setJoints(retract_joints)
                     else:
                         retract_tgt.setJoints(pullaway_target.Joints())
                 prog.MoveL(retract_tgt)
@@ -849,18 +837,12 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
                     bl_retract_name = f"{cone_name}_bl_retract_pullaway"
                     bl_retract_tgt = find_target_in_folder(after_folder, bl_retract_name)
                     if bl_retract_tgt is None:
-                        # Seed from the group's retract pullaway joints
-                        seed_joints = retract_tgt.Joints() if retract_tgt is not None else gr_after.Joints()
                         bl_pose = bl_pullaway.Pose()
-                        bl_joints = robot.SolveIK(bl_pose, seed_joints)
-                        try:
-                            jlist = bl_joints.list()
-                        except AttributeError:
-                            jlist = list(bl_joints)
+                        bl_joints = try_ik(robot, bl_pose)
                         bl_retract_tgt = RDK.AddTarget(bl_retract_name, after_folder, robot)
                         bl_retract_tgt.setPose(bl_pose)
-                        if len(jlist) >= 6 and not all(abs(j) < 1e-6 for j in jlist):
-                            bl_retract_tgt.setJoints(jlist)
+                        if bl_joints is not None:
+                            bl_retract_tgt.setJoints(bl_joints)
                         else:
                             bl_retract_tgt.setJoints(bl_pullaway.Joints())
                     prog.MoveL(bl_retract_tgt)
