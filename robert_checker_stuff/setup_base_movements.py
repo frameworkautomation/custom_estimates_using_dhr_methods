@@ -4,35 +4,27 @@ Build movement sequences for base cone pickup in the extracted station.
 Expects organize_station.py to have been run first (folders, programs,
 offset targets all exist under Offset_relative_to_schematic).
 
-Phase 1 — create offset targets for each grab and string_grab:
+Phase 1 — create empty programs for each grab/string_grab pair
+
+Phase 2 — create offset targets for each grab and string_grab:
   - offset_before_for_<name> — offset along -Z before the target (approach)
   - offset_after_for_<name>  — offset along -Z after the target (retract)
-  - Stored under auto_generated_offsets/before and auto_generated_offsets/after
 
-Phase 2 — solve IK for all targets with Z-axis rotation sweep:
+Phase 3 — solve IK for all targets with Z-axis rotation sweep:
   - Try original pose first; if it fails, sweep Z rotations per config step
-  - grab targets solved with pickup tool, string_grab with knotting tool
-  - Solved targets + offsets stored in targets_rotated_for_solution/
-  - Failures written to ik_failure_report.txt
+  - j2/j3 locked near default configuration
 
-Phase 3 — build targets_to_use folder + JSON:
-  - Copies solved targets from Phase 2 into a single folder for programs
+Phase 4 — build targets_to_use folder + JSON
 
-Phase 4 — create per-cone attach scripts:
-  - One script per cone in attach_scripts/ folder
-  - Each script parents its specific cone to the pickup tool during playback
+Phase 5 — create per-cone attach scripts
 
-Phase 5 — create final pullaway targets:
-  - One per group (Base_Right, Base_Left, alt_Base_Right, alt_Base_Left)
-  - Offset along -X from the _0 cone's after-grab offset
-  - Stored in targets_to_use/auto_generated_offsets/after
+Phase 6 — create final pullaway targets
 
-Phase 6 — populate programs with movement instructions:
-  - Each cone's program gets MoveL instructions:
-    home/new_home → knotting(before→string_grab→after) → pickup(before→grab→after)
-    → MoveL final_pullaway → MoveJ home/new_home
+Phase 7 — populate programs with movement instructions:
   - Picks whichever home (j1=0 or j1=180) is closer to the first target
   - Creates 'main' program that runs all cone programs + replace_cone
+
+Use --rapid-test-mode to only process one cone (first found).
 
 Reads settings from setup_base_movements_config.json (same directory).
 
@@ -270,9 +262,11 @@ HOME_SEED_6DOF = [0.0] * 6
 NEW_HOME_SEED_6DOF = [180.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
-def try_ik(robot, pose):
+def try_ik(robot, pose, seed=None):
+    if seed is None:
+        seed = HOME_SEED_6DOF
     robot.setParam("OptimAxes", _OPT_AXES_6DOF)
-    robot.setJoints(HOME_SEED_6DOF)
+    robot.setJoints(seed)
     try:
         robot.MoveJ(pose)
         raw = robot.Joints()
@@ -280,19 +274,19 @@ def try_ik(robot, pose):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-        robot.setJoints(HOME_SEED_6DOF)
+        robot.setJoints(seed)
         if len(joints) < 6:
             return None
         if all(abs(j) < 1e-6 for j in joints):
             return None
         return joints
     except Exception:
-        robot.setJoints(HOME_SEED_6DOF)
+        robot.setJoints(seed)
         return None
 
 
-def solve_with_z_sweep(robot, target_pose, step_deg):
-    joints = try_ik(robot, target_pose)
+def solve_with_z_sweep(robot, target_pose, step_deg, seed=None):
+    joints = try_ik(robot, target_pose, seed=seed)
     if joints is not None:
         return target_pose, joints, 0.0
 
@@ -301,7 +295,7 @@ def solve_with_z_sweep(robot, target_pose, step_deg):
         angle_deg = step_deg * i
         angle_rad = angle_deg * math.pi / 180.0
         rotated_pose = target_pose * rotz(angle_rad)
-        joints = try_ik(robot, rotated_pose)
+        joints = try_ik(robot, rotated_pose, seed=seed)
         if joints is not None:
             return rotated_pose, joints, angle_deg
 
@@ -779,12 +773,13 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             pullaway_name = f"{m.group(1)}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                # Create per-cone approach pullaway using OptimAxes (j2/j3 constrained)
+                # Create per-cone approach pullaway seeded from selected home
                 approach_name = f"{cone_name}_approach_pullaway"
                 approach_tgt = find_target_in_folder(after_folder, approach_name)
                 if approach_tgt is None:
                     pullaway_pose = pullaway_target.Pose()
-                    approach_joints = try_ik(robot, pullaway_pose)
+                    home_seed = NEW_HOME_SEED_6DOF if start_name == "new_home" else HOME_SEED_6DOF
+                    approach_joints = try_ik(robot, pullaway_pose, seed=home_seed)
 
                     approach_tgt = RDK.AddTarget(approach_name, after_folder, robot)
                     approach_tgt.setPose(pullaway_pose)
@@ -888,7 +883,9 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6")
+                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6 7")
+    ap.add_argument("--rapid-test-mode", action="store_true",
+                    help="Only process one cone for quick testing")
     args = ap.parse_args()
 
     skip = {s.upper() for s in args.skip}
@@ -905,11 +902,35 @@ def main():
         f"'{OFFSET_FRAME_NAME}' not found — run organize_station.py first"
 
     cone_names = discover_cone_names(RDK)
-    print(f"[DISCOVER] {len(cone_names)} base cone(s) with grab + string_grab pairs")
 
-    # ── Phase 1: create offset targets ────────────────────────────────
+    if args.rapid_test_mode and cone_names:
+        cone_names = [cone_names[0]]
+        print(f"[RAPID TEST] Only processing: {cone_names[0]}")
+    else:
+        print(f"[DISCOVER] {len(cone_names)} base cone(s) with grab + string_grab pairs")
+
+    # ── Phase 1: create empty programs ────────────────────────────────
     if "1" not in skip:
-        print("\n── Phase 1: Create offset targets (before/after) ──")
+        print("\n── Phase 1: Create programs ──")
+        programs_folder = get_or_create_folder(RDK, "programs")
+        programs_folder.setVisible(True)
+        created = 0
+        skipped_p = 0
+        for cone_name in cone_names:
+            existing = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
+            if existing.Valid():
+                skipped_p += 1
+                continue
+            prog = RDK.AddProgram(cone_name, robot)
+            prog.setParent(programs_folder)
+            created += 1
+        print(f"[programs] {created + skipped_p} program(s): {created} created, {skipped_p} already exist")
+    else:
+        print("\n── Phase 1: SKIPPED ──")
+
+    # ── Phase 2: create offset targets ────────────────────────────────
+    if "2" not in skip:
+        print("\n── Phase 2: Create offset targets (before/after) ──")
         offsets_parent = get_or_create_folder(RDK, "auto_generated_offsets", parent=offset_frame)
         before_folder = get_or_create_folder(RDK, "before", parent=offsets_parent)
         after_folder = get_or_create_folder(RDK, "after", parent=offsets_parent)
@@ -918,9 +939,9 @@ def main():
         after_folder.setVisible(True)
         create_offset_targets(RDK, robot, config["offsets_mm"], before_folder, after_folder)
     else:
-        print("\n── Phase 1: SKIPPED ──")
+        print("\n── Phase 2: SKIPPED ──")
 
-    # ── Phase 2: solve IK with Z-rotation sweep ──────────────────────
+    # ── Phase 3: solve IK with Z-rotation sweep ──────────────────────
     rotated_root = get_or_create_folder(RDK, "targets_rotated_for_solution")
     rotated_extracted = get_or_create_folder(RDK, "extracted", parent=rotated_root)
     rotated_offsets = get_or_create_folder(
@@ -931,8 +952,8 @@ def main():
 
     failures = []
 
-    if "2" not in skip:
-        print("\n── Phase 2: Solve IK for all targets ──")
+    if "3" not in skip:
+        print("\n── Phase 3: Solve IK for all targets ──")
         step_deg = config["z_rotation_step_deg"]
         n_steps = int(360 / step_deg)
         print(f"[INFO] Z-rotation sweep: {step_deg} deg steps = {n_steps} attempts per target")
@@ -955,49 +976,49 @@ def main():
                 os.remove(REPORT_PATH)
             print("\n[OK] All targets solved successfully.")
     else:
-        print("\n── Phase 2: SKIPPED ──")
+        print("\n── Phase 3: SKIPPED ──")
 
-    # ── Phase 3: build targets_to_use folder + JSON ───────────────────
-    if "3" not in skip:
-        print("\n── Phase 3: Build targets_to_use folder ──")
+    # ── Phase 4: build targets_to_use folder + JSON ───────────────────
+    if "4" not in skip:
+        print("\n── Phase 4: Build targets_to_use folder ──")
         targets_to_use = build_targets_to_use(
             RDK, robot, cone_names, failures,
             rotated_extracted, rotated_before, rotated_after
         )
         write_targets_to_use(targets_to_use)
     else:
-        print("\n── Phase 3: SKIPPED ──")
-
-    # ── Phase 4: create attach scripts ──────────────────────────────
-    if "4" not in skip:
-        print("\n── Phase 4: Create attach scripts ──")
-        create_attach_scripts(RDK, cone_names)
-    else:
         print("\n── Phase 4: SKIPPED ──")
 
-    # ── Phase 5: create final pullaway targets ────────────────────────
+    # ── Phase 5: create attach scripts ──────────────────────────────
+    if "5" not in skip:
+        print("\n── Phase 5: Create attach scripts ──")
+        create_attach_scripts(RDK, cone_names)
+    else:
+        print("\n── Phase 5: SKIPPED ──")
+
+    # ── Phase 6: create final pullaway targets ────────────────────────
     ttu_root = RDK.Item("targets_to_use", ITEM_TYPE_FOLDER)
     assert ttu_root.Valid(), \
-        "targets_to_use folder not found — run Phase 3 first"
+        "targets_to_use folder not found — run Phase 4 first"
     ttu_extracted = get_or_create_folder(RDK, "extracted", parent=ttu_root)
     ttu_offsets = get_or_create_folder(RDK, "auto_generated_offsets", parent=ttu_root)
     ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
     ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
 
-    if "5" not in skip:
-        print("\n── Phase 5: Create final pullaway targets ──")
+    if "6" not in skip:
+        print("\n── Phase 6: Create final pullaway targets ──")
         create_final_pullaway_targets(RDK, robot, cone_names, config, ttu_after)
     else:
-        print("\n── Phase 5: SKIPPED ──")
+        print("\n── Phase 6: SKIPPED ──")
 
-    # ── Phase 6: populate programs ────────────────────────────────────
-    if "6" not in skip:
-        print("\n── Phase 6: Populate programs ──")
+    # ── Phase 7: populate programs ────────────────────────────────────
+    if "7" not in skip:
+        print("\n── Phase 7: Populate programs ──")
 
         extracted_targets = {c.Name(): c for c in ttu_extracted.Childs()
                             if c.Type() == ITEM_TYPE_TARGET}
         assert len(extracted_targets) > 0, \
-            "targets_to_use/extracted is empty — run Phase 3 first"
+            "targets_to_use/extracted is empty — run Phase 4 first"
         print(f"[INFO] Found {len(extracted_targets)} target(s) in targets_to_use/extracted")
 
         targets_to_use = {}
@@ -1029,10 +1050,9 @@ def main():
             ttu_extracted, ttu_before, ttu_after
         )
 
-        # Create main program that runs all cone programs + replace_cone
         create_main_program(RDK, robot, complete, ttu_extracted)
     else:
-        print("\n── Phase 6: SKIPPED ──")
+        print("\n── Phase 7: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 

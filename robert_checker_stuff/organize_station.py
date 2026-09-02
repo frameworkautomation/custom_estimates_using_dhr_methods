@@ -9,15 +9,11 @@ Phase 2 — organize items into bin_positioner frame hierarchy:
   - bin_positioner (frame, under Offset_relative_to_schematic)
     - bin_0_group (frame)
       - bin_0 (object)
-      - cone_frame (folder) — contains Base_Right_*, Base_Left_* cones + targets
+      - <cone>_frame — per cone with cone object + targets
     - bin_1_group (frame)
       - bin_1 (object)
-      - cone_frame (folder) — contains alt_Base_Right_*, alt_Base_Left_* cones + targets
+      - <cone>_frame — per cone with cone object + targets
   Grouping controlled by organize_station_config.json
-
-Phase 3 — create empty programs for each grab/string_grab pair:
-  - One program per base cone, named after the cone (e.g. "Base_Right_0")
-  - All programs go under a "programs" folder
 
 Caching: frames, folders, item placements, and programs are reused if they already exist.
 
@@ -346,25 +342,6 @@ def organize_bin_groups(RDK, config, offset_frame):
         print(f"  [{frame_name}] {moved_cones} cone(s), {moved_targets} target(s) organized")
 
 
-# ── PHASE 3: PROGRAMS ────────────────────────────────────────────────────────
-
-def create_programs(RDK, robot, cone_names, programs_folder):
-    created = 0
-    skipped = 0
-
-    for cone_name in cone_names:
-        existing = RDK.Item(cone_name, ITEM_TYPE_PROGRAM)
-        if existing.Valid():
-            skipped += 1
-            continue
-        prog = RDK.AddProgram(cone_name, robot)
-        prog.setParent(programs_folder)
-        created += 1
-
-    total = created + skipped
-    print(f"[programs] {total} program(s): {created} created, {skipped} already exist")
-
-
 # ── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -374,7 +351,7 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3")
+                    help="Phases to skip, e.g. --skip 1 2")
     args = ap.parse_args()
 
     skip = {s.upper() for s in args.skip}
@@ -400,21 +377,6 @@ def main():
         organize_bin_groups(RDK, config, offset_frame)
     else:
         print("\n── Phase 2: SKIPPED ──")
-
-    # ── Phase 3: create programs for grab/string_grab pairs ───────────
-    cone_names = discover_cone_names(RDK)
-
-    if "3" not in skip:
-        print("\n── Phase 3: Create programs for base cone pairs ──")
-        print(f"[DISCOVER] {len(cone_names)} base cone(s) with grab + string_grab pairs")
-        for name in cone_names:
-            print(f"  - {name}")
-
-        programs_folder = get_or_create_folder(RDK, "programs")
-        programs_folder.setVisible(True)
-        create_programs(RDK, robot, cone_names, programs_folder)
-    else:
-        print("\n── Phase 3: SKIPPED ──")
 
     print("\n[DONE] Station organization complete.")
 
