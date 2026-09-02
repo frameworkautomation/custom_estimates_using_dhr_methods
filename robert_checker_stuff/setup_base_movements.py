@@ -18,15 +18,13 @@ Phase 4 — build targets_to_use folder + JSON
 
 Phase 5 — create helper scripts (attach + replace_cone) in helper_scripts folder
 
-Phase 6 — create final pullaway targets
-
-Phase 7 — create obstacle avoidance targets:
-  - approach_pullaway, approach_pull_in, retract_pullaway, bl_retract_pullaway
+Phase 6 — create obstacle avoidance targets (incl. final pullaway):
+  - final_pullaway per group, approach_pull_in (only _0 cones, shared by group)
+  - retract_pullaway, bl_retract_pullaway per cone
   - All in created_for_obstacle_avoidance folder
-  - IK seeded from offset solutions
 
-Phase 8 — populate programs with movement instructions:
-  - 5 home positions (j1=0, ±170, ±180) — picks closest for start and end
+Phase 7 — populate programs with movement instructions:
+  - 5 home positions (j1=0, ±170, ±180) — picks closest for start
   - Creates 'main' program that runs all cone programs + replace_cone
 
 Use --rapid-test-mode to only process one cone (first found).
@@ -727,10 +725,13 @@ def create_obstacle_avoidance_targets(RDK, robot, config, targets_to_use,
                     tgt.setJoints(pullaway_tgt.Joints())
                 created += 1
 
-        # 2. approach_pull_in — sg_before offset by the same vector as final_pullaway
-        #    (i.e. the vector from _0 after-grab to the pullaway position)
-        if sg_before is not None and pullaway_tgt is not None:
-            name = f"{cone_name}_approach_pull_in"
+        # 2. approach_pull_in — only for _0 cones, others share
+        #    Offset from _0's sg_before by the same vector as final_pullaway
+        cone_index = cone_name.rsplit("_", 1)[-1]  # "0", "1", "2"
+        if cone_index != "0":
+            pass  # non-_0 cones will use the _0 pull_in in populate_programs
+        elif sg_before is not None and pullaway_tgt is not None:
+            name = f"{group}_0_approach_pull_in"
             existing = find_target_in_folder(avoidance_folder, name)
             if existing:
                 cached += 1
@@ -947,8 +948,9 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             continue
 
         # Look up avoidance targets
-        approach_pullaway = find_target_in_folder(avoidance_folder, f"{cone_name}_approach_pullaway")
-        approach_pull_in = find_target_in_folder(avoidance_folder, f"{cone_name}_approach_pull_in")
+        m_group = GROUP_PATTERN.match(cone_name)
+        group = m_group.group(1) if m_group else cone_name
+        approach_pull_in = find_target_in_folder(avoidance_folder, f"{group}_0_approach_pull_in")
         retract_pullaway = find_target_in_folder(avoidance_folder, f"{cone_name}_retract_pullaway")
         bl_retract = find_target_in_folder(avoidance_folder, f"{cone_name}_bl_retract_pullaway")
 
@@ -1025,7 +1027,7 @@ def main():
     ap.add_argument("--config", default=DEFAULT_CONFIG,
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6 7 8")
+                    help="Phases to skip, e.g. --skip 1 2 3 4 5 6 7")
     ap.add_argument("--rapid-test-mode", action="store_true",
                     help="Only process one cone for quick testing")
     args = ap.parse_args()
@@ -1138,7 +1140,7 @@ def main():
     else:
         print("\n── Phase 5: SKIPPED ──")
 
-    # ── Phase 6: create final pullaway targets ────────────────────────
+    # ── Setup ttu folder refs for phases 6-7 ───────────────────────
     ttu_root = RDK.Item("targets_to_use", ITEM_TYPE_FOLDER)
     assert ttu_root.Valid(), \
         "targets_to_use folder not found — run Phase 4 first"
@@ -1147,13 +1149,7 @@ def main():
     ttu_before = get_or_create_folder(RDK, "before", parent=ttu_offsets)
     ttu_after = get_or_create_folder(RDK, "after", parent=ttu_offsets)
 
-    if "6" not in skip:
-        print("\n── Phase 6: Create final pullaway targets ──")
-        create_final_pullaway_targets(RDK, robot, cone_names, config, ttu_after)
-    else:
-        print("\n── Phase 6: SKIPPED ──")
-
-    # ── Build targets_to_use dict for phases 7-8 ─────────────────────
+    # ── Build targets_to_use dict for phases 6-7 ─────────────────────
     extracted_targets = {c.Name(): c for c in ttu_extracted.Childs()
                         if c.Type() == ITEM_TYPE_TARGET}
     targets_to_use_dict = {}
@@ -1176,23 +1172,24 @@ def main():
     complete = {c: v for c, v in targets_to_use_dict.items()
                 if "grab" in v and "string_grab" in v}
 
-    # ── Phase 7: create obstacle avoidance targets ────────────────────
+    # ── Phase 6: create obstacle avoidance targets (incl. final pullaway) ─
     avoidance_folder = get_or_create_folder(RDK, "created_for_obstacle_avoidance")
     avoidance_folder.setVisible(True)
 
-    if "7" not in skip:
-        print("\n── Phase 7: Create obstacle avoidance targets ──")
+    if "6" not in skip:
+        print("\n── Phase 6: Create obstacle avoidance targets ──")
         print(f"[INFO] {len(complete)} cone(s) with both grab + string_grab")
+        create_final_pullaway_targets(RDK, robot, cone_names, config, avoidance_folder)
         create_obstacle_avoidance_targets(
             RDK, robot, config, complete,
             ttu_before, ttu_after, avoidance_folder
         )
     else:
-        print("\n── Phase 7: SKIPPED ──")
+        print("\n── Phase 6: SKIPPED ──")
 
-    # ── Phase 8: populate programs ────────────────────────────────────
-    if "8" not in skip:
-        print("\n── Phase 8: Populate programs ──")
+    # ── Phase 7: populate programs ────────────────────────────────────
+    if "7" not in skip:
+        print("\n── Phase 7: Populate programs ──")
         assert len(extracted_targets) > 0, \
             "targets_to_use/extracted is empty — run Phase 4 first"
         print(f"[INFO] {len(complete)} cone(s)")
@@ -1206,7 +1203,7 @@ def main():
 
         create_main_program(RDK, robot, complete, ttu_extracted)
     else:
-        print("\n── Phase 8: SKIPPED ──")
+        print("\n── Phase 7: SKIPPED ──")
 
     print("\n[DONE] Station setup complete.")
 
