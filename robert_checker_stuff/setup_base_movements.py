@@ -976,22 +976,18 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
         # Attach cone
         prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
 
-        # Retract sequence — track the last target for home selection
-        last_target = gr_after
+        # Retract sequence
         prog.MoveL(gr_after)
         if retract_pullaway is not None:
             prog.MoveL(retract_pullaway)
-            last_target = retract_pullaway
         if bl_retract is not None:
             prog.MoveL(bl_retract)
-            last_target = bl_retract
 
-        # Return to closest home (based on where the robot actually is)
-        end_home, end_name = pick_closest_home(homes, last_target)
-        prog.MoveJ(end_home)
+        # Return to the same home we started from
+        prog.MoveJ(start_home)
 
         populated += 1
-        print(f"  [OK]   {cone_name} (start={start_name}, end={end_name})")
+        print(f"  [OK]   {cone_name} (home={start_name})")
 
     total = populated + skipped
     print(f"[programs] {total} program(s): {populated} populated, {skipped} skipped")
