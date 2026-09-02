@@ -8,7 +8,7 @@
     },
     "string_grab": {
       "before": 50,
-      "after": 50
+      "after": 200
     }
   },
 
