@@ -796,30 +796,41 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             pullaway_name = f"{m.group(1)}_final_pullaway"
             pullaway_target = find_target_in_folder(after_folder, pullaway_name)
             if pullaway_target is not None:
-                # Create per-cone approach pullaway — seed from sg_before (work backward)
+                # Create per-cone approach pullaway — full sweep, try multiple seeds
                 approach_name = f"{cone_name}_approach_pullaway"
                 approach_tgt = find_target_in_folder(after_folder, approach_name)
                 if approach_tgt is None:
                     pullaway_pose = pullaway_target.Pose()
+                    step_deg = config["z_rotation_step_deg"]
                     try:
                         sg_seed = sg_before.Joints().list()
                     except AttributeError:
                         sg_seed = list(sg_before.Joints())
 
-                    # Try seeding from sg_before first, then home seeds
-                    approach_joints = try_ik(robot, pullaway_pose, seed=sg_seed)
+                    # Try full Z-sweep with sg_before seed, then home seeds
+                    solved_pose, approach_joints, _ = solve_with_z_sweep(
+                        robot, pullaway_pose, step_deg, seed=sg_seed
+                    )
                     if approach_joints is None:
-                        approach_joints = try_ik(robot, pullaway_pose, seed=HOME_SEED_6DOF)
+                        solved_pose, approach_joints, _ = solve_with_z_sweep(
+                            robot, pullaway_pose, step_deg, seed=HOME_SEED_6DOF
+                        )
                     if approach_joints is None:
-                        approach_joints = try_ik(robot, pullaway_pose, seed=NEW_HOME_SEED_6DOF)
+                        solved_pose, approach_joints, _ = solve_with_z_sweep(
+                            robot, pullaway_pose, step_deg, seed=NEW_HOME_SEED_6DOF
+                        )
+                    if approach_joints is None:
+                        solved_pose, approach_joints, _ = solve_with_z_sweep(
+                            robot, pullaway_pose, step_deg, seed=NEG_HOME_SEED_6DOF
+                        )
 
                     approach_tgt = RDK.AddTarget(approach_name, after_folder, robot)
-                    approach_tgt.setPose(pullaway_pose)
                     if approach_joints is not None:
+                        approach_tgt.setPose(solved_pose)
                         approach_tgt.setJoints(approach_joints)
                     else:
-                        print(f"    [WARN] No IK for {approach_name}")
-                        approach_tgt.setJoints(pullaway_target.Joints())
+                        assert False, \
+                            f"No IK for {approach_name} — tried 4 seeds × {int(360/step_deg)} rotations each"
 
                 prog.MoveJ(approach_tgt)
 
