@@ -639,17 +639,17 @@ def create_final_pullaway_targets(RDK, robot, cone_names, config, after_folder):
 
         solved_pose, joints, angle = solve_with_z_sweep(robot, pullaway_pose, step_deg)
 
+        assert solved_pose is not None, \
+            f"[ERROR] No IK solution found for {pullaway_name} at any Z rotation — " \
+            f"check that the pullaway distance ({pullaway_mm}mm) is reachable"
+
         tgt = RDK.AddTarget(pullaway_name, after_folder, robot)
-        if solved_pose is not None:
-            tgt.setPose(solved_pose)
-            tgt.setJoints(joints)
-            if angle == 0.0:
-                print(f"  [OK]   {pullaway_name} — solved at original pose")
-            else:
-                print(f"  [OK]   {pullaway_name} — solved at Z rotation {angle:.1f} deg")
+        tgt.setPose(solved_pose)
+        tgt.setJoints(joints)
+        if angle == 0.0:
+            print(f"  [OK]   {pullaway_name} — solved at original pose")
         else:
-            tgt.setPose(pullaway_pose)
-            print(f"  [WARN] No IK for {pullaway_name}")
+            print(f"  [OK]   {pullaway_name} — solved at Z rotation {angle:.1f} deg")
 
         created += 1
 
@@ -676,18 +676,27 @@ def get_or_create_home_targets(RDK, robot, extracted_folder):
     return home, new_home
 
 
+def _angular_dist(a_deg, b_deg):
+    """Shortest angular distance in degrees, accounting for wrapping."""
+    diff = (a_deg - b_deg) % 360
+    if diff > 180:
+        diff = 360 - diff
+    return diff
+
+
 def pick_closer_home(home, new_home, first_target):
-    """Pick whichever home is closer to first_target in joint space."""
+    """Pick whichever home is closer to first_target in joint space.
+
+    Uses angular distance (wrapping-aware) so j1=-100 is correctly seen
+    as closer to j1=180 (80° apart) than to j1=0 (100° apart).
+    """
     try:
         first_joints = first_target.Joints().list()
     except AttributeError:
         first_joints = list(first_target.Joints())
 
-    home_joints = HOME_SEED_6DOF
-    new_home_joints = NEW_HOME_SEED_6DOF
-
-    home_dist = sum((a - b) ** 2 for a, b in zip(home_joints, first_joints))
-    new_home_dist = sum((a - b) ** 2 for a, b in zip(new_home_joints, first_joints))
+    home_dist = sum(_angular_dist(a, b) ** 2 for a, b in zip(HOME_SEED_6DOF, first_joints))
+    new_home_dist = sum(_angular_dist(a, b) ** 2 for a, b in zip(NEW_HOME_SEED_6DOF, first_joints))
 
     if new_home_dist < home_dist:
         return new_home, "new_home"
