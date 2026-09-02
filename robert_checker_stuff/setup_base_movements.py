@@ -762,6 +762,9 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
             skipped += 1
             continue
 
+        # Set knotting tool first so the robot knows the TCP for all moves
+        prog.setPoseTool(knotting_tool)
+
         # Pick whichever home is closer to the first target in the sequence
         first_target = sg_before  # the first working target after pullaway
         start_home, start_name = pick_closer_home(home_target, new_home_target, first_target)
@@ -790,7 +793,6 @@ def populate_programs(RDK, robot, targets_to_use, ee_config,
 
                 prog.MoveJ(approach_tgt)
 
-        prog.setPoseTool(knotting_tool)
         prog.MoveJ(sg_before)
         prog.MoveL(sg_target)
         prog.MoveL(sg_after)
