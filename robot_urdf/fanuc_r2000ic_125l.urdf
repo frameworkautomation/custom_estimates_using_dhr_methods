@@ -1,0 +1,109 @@
+<?xml version="1.0" ?>
+<!-- Fanuc R-2000iC/125L URDF — from official FANUC xacro (Apache 2.0) -->
+<robot name="fanuc_r2000ic_125l">
+
+  <link name="world"/>
+
+  <joint name="j7_rail" type="prismatic">
+    <parent link="world"/>
+    <child link="rail_base"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="0" upper="22.0" effort="10000" velocity="1.0"/>
+  </joint>
+
+  <link name="rail_base">
+    <inertial><mass value="500"/><inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/></inertial>
+  </link>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="rail_base"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_link">
+    <visual><origin xyz="0 0 0" rpy="0 0 0"/><geometry><mesh filename="meshes/base.dae"/></geometry></visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0"/><geometry><mesh filename="meshes/base.stl"/></geometry></collision>
+    <inertial><mass value="189"/><origin xyz="-.104 -.00417 .135"/><inertia ixx="5.97" ixy=".0715" ixz="-.13" iyy="11.6" iyz=".00638" izz="14.8"/></inertial>
+  </link>
+
+  <joint name="J1" type="revolute">
+    <origin xyz="0 0 .67" rpy="0 0 0"/>
+    <parent link="base_link"/><child link="J1_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.2289" upper="3.2289" effort="10000" velocity="2.2689"/>
+  </joint>
+  <link name="J1_link">
+    <visual><geometry><mesh filename="meshes/j1.dae"/></geometry></visual>
+    <collision><geometry><mesh filename="meshes/j1.stl"/></geometry></collision>
+    <inertial><mass value="358"/><origin xyz=".0206 .0683 -.123"/><inertia ixx="18.5" ixy="3.57" ixz="-1.4" iyy="25.9" iyz="-.486" izz="30.2"/></inertial>
+  </link>
+
+  <joint name="J2" type="revolute">
+    <origin xyz=".312 0 0" rpy="0 0 0"/>
+    <parent link="J1_link"/><child link="J2_link"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.0472" upper="1.3265" effort="20000" velocity="2.0071"/>
+  </joint>
+  <link name="J2_link">
+    <visual><geometry><mesh filename="meshes/j2.dae"/></geometry></visual>
+    <collision><geometry><mesh filename="meshes/j2.stl"/></geometry></collision>
+    <inertial><mass value="198"/><origin xyz="-.00183 .229 .441"/><inertia ixx="26" ixy=".101" ixz="-.718" iyy="26.7" iyz="-1.98" izz="3.8"/></inertial>
+  </link>
+
+  <joint name="J3" type="revolute">
+    <origin xyz="0 0 1.075" rpy="0 0 0"/>
+    <parent link="J2_link"/><child link="J3_link"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.3788" upper="3.1416" effort="20000" velocity="2.1817"/>
+  </joint>
+  <link name="J3_link">
+    <visual><geometry><mesh filename="meshes/j3.dae"/></geometry></visual>
+    <collision><geometry><mesh filename="meshes/j3.stl"/></geometry></collision>
+    <inertial><mass value="340"/><origin xyz=".485 .0541 .13"/><inertia ixx="10.4" ixy="2.41" ixz="-5.72" iyy="60.3" iyz=".558" izz="61"/></inertial>
+  </link>
+
+  <joint name="J4" type="revolute">
+    <origin xyz="0 0 .225" rpy="0 0 0"/>
+    <parent link="J3_link"/><child link="J4_link"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="-6.2832" upper="6.2832" effort="4000" velocity="3.1416"/>
+  </joint>
+  <link name="J4_link">
+    <visual><geometry><mesh filename="meshes/j4.dae"/></geometry></visual>
+    <collision><geometry><mesh filename="meshes/j4.stl"/></geometry></collision>
+    <inertial><mass value="9.92"/><origin xyz="1.63 -.00867 0"/><inertia ixx=".0388" ixy=".00521" ixz="0" iyy=".0892" iyz="0" izz=".0871"/></inertial>
+  </link>
+
+  <joint name="J5" type="revolute">
+    <origin xyz="1.73 0 0" rpy="0 0 0"/>
+    <parent link="J4_link"/><child link="J5_link"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-2.1817" upper="2.1817" effort="4000" velocity="3.1416"/>
+  </joint>
+  <link name="J5_link">
+    <visual><geometry><mesh filename="meshes/j5.dae"/></geometry></visual>
+    <collision><geometry><mesh filename="meshes/j5.stl"/></geometry></collision>
+    <inertial><mass value="18"/><origin xyz=".0485 -.0214 0"/><inertia ixx=".134" ixy="-.0205" ixz="0" iyy=".159" iyz="0" izz=".197"/></inertial>
+  </link>
+
+  <joint name="J6" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="J5_link"/><child link="J6_link"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="-6.2832" upper="6.2832" effort="3000" velocity="4.5379"/>
+  </joint>
+  <link name="J6_link">
+    <visual><geometry><mesh filename="meshes/j6.dae"/></geometry></visual>
+    <collision><geometry><mesh filename="meshes/j6.stl"/></geometry></collision>
+    <inertial><mass value=".925"/><origin xyz=".198 0 0"/><inertia ixx=".00259" ixy="0" ixz="0" iyy=".00139" iyz="0" izz=".0014"/></inertial>
+  </link>
+
+  <link name="flange"/>
+  <joint name="J6_flange" type="fixed">
+    <origin xyz=".215 0 0" rpy="0 0 0"/>
+    <parent link="J6_link"/><child link="flange"/>
+  </joint>
+
+</robot>
