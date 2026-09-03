@@ -16,12 +16,13 @@ Prerequisites:
      cd clones/knitwear-cell
      ENV_MODE=local python ../../robert_checker_stuff/build_dhr_station.py
 
-Output: robo_dk_saves/generated_from_dhr_clone.rdk
+Output: robo_dk_saves/generated_from_dhr_clone.rdk (or --name <name>)
 """
 
+import argparse
 import os
 import sys
-import yaml
+
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -34,6 +35,7 @@ SAVE_PATH = os.path.join(SAVE_DIR, "generated_from_dhr_clone.rdk")
 
 
 def to_robodk_path(path):
+    """Convert WSL /mnt/c/... path to C:/... for RoboDK."""
     abs_path = os.path.abspath(path)
     try:
         if abs_path.startswith("/mnt/"):
@@ -46,7 +48,26 @@ def to_robodk_path(path):
     return abs_path
 
 
+def get_windows_host_ip():
+    """Get the Windows host IP from WSL's resolv.conf."""
+    try:
+        with open("/etc/resolv.conf") as f:
+            for line in f:
+                if line.strip().startswith("nameserver"):
+                    return line.strip().split()[1]
+    except FileNotFoundError:
+        pass
+    return None
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Build DHR station in RoboDK")
+    parser.add_argument("--no-save", action="store_true",
+                        help="Build into live RoboDK without saving to .rdk file")
+    parser.add_argument("--name", type=str, default=None,
+                        help="Save filename (e.g. --name my_station). Saves to robo_dk_saves/<name>.rdk")
+    args = parser.parse_args()
+
     original_cwd = os.getcwd()
 
     if not os.path.isdir(KNITWEAR_CELL_ROOT):
@@ -61,92 +82,87 @@ def main():
     print(f"[INFO] Working directory: {os.getcwd()}")
     print(f"[INFO] ENV_MODE: {os.environ['ENV_MODE']}")
 
-    # Load configuration directly (bypass injector for Robolink)
-    from src.main.config.configurator import Configurator
-    config = Configurator().configure()
+    # If running from WSL, patch the config to use the Windows host IP
+    if sys.platform == "linux":
+        windows_ip = get_windows_host_ip()
+        if windows_ip:
+            print(f"[INFO] WSL detected — patching robodk_ip to {windows_ip}")
+            # Monkey-patch the configurator to override robodk_ip
+            from src.main.config.configurator import Configurator
+            _orig_configure = Configurator.configure
+            def _patched_configure(self):
+                config = _orig_configure(self)
+                if config.robodk_ip in ("localhost", "127.0.0.1"):
+                    config.robodk_ip = windows_ip
+                return config
+            Configurator.configure = _patched_configure
 
-    print(f"[INFO] Connecting to RoboDK at {config.robodk_ip}:{config.robodk_port}")
-
-    # Connect to RoboDK directly — skip the LActivate command that breaks
-    from robodk.robolink import Robolink
-    Robolink.NODELAY = config.robolink_nodelay
-    rdk = Robolink(config.robodk_ip, config.robodk_port)
-    print(f"[INFO] Connected to RoboDK")
-
-    # Load station YAML
-    with open("src/main/config/robodk.yaml", "r") as f:
-        station_config = yaml.safe_load(f)
-
-    from src.main.robodk.item_presenter import Station
-    station = Station.model_validate(station_config)
-    station.set_index({})
-
-    # Wire up the injector with our pre-connected Robolink
-    from injector import Injector, Module, singleton, provider
-    import src.main.di.autowired as autowired_mod
+    # Patch AppContext to skip LActivate (fails without paid license)
     from src.main.di.app_context import AppContext
+    import src.main.di.autowired as autowired_mod
+    from injector import Injector, singleton, provider
+    from robodk.robolink import Robolink
 
-    index = {}
-    station.set_index(index)
-
-    class PatchedContext(AppContext):
+    class PatchedAppContext(AppContext):
         @singleton
         @provider
         def provide_robolink(self) -> Robolink:
+            config = self.provide_configuration()
+            Robolink.NODELAY = config.robolink_nodelay
+            rdk = Robolink(config.robodk_ip, config.robodk_port)
+            # Skip rdk.Command("LActivate", 1) — breaks without license
             return rdk
 
-        @singleton
-        @provider
-        def provide_station(self) -> Station:
-            self.station = station
-            return self.station
-
-        @singleton
-        @provider
-        def provide_index(self) -> dict:
-            return index
-
-    injector = Injector([PatchedContext()])
+    injector = Injector([PatchedAppContext()])
     setattr(autowired_mod, "injector", injector)
 
-    print("[INFO] Building station...")
+    print("[INFO] Injector created, building station...")
+
+    from src.main.robodk.item_presenter import Station
+    from src.main.config.configuration import Configuration
+    station: Station = injector.get(Station)
+
     station.build()
     print("[INFO] station.build() complete")
 
-    # Reconnect in case the build dropped the connection
-    try:
-        rdk.Item("")
-    except Exception:
-        print("[INFO] Reconnecting to RoboDK...")
-        rdk = Robolink(config.robodk_ip, config.robodk_port)
+    # build() is @autowired — the injector gave it a Robolink that may now be
+    # stale (TCP socket timed out while Python parsed the huge YAML).
+    # Replace the cached Robolink in the station object with a fresh connection.
+    import time
+    time.sleep(1)
+    config = injector.get(Configuration)
+    station._robolink = Robolink(config.robodk_ip, config.robodk_port)
+    # Also replace in the injector's singleton cache so any @autowired calls
+    # during configure() get the fresh connection.
+    injector.binder.bind(Robolink, to=station._robolink)
+    print("[INFO] Reconnected to RoboDK for configure()")
 
-    try:
-        station.configure()
-        print("[INFO] station.configure() complete")
-    except Exception as e:
-        print(f"[WARN] station.configure() failed: {e}")
-        print("[INFO] Saving station without configure (build-only)")
-        # Reconnect again if configure broke the pipe
-        try:
-            rdk.Item("")
-        except Exception:
-            print("[INFO] Reconnecting to RoboDK...")
-            rdk = Robolink(config.robodk_ip, config.robodk_port)
+    station.configure()
+    print("[INFO] station.configure() complete")
 
     # Save
-    save_path = to_robodk_path(SAVE_PATH)
-    print(f"[SAVE] Saving station to: {save_path}")
-    rdk.Save(save_path)
-
     os.chdir(original_cwd)
-    if os.path.exists(SAVE_PATH):
-        size = os.path.getsize(SAVE_PATH)
-        print(f"[DONE] Saved: {SAVE_PATH} ({size:,} bytes)")
-        if size < 5000:
-            print(f"[WARN] File is suspiciously small — RoboDK free license may have truncated.")
+    robolink = station._robolink
+
+    if args.no_save:
+        print("[INFO] --no-save: station built in live RoboDK, file not overwritten.")
     else:
-        print(f"[WARN] Save file not found at {SAVE_PATH}")
-        print(f"       The station is still open in RoboDK on port 20502.")
+        if args.name:
+            name = args.name if args.name.endswith(".rdk") else args.name + ".rdk"
+            actual_save_path = os.path.join(SAVE_DIR, name)
+        else:
+            actual_save_path = SAVE_PATH
+        save_path = to_robodk_path(actual_save_path)
+        print(f"[SAVE] Saving station to: {save_path}")
+        robolink.Save(save_path)
+        if os.path.exists(actual_save_path):
+            size = os.path.getsize(actual_save_path)
+            print(f"[DONE] Saved: {actual_save_path} ({size:,} bytes)")
+            if size < 5000:
+                print(f"[WARN] File is suspiciously small — RoboDK free license may have truncated.")
+        else:
+            print(f"[WARN] Save file not found at {actual_save_path}")
+            print(f"       The station is still open in RoboDK on port 20502.")
 
 
 if __name__ == "__main__":

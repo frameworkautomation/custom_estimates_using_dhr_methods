@@ -36,7 +36,7 @@ echo [INFO] Building station (this takes about a minute)...
 echo [INFO] Make sure RoboDK is running on port 20502!
 echo.
 
-python ..\..\robert_checker_stuff\build_dhr_station.py
+python ..\..\robert_checker_stuff\build_dhr_station.py %*
 
 echo.
 pause
