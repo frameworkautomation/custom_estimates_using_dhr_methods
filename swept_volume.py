@@ -90,6 +90,7 @@ def main():
 
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0, 0, 0)
+    p.setPhysicsEngineParameter(enableConeFriction=0, numSolverIterations=0)
     p.loadURDF("plane.urdf", [0, 0, -0.01])
 
     # Load the robot URDF once to figure out joint mapping
@@ -112,6 +113,7 @@ def main():
     # Load a ghost robot for each sampled position
     ghost_ids = []
     positions_used = 0
+    total_to_load = len([i for i in range(0, len(rows), args.sample_every)])
 
     for idx, row in enumerate(rows):
         if idx % args.sample_every != 0:
@@ -136,16 +138,19 @@ def main():
             if ji < len(joint_values):
                 p.resetJointState(ghost, mi, joint_values[ji])
 
-        # Make it transparent
+        # Disable dynamics so ghosts don't move
         for link_idx in range(-1, n_pybullet_joints):
+            p.changeDynamics(ghost, link_idx, mass=0)
             try:
-                visual_shapes = p.getVisualShapeData(ghost)
                 p.changeVisualShape(ghost, link_idx, rgbaColor=[0.3, 0.5, 0.8, 0.15])
             except Exception:
                 pass
 
         ghost_ids.append(ghost)
         positions_used += 1
+
+        if positions_used % 5 == 0 or positions_used == total_to_load:
+            print(f"  [{positions_used}/{total_to_load}] loaded", flush=True)
 
         if args.speed > 0 and not args.headless:
             p.stepSimulation()
@@ -187,8 +192,7 @@ def main():
         print(f"[INFO] Close window or Ctrl+C to exit")
         try:
             while True:
-                p.stepSimulation()
-                time.sleep(1/60)
+                time.sleep(1/30)  # just redraw, no physics stepping
         except KeyboardInterrupt:
             pass
 
