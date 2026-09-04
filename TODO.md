@@ -3,7 +3,7 @@
 ## Branch: `placing_cones_no_rhino`
 
 1. ~~**Get simplified cone mesh** — get simplified cone mesh from another folder for use in RoboDK scripts~~ DONE
-2. **Cone placement scripts (replacing Grasshopper)** — RoboDK scripts to place cones inside bins and on top of machines, with proper cone names and frames
+2. ~~**Cone placement scripts (replacing Grasshopper)** — RoboDK scripts to place cones inside bins and on top of machines, with proper cone names and frames~~ DONE
 
 ## Branch: `back_box_reachability`
 
