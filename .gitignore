@@ -1,5 +1,9 @@
 clones/
 steps_from_SolidWorks/
+fanuc-r-2000ic-125l-1.snapshot.36/
+fanuc_ros/
+fanuc_experimental/
+fanuc_official/
 claude_notes/
 robo_dk_output/
 !robo_dk_output/path_config.yaml

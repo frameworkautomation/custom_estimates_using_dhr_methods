@@ -54,10 +54,11 @@ def main():
     parser = argparse.ArgumentParser(description="Visualize robot swept volume")
     parser.add_argument("csv_path", nargs="?", default=None)
     parser.add_argument("--urdf", default=DEFAULT_URDF, help="Path to robot URDF")
+    parser.add_argument("--mesh-dir", default=None, help="Directory with link mesh files (overrides URDF visual data)")
     parser.add_argument("--export", type=str, default=None, help="Export swept volume as STL")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--sample-every", type=int, default=1, help="Show every Nth pose")
-    parser.add_argument("--speed", type=float, default=0.0, help="Playback delay in seconds (0=all at once)")
+    parser.add_argument("--voxel-mm", type=float, default=10.0, help="Voxel resolution in mm for watertight remesh (default 10)")
     args = parser.parse_args()
 
     csv_path = args.csv_path or find_latest_j7zero_csv()
@@ -110,10 +111,98 @@ def main():
     print(f"[INFO] URDF has {len(movable_joints)} movable joints")
     p.removeBody(test_robot)
 
-    # Load a ghost robot for each sampled position
-    ghost_ids = []
+    import trimesh
+
+    # Load STL meshes directly with trimesh (indexed by PyBullet link index)
+    # PyBullet visual data tells us which mesh file belongs to which link
+    fk_robot = p.loadURDF(args.urdf, [0, 0, 0], useFixedBase=True,
+                          flags=p.URDF_USE_MATERIAL_COLORS_FROM_MTL)
+    for li in range(-1, n_pybullet_joints):
+        p.changeDynamics(fk_robot, li, mass=0)
+
+    # Load mesh for each link
+    # Map: PyBullet link index -> mesh file name
+    # URDF visual data gives us: link 1=base, 2=j1, 3=j2, ... 7=j6
+    LINK_MESH_NAMES = {1: "base", 2: "j1", 3: "j2", 4: "j3", 5: "j4", 6: "j5", 7: "j6"}
+
+    mesh_dir = args.mesh_dir or os.path.join(os.path.dirname(os.path.abspath(args.urdf)), "meshes")
+
+    link_base_meshes = {}
+    for link_idx, name in LINK_MESH_NAMES.items():
+        # Try DAE first, then STL
+        for ext in [".dae", ".stl"]:
+            candidate = os.path.join(mesh_dir, name + ext)
+            if os.path.exists(candidate):
+                try:
+                    m = trimesh.load(candidate, force='mesh')
+                    # Get visual frame offset from URDF
+                    visual_data = p.getVisualShapeData(fk_robot)
+                    for vis in visual_data:
+                        if vis[1] == link_idx:
+                            T = np.eye(4)
+                            T[:3, 3] = vis[5]
+                            T[:3, :3] = np.array(p.getMatrixFromQuaternion(vis[6])).reshape(3, 3)
+                            m.apply_transform(T)
+                            break
+                    link_base_meshes[link_idx] = m
+                    print(f"  Loaded link {link_idx}: {name}{ext} ({len(m.vertices)} verts)")
+                    break
+                except Exception as e:
+                    print(f"  [WARN] {candidate}: {e}")
+
+    print(f"[INFO] Loaded {len(link_base_meshes)} link meshes from disk")
+
+    if not link_base_meshes:
+        print("[ERROR] No link meshes loaded.")
+        p.disconnect()
+        sys.exit(1)
+
+    import manifold3d
+
+    # Voxel-remesh each link mesh to make it watertight, extract outer shell,
+    # simplify, then convert to manifold — all per-link before the union loop
+    pitch = args.voxel_mm / 1000.0  # mm to meters
+    target_faces_per_link = 3000
+    print(f"[INFO] Voxel remeshing links at {args.voxel_mm}mm, simplifying to ~{target_faces_per_link} faces/link...")
+    link_manifolds = {}
+    for link_idx, m in link_base_meshes.items():
+        try:
+            # Step 1a: voxelize and marching cubes
+            vox = m.voxelized(pitch=pitch)
+            watertight = vox.marching_cubes
+            watertight.apply_scale(vox.pitch[0])
+            watertight.apply_translation(vox.transform[:3, 3])
+
+            # Step 1b: keep only outer shell
+            components = watertight.split(only_watertight=False)
+            if len(components) > 1:
+                watertight = max(components, key=lambda c: c.volume if c.is_watertight else c.area)
+
+            # Step 1c: convert to manifold and simplify
+            man = manifold3d.Manifold(manifold3d.Mesh(
+                vert_properties=np.array(watertight.vertices, dtype=np.float32),
+                tri_verts=np.array(watertight.faces, dtype=np.uint32),
+            ))
+            if man.is_empty():
+                print(f"  Link {link_idx}: manifold empty, skipping")
+                continue
+
+            if man.num_tri() > target_faces_per_link:
+                man = man.simplify(target_faces_per_link)
+
+            link_manifolds[link_idx] = man
+            print(f"  Link {link_idx}: {man.num_vert()} verts, {man.num_tri()} tris")
+        except Exception as e:
+            print(f"  Link {link_idx}: failed ({e}), skipping")
+
+    print(f"[INFO] {len(link_manifolds)} links ready for boolean union")
+
+    # For each pose: set joints, get link world transforms, transform and union
+    total_to_process = len([i for i in range(0, len(rows), args.sample_every)])
     positions_used = 0
-    total_to_load = len([i for i in range(0, len(rows), args.sample_every)])
+    skipped = 0
+    running_union = None
+    seen_joints = set()
 
     for idx, row in enumerate(rows):
         if idx % args.sample_every != 0:
@@ -125,78 +214,81 @@ def main():
         ]
         j7_mm = float(row["j7"])
 
-        # Convert to radians for revolute, meters for prismatic
-        joint_values = [j7_mm / 1000.0]  # j7 prismatic in meters
+        cache_key = tuple(joints_deg) + (j7_mm,)
+        if cache_key in seen_joints:
+            skipped += 1
+            positions_used += 1
+            if positions_used % 5 == 0 or positions_used == total_to_process:
+                print(f"  [{positions_used}/{total_to_process}] ({skipped} skipped as duplicates)", flush=True)
+            continue
+        seen_joints.add(cache_key)
+
+        joint_values = [j7_mm / 1000.0]
         joint_values.extend([math.radians(j) for j in joints_deg])
 
-        # Load a new robot instance for this pose
-        ghost = p.loadURDF(args.urdf, [0, 0, 0], useFixedBase=True,
-                           flags=p.URDF_USE_MATERIAL_COLORS_FROM_MTL)
-
-        # Set joint positions
+        # Set joints in PyBullet for FK
         for ji, mi in enumerate(movable_joints):
             if ji < len(joint_values):
-                p.resetJointState(ghost, mi, joint_values[ji])
+                p.resetJointState(fk_robot, mi, joint_values[ji])
 
-        # Disable dynamics so ghosts don't move
-        for link_idx in range(-1, n_pybullet_joints):
-            p.changeDynamics(ghost, link_idx, mass=0)
-            try:
-                p.changeVisualShape(ghost, link_idx, rgbaColor=[0.3, 0.5, 0.8, 0.15])
-            except Exception:
-                pass
-
-        ghost_ids.append(ghost)
-        positions_used += 1
-
-        if positions_used % 5 == 0 or positions_used == total_to_load:
-            print(f"  [{positions_used}/{total_to_load}] loaded", flush=True)
-
-        if args.speed > 0 and not args.headless:
-            p.stepSimulation()
-            time.sleep(args.speed)
-
-    print(f"[INFO] Rendered {positions_used} ghost robots")
-
-    # Export swept volume mesh if requested
-    if args.export:
-        try:
-            import trimesh
-            all_vertices = []
-
-            for ghost_id in ghost_ids:
-                for link_idx in range(-1, n_pybullet_joints):
-                    try:
-                        mesh_data = p.getMeshData(ghost_id, link_idx)
-                        if mesh_data and len(mesh_data[1]) > 0:
-                            verts = np.array(mesh_data[1])
-                            all_vertices.append(verts)
-                    except Exception:
-                        pass
-
-            if all_vertices:
-                all_verts = np.vstack(all_vertices)
-                cloud = trimesh.PointCloud(all_verts)
-                hull = cloud.convex_hull
-                hull.export(args.export)
-                print(f"[INFO] Swept volume exported to: {args.export}")
-                print(f"       Volume: {hull.volume:.4f} m^3")
+        # Transform each link manifold to world pose and union into this pose's shape
+        pose_union = None
+        for link_idx, base_man in link_manifolds.items():
+            if link_idx == -1:
+                pos, orn = p.getBasePositionAndOrientation(fk_robot)
             else:
-                print("[WARN] No mesh data available for export")
-        except ImportError:
-            print("[WARN] trimesh/scipy not installed — cannot export STL")
+                state = p.getLinkState(fk_robot, link_idx)
+                pos = state[4]
+                orn = state[5]
 
-    if not args.headless:
-        p.resetDebugVisualizerCamera(4.0, 45, -30, [0, 0, 1.0])
-        print(f"\n[INFO] Middle mouse = orbit, scroll = zoom, Ctrl+middle = pan")
-        print(f"[INFO] Close window or Ctrl+C to exit")
-        try:
-            while True:
-                time.sleep(1/30)  # just redraw, no physics stepping
-        except KeyboardInterrupt:
-            pass
+            rot = np.array(p.getMatrixFromQuaternion(orn)).reshape(3, 3)
+            T = np.zeros((3, 4), dtype=np.float64)
+            T[:3, :3] = rot
+            T[:3, 3] = pos
+            transformed = base_man.transform(T)
+
+            if pose_union is None:
+                pose_union = transformed
+            else:
+                pose_union = pose_union + transformed
+
+        # Union this pose into the running total
+        if pose_union is not None:
+            if running_union is None:
+                running_union = pose_union
+            else:
+                running_union = running_union + pose_union
+
+        positions_used += 1
+        if positions_used % 5 == 0 or positions_used == total_to_process:
+            unique = len(seen_joints)
+            verts = running_union.num_vert() if running_union else 0
+            print(f"  [{positions_used}/{total_to_process}] {unique} unique poses unioned ({verts} verts), {skipped} skipped", flush=True)
 
     p.disconnect()
+
+    if running_union is None or running_union.is_empty():
+        print("[ERROR] Boolean union produced empty result.")
+        sys.exit(1)
+
+    # Convert back to trimesh
+    mesh_out = running_union.to_mesh()
+    combined = trimesh.Trimesh(
+        vertices=np.array(mesh_out.vert_properties, dtype=np.float64),
+        faces=np.array(mesh_out.tri_verts, dtype=np.int64),
+    )
+    print(f"[INFO] Final mesh: {len(combined.vertices)} vertices, {len(combined.faces)} faces")
+
+    bounds = combined.bounds
+    print(f"[INFO] Bounds (meters):")
+    print(f"       X: {bounds[0][0]:.3f} to {bounds[1][0]:.3f} ({bounds[1][0]-bounds[0][0]:.3f}m)")
+    print(f"       Y: {bounds[0][1]:.3f} to {bounds[1][1]:.3f} ({bounds[1][1]-bounds[0][1]:.3f}m)")
+    print(f"       Z: {bounds[0][2]:.3f} to {bounds[1][2]:.3f} ({bounds[1][2]-bounds[0][2]:.3f}m)")
+
+    export_path = args.export or "swept_volume.stl"
+    combined.export(export_path)
+    print(f"[INFO] Swept volume exported to: {export_path}")
+    print(f"[DONE] Open in Rhino: {os.path.abspath(export_path)}")
 
 
 if __name__ == "__main__":
