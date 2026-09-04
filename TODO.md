@@ -27,6 +27,7 @@
 9. **Add cone movement to DHR's code** — integrate our end effector into their state machine (end effector up and down), use their pipeline for collision checking, understand their IO setup
    - All AI-generated code must be clearly marked as AI-written (with or without human review). This code runs on a physical robot — everything gets human review.
    - Cone positions and frames from `place_cones.py` need to be reflected in DHR's station and YAML config longer term
+   - Mounting plate, bin, cone positions in bin, and cone array positions need to be added to DHR's `robodk.yaml` build config
 
 ## Low Priority
 
