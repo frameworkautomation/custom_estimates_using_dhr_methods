@@ -595,3 +595,45 @@ for j in all_sols:
     if cfg[0] == 0 and cfg[1] == 0:  # front, elbow up
         joints = j; break
 ```
+
+## ── Cone placement module: `place_cones.py` ─────────────────────────────────
+
+**File:** `robert_checker_stuff/place_cones.py` — importable module + CLI script.
+
+**Purpose:** Replace Grasshopper-based cone placement with a pure Python/RoboDK
+script. Given two endpoint poses, interpolates N frames between them and places
+cone STEP meshes inside each frame.
+
+**Two main functions:**
+
+### `interpolate_frames(RDK, pose_start, pose_end, n, name_prefix, parent)`
+- Takes two poses (4x4 Mat), generates `n` frames **including endpoints**
+- Creates frames named `{name_prefix}_0` through `{name_prefix}_{n-1}`
+- All parented to `parent` item
+- Uses UR-format decomposition (`Pose_2_UR` / `UR_2_Pose`) for smooth interpolation
+- Returns list of created RoboDK frame Items
+
+### `place_cones(RDK, frames, step_file, colors=None, seed=None)`
+- Takes the list of frames from `interpolate_frames`
+- Imports the STEP file once via `AddFile`, then `Copy`/`Paste` for the rest
+- Each cone parented to its frame via `setParentStatic`
+- Colors: if `colors` is a list, cycles through it. If `seed` is given, generates
+  random colors with that seed. If neither, leaves default STEP color.
+- `Recolor` applied per-instance
+
+**CLI usage:**
+```
+python robert_checker_stuff/place_cones.py \
+  --robodk-ip 172.23.208.1 \
+  --frame-start "BinStart" \
+  --frame-end "BinEnd" \
+  --n 6 \
+  --name-prefix "Base_Right" \
+  --parent "bin_0_group" \
+  --step-file my_assets/sams_simple_cone.stp \
+  --colors "#FF0000,#00FF00,#0000FF"
+```
+
+**DHR integration note:** For now this is our informal placement tool. Longer term,
+cone positions and frames need to be reflected in DHR's station and their YAML
+config (which feeds their state machine).
