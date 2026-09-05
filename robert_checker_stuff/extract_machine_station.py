@@ -31,7 +31,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 DEFAULT_DEST = os.path.join(REPO_ROOT, "robo_dk_saves", "machine_reachability.rdk")
 
-MACHINES = [1, 2, 3]
+MACHINES = [1, 3, 5]
 
 
 def connect(ip=None):
