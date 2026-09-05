@@ -4,13 +4,13 @@ Extract a minimal station for machine reachability testing.
 Copies from the source station:
   - RailMechanismBase (with all children — robot, rail, buffer, tools, etc.)
   - Fence (top-level object)
-  - Machine{1,2,3}Base (with children, excluding items containing 'oil')
-  - Machine{1,2,3}GarmentTrayBase (with children)
-  - Machine{1,2,3}BackBase (with children)
+  - Machine{1,3,5}Base (with children, excluding items containing 'oil')
+  - Machine{1,3,5}GarmentTrayBase (with children)
+  - Machine{1,3,5}BackBase (with children)
 
 Usage:
     python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1
-    python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1 --dest machine_reachability.rdk
+    python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1 --dest rdk_machine_reach_testing.rdk
 
 AI-generated code (Claude Opus 4.6) — human-reviewed before use.
 """
@@ -23,13 +23,11 @@ sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import (
     Robolink, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT, ITEM_TYPE_STATION,
-    ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL,
 )
-from robodk.robomath import eye
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-DEFAULT_DEST = os.path.join(REPO_ROOT, "robo_dk_saves", "machine_reachability.rdk")
+DEFAULT_DEST = os.path.join(REPO_ROOT, "robo_dk_saves", "rdk_machine_reach_testing.rdk")
 
 MACHINES = [1, 3, 5]
 
@@ -48,42 +46,33 @@ def connect(ip=None):
 
 
 def wsl_to_win(path):
-    """Convert /mnt/c/... to C:\\... for RoboDK."""
     if path.startswith("/mnt/"):
         drive = path[5]
         return f"{drive.upper()}:{path[6:]}".replace("/", "\\")
     return path
 
 
-def contains_oil(item):
-    """Check if item name contains 'oil' (case-insensitive)."""
-    return "oil" in item.Name().lower()
-
-
-def copy_item_to_station(item, dest_station, skip_oil=False):
-    """Copy an item (with children) to the destination station.
-
-    If skip_oil is True, recursively removes children containing 'oil' after pasting.
-    """
-    item.Copy()
-    pasted = dest_station.Paste()
-    assert pasted.Valid(), f"Failed to paste {item.Name()}"
-    print(f"[COPY] {item.Name()}")
-
-    if skip_oil:
-        remove_oil_children(pasted)
-
-    return pasted
-
-
 def remove_oil_children(item):
     """Recursively remove children whose names contain 'oil'."""
     for child in item.Childs():
-        if contains_oil(child):
-            print(f"[REMOVE] {child.Name()} (contains 'oil')")
+        if "oil" in child.Name().lower():
+            print(f"  [REMOVE] {child.Name()} (contains 'oil')")
             child.Delete()
         else:
             remove_oil_children(child)
+
+
+def build_copy_list():
+    """Return list of (item_name, skip_oil) tuples to copy."""
+    items = [
+        ("RailMechanismBase", False),
+        ("Fence", False),
+    ]
+    for m in MACHINES:
+        items.append((f"Machine{m}Base", True))
+        items.append((f"Machine{m}GarmentTrayBase", False))
+        items.append((f"Machine{m}BackBase", False))
+    return items
 
 
 def main():
@@ -101,40 +90,39 @@ def main():
     assert source_station.Valid(), "No active station"
     print(f"[INFO] Source station: {source_station.Name()}")
 
-    # Create new station
+    # Build list of names to copy
+    copy_list = build_copy_list()
+
+    # Verify all required items exist before creating dest station
+    for name, _ in copy_list:
+        item = RDK.Item(name)
+        if not item.Valid():
+            print(f"[WARN] {name} not found — will skip")
+        else:
+            print(f"[FOUND] {name}")
+
+    # Create new station — this invalidates item handles from source
     dest_station = RDK.AddStation("MachineReachability")
-    RDK.setActiveStation(dest_station)
-    print(f"[INFO] Created destination station: MachineReachability")
+    print(f"[INFO] Created destination station")
 
-    # Switch back to source to copy items
-    RDK.setActiveStation(source_station)
+    # Copy each item: switch to source, find, copy, switch to dest, paste
+    for name, skip_oil in copy_list:
+        RDK.setActiveStation(source_station)
+        item = RDK.Item(name)
+        if not item.Valid():
+            print(f"[SKIP] {name}")
+            continue
 
-    # 1. Copy RailMechanismBase (robot, rail, buffer, tools — everything)
-    rail = RDK.Item("RailMechanismBase")
-    assert rail.Valid(), "RailMechanismBase not found"
-    RDK.setActiveStation(dest_station)
-    copy_item_to_station(rail, dest_station)
-    RDK.setActiveStation(source_station)
+        item.Copy()
+        RDK.setActiveStation(dest_station)
+        pasted = dest_station.Paste()
+        if not pasted.Valid():
+            print(f"[FAIL] Could not paste {name}")
+            continue
+        print(f"[COPY] {name}")
 
-    # 2. Copy Fence
-    fence = RDK.Item("Fence")
-    assert fence.Valid(), "Fence not found"
-    RDK.setActiveStation(dest_station)
-    copy_item_to_station(fence, dest_station)
-    RDK.setActiveStation(source_station)
-
-    # 3. Copy Machine 1, 2, 3 items (Base, GarmentTrayBase, BackBase)
-    for m in MACHINES:
-        for suffix in ["Base", "GarmentTrayBase", "BackBase"]:
-            name = f"Machine{m}{suffix}"
-            item = RDK.Item(name)
-            if not item.Valid():
-                print(f"[WARN] {name} not found, skipping")
-                continue
-            RDK.setActiveStation(dest_station)
-            skip_oil = (suffix == "Base")  # Only filter oil from MachineNBase
-            copy_item_to_station(item, dest_station, skip_oil=skip_oil)
-            RDK.setActiveStation(source_station)
+        if skip_oil:
+            remove_oil_children(pasted)
 
     # Save destination station
     RDK.setActiveStation(dest_station)
