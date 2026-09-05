@@ -15,16 +15,16 @@
   },
   "home_joints": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
   "child_frames": {
-    "cut": ["cut_approach", "cut_catch", "cut"],
-    "grip": ["grip_approach_aisle", "grip_approach", "grip"],
+    "cut": ["Cut_approach", "Cut_Catch", "Cut"],
+    "grip": ["grip_approach", "grip"],
     "suck": ["suck_approach", "suck"]
   },
   "remove_cone_sequence": {
-    "cut": ["cut_approach", "cut_catch", "cut", "cut_approach"],
-    "grip": ["grip_approach_aisle", "grip_approach", "grip", "grip_approach", "grip_approach_aisle"]
+    "cut": ["Cut_approach", "Cut_Catch", "Cut", "Cut_approach"],
+    "grip": ["grip_approach", "grip", "grip_approach"]
   },
   "add_cone_sequence": {
-    "grip": ["grip_approach_aisle", "grip_approach", "grip", "grip_approach", "grip_approach_aisle"],
+    "grip": ["grip_approach", "grip", "grip_approach"],
     "suck": ["suck_approach", "suck", "suck_approach"]
   }
 }

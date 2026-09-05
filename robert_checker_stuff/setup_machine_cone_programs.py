@@ -110,13 +110,17 @@ def get_or_create_folder(RDK, name, parent=None):
 
 # ── IK SOLVING ────────────────────────────────────────────────────────────────
 
-def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
+def _solve_ik_locked_j7(robot, RDK, pose, j7_target, j7_weight=100, seed=None,
+                        check_j7_tol=True):
     """Solve IK with j7 constrained using OptimAxes + MoveJ (7-DOF)."""
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
+    props["AbsW_7"] = j7_weight
     robot.setParam("OptimAxes", props)
 
-    robot.setJoints(HOME_SEED)
+    if seed is None:
+        seed = HOME_SEED
+    robot.setJoints(seed)
     try:
         robot.MoveJ(pose)
         raw = robot.Joints()
@@ -125,7 +129,7 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
         except AttributeError:
             joints = list(raw)
         robot.setJoints(HOME_SEED)
-        if len(joints) >= 7 and abs(joints[6] - j7_target) > J7_TOL_MM:
+        if check_j7_tol and len(joints) >= 7 and abs(joints[6] - j7_target) > J7_TOL_MM:
             return [], False
         return joints, True
     except Exception:
@@ -133,15 +137,68 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target):
         return [], False
 
 
+# Seeds with j1 at different positions to explore arm configurations
+_ALT_SEEDS = [
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [90.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [-90.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [170.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [-170.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [180.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+]
+
+
+def solve_ik_with_fallback(robot, RDK, pose, j7_target):
+    """Try IK with decreasing j7 constraint strength and multiple seeds.
+
+    Strategy:
+    1. Hard lock (weight=100) with default seed
+    2. Hard lock with alternative seeds
+    3. Softer j7 weights (50, 20, 5) with FK verification
+    4. Each softer weight also tries alternative seeds
+    Returns (joints, ok, j7_weight_used).
+    """
+    import math
+
+    # 1. Hard lock, default seed
+    joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_target)
+    if ok:
+        return joints, True, 100
+
+    # 2. Softer j7 weights with FK verification
+    for w in [50, 20, 5]:
+        for seed in _ALT_SEEDS:
+            s = list(seed)
+            s[6] = j7_target
+            joints, ok = _solve_ik_locked_j7(
+                robot, RDK, pose, j7_target, j7_weight=w, seed=s,
+                check_j7_tol=False
+            )
+            if not ok or len(joints) < 7:
+                continue
+            # FK verify — move to joints, check TCP error
+            robot.MoveJ(joints)
+            achieved = robot.Pose()
+            t = Pose_2_TxyzRxyz(pose)
+            a = Pose_2_TxyzRxyz(achieved)
+            fk_err = math.sqrt(sum((t[i] - a[i]) ** 2 for i in range(3)))
+            robot.setJoints(HOME_SEED)
+            if fk_err <= 50.0:
+                return joints, True, w
+
+    return [], False, 0
+
+
 # ── TOOL MAPPING ──────────────────────────────────────────────────────────────
 
 def tool_for_child(child_name, tools_config):
     """Return the tool name for a given child frame name."""
-    if child_name.startswith("cut"):
+    lower = child_name.lower()
+    if lower.startswith("cut"):
         return tools_config["cutting"]
-    elif child_name.startswith("grip"):
+    elif lower.startswith("grip"):
         return tools_config["pickup"]
-    elif child_name.startswith("suck"):
+    elif lower.startswith("suck"):
         return tools_config["knotting"]
     raise ValueError(f"Unknown child frame prefix: '{child_name}'")
 
@@ -163,10 +220,22 @@ def to_robodk_path(path):
 
 # ── PHASE 1: DISCOVER & VALIDATE ─────────────────────────────────────────────
 
+def _find_frame_recursive(parent, name):
+    """Search recursively through children for a frame with the given name."""
+    for child in parent.Childs():
+        if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
+            return child
+        found = _find_frame_recursive(child, name)
+        if found is not None:
+            return found
+    return None
+
+
 def discover_cone_frames(RDK, config):
     """Find cone frames under Machine{N}Base/top_plate_frame.
 
     Returns dict: cone_name -> {child_name -> frame_item}
+    Searches recursively — child frames may be nested under other frames.
     """
     machine_num = config["machine_number"]
     top_plate_name = config["top_plate_frame"]
@@ -177,28 +246,30 @@ def discover_cone_frames(RDK, config):
     for phase_children in config["child_frames"].values():
         all_child_names.update(phase_children)
 
-    # Find top_plate_frame in station
-    top_plate = RDK.Item(top_plate_name, ITEM_TYPE_FRAME)
-    assert top_plate.Valid(), \
-        f"'{top_plate_name}' not found in station"
-    print(f"[INFO] Found '{top_plate_name}'")
+    # Navigate from Machine{N}Base to its top_plate_frame to avoid
+    # hitting duplicate names from other machines
+    machine_base_name = f"Machine{machine_num}Base"
+    machine_base = RDK.Item(machine_base_name, ITEM_TYPE_FRAME)
+    assert machine_base.Valid(), \
+        f"'{machine_base_name}' not found in station"
+    print(f"[INFO] Found '{machine_base_name}'")
+
+    top_plate = _find_frame_recursive(machine_base, top_plate_name)
+    assert top_plate is not None, \
+        f"'{top_plate_name}' not found under '{machine_base_name}'"
+    print(f"[INFO] Found '{top_plate_name}' under '{machine_base_name}'")
 
     cones = {}
     for cone_name in cone_frame_names:
-        cone_frame = RDK.Item(cone_name, ITEM_TYPE_FRAME)
-        assert cone_frame.Valid(), \
-            f"Cone frame '{cone_name}' not found in station"
+        cone_frame = _find_frame_recursive(top_plate, cone_name)
+        assert cone_frame is not None, \
+            f"Cone frame '{cone_name}' not found under '{machine_base_name}/{top_plate_name}'"
 
         children = {}
         for child_name in all_child_names:
-            # Search children of cone_frame for this child
-            child = None
-            for c in cone_frame.Childs():
-                if c.Name() == child_name and c.Type() == ITEM_TYPE_FRAME:
-                    child = c
-                    break
+            child = _find_frame_recursive(cone_frame, child_name)
             assert child is not None, \
-                f"Child frame '{child_name}' not found under '{cone_name}'"
+                f"Child frame '{child_name}' not found under '{cone_name}' (searched recursively)"
             children[child_name] = child
 
         cones[cone_name] = children
@@ -258,8 +329,8 @@ def solve_and_create_targets(RDK, robot, cones, config):
             # Get world pose of the child frame
             pose = child_frame.PoseAbs()
 
-            # Solve IK with j7 locked
-            joints, ok = _solve_ik_locked_j7(robot, RDK, pose, j7_value)
+            # Solve IK with j7 locked, falling back to softer constraints
+            joints, ok, w_used = solve_ik_with_fallback(robot, RDK, pose, j7_value)
 
             if not ok:
                 print(f"  [FAIL] {cone_name}/{child_name} — no IK (tool={tool_name})")
@@ -267,13 +338,17 @@ def solve_and_create_targets(RDK, robot, cones, config):
                 targets[cone_name][child_name] = None
                 continue
 
+            j7_actual = joints[6] if len(joints) >= 7 else 0
+
             # Create target under the child frame
             tgt = RDK.AddTarget(target_name, child_frame, robot)
             tgt.setPose(child_frame.Pose())  # relative to parent frame
             tgt.setJoints(joints)
             targets[cone_name][child_name] = tgt
             solved += 1
-            print(f"  [OK]   {cone_name}/{child_name} (tool={tool_name})")
+            w_info = f" w={w_used}" if w_used < 100 else ""
+            j7_info = f" j7={j7_actual:.0f}" if w_used < 100 else ""
+            print(f"  [OK]   {cone_name}/{child_name} (tool={tool_name}{w_info}{j7_info})")
 
     total = solved + cached + len(failures)
     print(f"[solve] {total} target(s): {solved} solved, {cached} cached, {len(failures)} failed")
