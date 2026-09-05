@@ -29,6 +29,10 @@
    - Cone positions and frames from `place_cones.py` need to be reflected in DHR's station and YAML config longer term
    - Mounting plate, bin, cone positions in bin, and cone array positions need to be added to DHR's `robodk.yaml` build config
 
+## Branch: `plc_end_effector`
+
+10. **Understand PLC interaction with end effector** — how the PLC communicates with and controls the end effector, and how to program it
+
 ## Low Priority
 
 - **Fix update_clones.sh timeout** — replace `git remote show origin` with local branch lookup to avoid ~8 min network timeout
