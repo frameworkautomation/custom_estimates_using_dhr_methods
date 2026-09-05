@@ -20,7 +20,7 @@ import argparse
 
 sys.path.append("C:/RoboDK/Python")
 
-from robodk.robolink import Robolink, ITEM_TYPE_STATION
+from robodk.robolink import Robolink, ITEM_TYPE_STATION, ITEM_TYPE_ROBOT
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -126,12 +126,27 @@ def main():
         if exclude:
             remove_matching_children(pasted, exclude)
 
-    # Save
+    # Reconnect robot to rail as external axis
     RDK.setActiveStation(dest)
+    rail_name = config.get("rail_mechanism", "RailMechanism")
+    robot_name = config.get("robot", "Fanuc R2000iC 125L")
+    rail = RDK.Item(rail_name, ITEM_TYPE_ROBOT)
+    robot = RDK.Item(robot_name, ITEM_TYPE_ROBOT)
+    if rail.Valid() and robot.Valid():
+        robot.setLink(rail)
+        try:
+            jl = robot.Joints().list()
+        except AttributeError:
+            jl = list(robot.Joints())
+        print(f"\n[LINK] Connected '{robot_name}' to '{rail_name}' — {len(jl)} DOF")
+    else:
+        print(f"\n[WARN] Could not reconnect robot to rail (rail={rail.Valid()}, robot={robot.Valid()})")
+
+    # Save
     win_dest = wsl_to_win(os.path.abspath(args.dest))
     # CHECK_LATER: Save may fail without paid license on multi-robot stations.
     RDK.Save(win_dest)
-    print(f"\n[DONE] Saved to {args.dest}")
+    print(f"[DONE] Saved to {args.dest}")
 
 
 if __name__ == "__main__":
