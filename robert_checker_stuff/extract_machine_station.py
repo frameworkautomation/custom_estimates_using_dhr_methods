@@ -1,35 +1,31 @@
 """
-Extract a minimal station for machine reachability testing.
+Extract a minimal station from the full DHR station using a config file.
 
-Copies from the source station:
-  - RailMechanismBase (with all children — robot, rail, buffer, tools, etc.)
-  - Fence (top-level object)
-  - Machine{1,3,5}Base (with children, excluding items containing 'oil')
-  - Machine{1,3,5}GarmentTrayBase (with children)
-  - Machine{1,3,5}BackBase (with children)
+Copies items listed in the config (with children) into a new station.
+Preserves mechanism linkages (robot-rail coupling survives copy/paste).
+Optionally filters out children whose names contain a specified string.
 
 Usage:
     python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1
-    python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1 --dest rdk_machine_reach_testing.rdk
+    python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1 --config my_config.json
+    python robert_checker_stuff/extract_machine_station.py --robodk-ip 172.23.208.1 --dest my_output.rdk
 
 AI-generated code (Claude Opus 4.6) — human-reviewed before use.
 """
 
 import sys
 import os
+import json
 import argparse
 
 sys.path.append("C:/RoboDK/Python")
 
-from robodk.robolink import (
-    Robolink, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT, ITEM_TYPE_STATION,
-)
+from robodk.robolink import Robolink, ITEM_TYPE_STATION
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "machine_extract_config.json")
 DEFAULT_DEST = os.path.join(REPO_ROOT, "robo_dk_saves", "rdk_machine_reach_testing.rdk")
-
-MACHINES = [1, 3, 5]
 
 
 def connect(ip=None):
@@ -52,86 +48,90 @@ def wsl_to_win(path):
     return path
 
 
-def remove_oil_children(item):
-    """Recursively remove children whose names contain 'oil'."""
+def remove_matching_children(item, exclude_str):
+    """Recursively remove children whose names contain exclude_str (case-insensitive)."""
+    exclude_lower = exclude_str.lower()
     for child in item.Childs():
-        if "oil" in child.Name().lower():
-            print(f"  [REMOVE] {child.Name()} (contains 'oil')")
+        if exclude_lower in child.Name().lower():
+            print(f"  [REMOVE] {child.Name()}")
             child.Delete()
         else:
-            remove_oil_children(child)
-
-
-def build_copy_list():
-    """Return list of (item_name, skip_oil) tuples to copy."""
-    items = [
-        ("RailMechanismBase", False),
-        ("Fence", False),
-    ]
-    for m in MACHINES:
-        items.append((f"Machine{m}Base", True))
-        items.append((f"Machine{m}GarmentTrayBase", False))
-        items.append((f"Machine{m}BackBase", False))
-    return items
+            remove_matching_children(child, exclude_str)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract minimal station for machine reachability testing."
+        description="Extract a minimal station from config."
     )
     parser.add_argument("--robodk-ip", default=None)
-    parser.add_argument("--dest", default=DEFAULT_DEST,
-                        help=f"Destination .rdk file (default: {DEFAULT_DEST})")
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
+    parser.add_argument("--dest", default=DEFAULT_DEST)
     args = parser.parse_args()
+
+    # Load config
+    assert os.path.exists(args.config), f"Config not found: {args.config}"
+    with open(args.config, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    station_name = config.get("station_name", "ExtractedStation")
+    items_cfg = config["items"]
 
     RDK = connect(args.robodk_ip)
 
-    source_station = RDK.ActiveStation()
-    assert source_station.Valid(), "No active station"
-    print(f"[INFO] Source station: {source_station.Name()}")
+    # Clean up any leftover station with the same name
+    for s in RDK.ItemList(ITEM_TYPE_STATION):
+        if s.Name() == station_name:
+            s.Delete()
+            print(f"[CLEAN] Deleted leftover '{station_name}'")
 
-    # Build list of names to copy
-    copy_list = build_copy_list()
+    source = RDK.ActiveStation()
+    assert source.Valid(), "No active station"
+    print(f"[INFO] Source: {source.Name()}")
+    print(f"[INFO] {len(items_cfg)} items to extract\n")
 
-    # Verify all required items exist before creating dest station
-    for name, _ in copy_list:
+    # Verify all items exist
+    for item_cfg in items_cfg:
+        name = item_cfg["name"]
         item = RDK.Item(name)
-        if not item.Valid():
-            print(f"[WARN] {name} not found — will skip")
-        else:
+        if item.Valid():
             print(f"[FOUND] {name}")
+        else:
+            print(f"[WARN] {name} NOT FOUND — will skip")
 
-    # Create new station — this invalidates item handles from source
-    dest_station = RDK.AddStation("MachineReachability")
-    print(f"[INFO] Created destination station")
+    # Create destination station
+    dest = RDK.AddStation(station_name)
+    print(f"\n[INFO] Created '{station_name}'")
 
     # Copy each item: switch to source, find, copy, switch to dest, paste
-    for name, skip_oil in copy_list:
-        RDK.setActiveStation(source_station)
+    for item_cfg in items_cfg:
+        name = item_cfg["name"]
+        exclude = item_cfg.get("exclude_containing")
+
+        RDK.setActiveStation(source)
         item = RDK.Item(name)
         if not item.Valid():
             print(f"[SKIP] {name}")
             continue
 
         item.Copy()
-        RDK.setActiveStation(dest_station)
-        pasted = dest_station.Paste()
+        RDK.setActiveStation(dest)
+        pasted = dest.Paste()
+
         if not pasted.Valid():
             print(f"[FAIL] Could not paste {name}")
             continue
+
         print(f"[COPY] {name}")
 
-        if skip_oil:
-            remove_oil_children(pasted)
+        if exclude:
+            remove_matching_children(pasted, exclude)
 
-    # Save destination station
-    RDK.setActiveStation(dest_station)
+    # Save
+    RDK.setActiveStation(dest)
     win_dest = wsl_to_win(os.path.abspath(args.dest))
-    # CHECK_LATER: RDK.Save may fail without paid license on multi-robot stations.
-    # If it produces a stub file, save manually from RoboDK GUI instead.
+    # CHECK_LATER: Save may fail without paid license on multi-robot stations.
     RDK.Save(win_dest)
     print(f"\n[DONE] Saved to {args.dest}")
-    print(f"[INFO] Switch to the new station in RoboDK to verify")
 
 
 if __name__ == "__main__":

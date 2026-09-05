@@ -1,0 +1,16 @@
+{
+  "station_name": "MachineReachability",
+  "items": [
+    {"name": "RailMechanismBase", "comment": "Robot + rail + buffer + tools (copies with children, preserves mechanism linkage)"},
+    {"name": "Fence"},
+    {"name": "Machine1Base", "exclude_containing": "oil"},
+    {"name": "Machine1GarmentTrayBase"},
+    {"name": "Machine1BackBase"},
+    {"name": "Machine3Base", "exclude_containing": "oil"},
+    {"name": "Machine3GarmentTrayBase"},
+    {"name": "Machine3BackBase"},
+    {"name": "Machine5Base", "exclude_containing": "oil"},
+    {"name": "Machine5GarmentTrayBase"},
+    {"name": "Machine5BackBase"}
+  ]
+}
