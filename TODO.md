@@ -33,6 +33,12 @@
 
 10. **Understand PLC interaction with end effector** — how the PLC communicates with and controls the end effector, and how to program it
 
+## Known Issues
+
+- **Duplicate frame names across machines** — RoboDK's `Item(name)` returns the first match globally. Frames like `grip`, `Cut_approach`, `suck` etc. are duplicated under each cone on each machine. Scripts must navigate from the machine base frame down to the specific cone to find the right child — `RDK.Item("grip")` will grab the wrong one. **Needs fixing:** all cone child frames should have globally unique names (e.g. `machine_3_cone_front_closest_grip`) and we need a script to rename them in both the source station and extracted stations.
+
+- **RoboDK program MoveL vs Python API MoveL** — RoboDK program MoveL instructions (target items) pre-compute the entire linear path with a fixed joint configuration and fail if any point along the path is unreachable in that config. Python API `robot.MoveL(pose)` solves IK step-by-step from current joints with `OptimAxes` active, so j7 can flex along the path. Use Python script programs (DHR's approach) instead of RoboDK program instructions for movement sequences involving MoveL with external axes.
+
 ## Low Priority
 
 - **Fix update_clones.sh timeout** — replace `git remote show origin` with local branch lookup to avoid ~8 min network timeout

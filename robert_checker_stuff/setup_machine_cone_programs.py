@@ -347,7 +347,8 @@ def solve_and_create_targets(RDK, robot, cones, config):
             # (matching what we solved IK against)
             tgt = RDK.AddTarget(target_name, world_frame, robot)
             tgt.setAsCartesianTarget()
-            tgt.setPose(pose)  # world pose — RoboDK solves IK freely along MoveL paths
+            tgt.setPose(pose)  # world pose
+            tgt.setJoints(joints)  # preferred configuration / IK seed
             targets[cone_name][child_name] = tgt
             solved += 1
             w_info = f" w={w_used}" if w_used < 100 else ""
@@ -442,6 +443,31 @@ else:
     return script_path
 
 
+def _write_set_optim_axes_script(j7_value):
+    """Write a Python script that sets OptimAxes on the robot with soft j7 constraint."""
+    os.makedirs(ATTACH_SCRIPTS_DIR, exist_ok=True)
+    script_path = os.path.join(ATTACH_SCRIPTS_DIR, "set_optim_axes.py")
+    if not os.path.exists(script_path):
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(f'''from robodk.robolink import Robolink, ITEM_TYPE_ROBOT
+RDK = Robolink()
+robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
+if not robot.Valid():
+    robot = RDK.Item("Fanuc R-2000iC/125L", ITEM_TYPE_ROBOT)
+props = {{
+    "AbsOn_7": 1, "AbsJnt_7": {j7_value}, "AbsW_7": 20,
+    "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+}}
+robot.setParam("OptimAxes", props)
+print("OptimAxes set: j7 soft constraint at {j7_value}")
+''')
+    return script_path
+
+
 def save_cone_original_poses(RDK, cones):
     """Save original parent + pose for each cone object (for detach scripts)."""
     cone_poses = {}
@@ -500,14 +526,24 @@ def create_helper_scripts(RDK, cones, config, programs_folder):
                 prog.setParent(programs_folder)
                 created += 1
 
+    # OptimAxes script
+    optim_name = "set_optim_axes"
+    existing = RDK.Item(optim_name, ITEM_TYPE_PROGRAM_PYTHON)
+    if existing.Valid():
+        cached += 1
+    else:
+        script_path = _write_set_optim_axes_script(config["j7_value"])
+        prog = RDK.AddFile(to_robodk_path(script_path))
+        if prog.Valid():
+            prog.setParent(programs_folder)
+            created += 1
+
     print(f"[helper_scripts] {created + cached} script(s): {created} created, {cached} cached")
 
 
-# ── PHASE 5: POPULATE PROGRAMS ────────────────────────────────────────────────
+# ── PHASE 5: GENERATE MOVEMENT SCRIPTS ────────────────────────────────────────
 
-def _get_target(targets, cone_name, child_name):
-    """Get a solved target, or None if it failed."""
-    return targets.get(cone_name, {}).get(child_name)
+MOVEMENT_SCRIPTS_DIR = os.path.join(SCRIPT_DIR, "machine_cone_movement_scripts")
 
 
 def _is_approach(child_name):
@@ -515,117 +551,199 @@ def _is_approach(child_name):
     return "approach" in child_name.lower()
 
 
-def _add_move(prog, tgt, child_name, prev_child):
-    """Add MoveJ or MoveL based on movement context.
-
-    MoveJ when: moving TO an approach and previous was NOT an action target
-                (i.e. first approach in a phase, or approach-to-approach).
-    MoveL when: moving from action to approach (retract), or any precise move.
-    """
+def _move_call(child_name, prev_child):
+    """Return 'MoveJ' or 'MoveL' string based on movement context."""
     if _is_approach(child_name) and (prev_child is None or _is_approach(prev_child)):
-        prog.MoveJ(tgt)
+        return "MoveJ"
+    return "MoveL"
+
+
+def _get_target(targets, cone_name, child_name):
+    """Get a solved target, or None if it failed."""
+    return targets.get(cone_name, {}).get(child_name)
+
+
+def _generate_movement_script(cone_name, config, script_type):
+    """Generate a Python script that executes movements via the RoboDK API.
+
+    DHR-style: setPoseFrame(WorldFrame), setParam(OptimAxes), then
+    robot.MoveJ/MoveL(frame.PoseAbs()) directly.
+    """
+    os.makedirs(MOVEMENT_SCRIPTS_DIR, exist_ok=True)
+    script_name = f"{script_type}_{cone_name}"
+    script_path = os.path.join(MOVEMENT_SCRIPTS_DIR, f"{script_name}.py")
+
+    j7_value = config["j7_value"]
+    tools_config = config["tools"]
+    home_joints = config["home_joints"]
+    home_on_rail = list(home_joints)
+    home_on_rail[6] = j7_value
+
+    if script_type == "remove_cone":
+        seq = config["remove_cone_sequence"]
     else:
-        prog.MoveL(tgt)
+        seq = config["add_cone_sequence"]
 
+    # Build the movement lines
+    lines = []
+    lines.append(f'''import sys
+sys.path.append("C:/RoboDK/Python")
+from robodk.robolink import Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME
+from robodk.robomath import eye
 
-def populate_remove_cone(RDK, robot, prog, cone_name, targets, config,
-                         home_target, home_on_rail_target):
-    """Populate a remove_cone program with movement instructions."""
-    seq = config["remove_cone_sequence"]
-    tools_config = config["tools"]
+RDK = Robolink()
 
-    # Set reference frame to world (targets have world-space poses)
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    prog.setPoseFrame(world_frame)
+# Find robot
+robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
+if not robot.Valid():
+    robot = RDK.Item("Fanuc R-2000iC/125L", ITEM_TYPE_ROBOT)
 
-    # 1. MoveJ to home
-    prog.MoveJ(home_target)
+# Set world frame
+world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+if not world_frame.Valid():
+    station = RDK.ActiveStation()
+    world_frame = RDK.AddFrame("WorldFrame", station)
+    world_frame.setPose(eye(4))
+robot.setPoseFrame(world_frame)
 
-    # 2. MoveJ to home_on_rail (j7 positioning)
-    prog.MoveJ(home_on_rail_target)
+# OptimAxes — soft j7 constraint
+optim = {{
+    "AbsOn_7": 1, "AbsJnt_7": {j7_value}, "AbsW_7": 20,
+    "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+}}
+robot.setParam("OptimAxes", optim)
 
-    # 3. Cut phase (cutting tool)
-    cutting_tool = find_tool(RDK, tools_config["cutting"])
-    prog.setPoseTool(cutting_tool)
-    prev = None
-    for child_name in seq["cut"]:
-        tgt = _get_target(targets, cone_name, child_name)
-        assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        _add_move(prog, tgt, child_name, prev)
-        prev = child_name
+def find_child(parent, name):
+    """Find a frame by name recursively under parent."""
+    try:
+        for child in parent.Childs():
+            try:
+                if child.Name() == name and child.Type() == 3:  # ITEM_TYPE_FRAME
+                    return child
+                found = find_child(child, name)
+                if found is not None:
+                    return found
+            except:
+                continue
+    except:
+        pass
+    return None
 
-    # 4. Grip phase (pickup tool)
-    pickup_tool = find_tool(RDK, tools_config["pickup"])
-    prog.setPoseTool(pickup_tool)
-    grip_seq = seq["grip"]
-    prev = None
-    for i, child_name in enumerate(grip_seq):
-        tgt = _get_target(targets, cone_name, child_name)
-        assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        _add_move(prog, tgt, child_name, prev)
-        # Attach cone after reaching grip
-        if child_name == "grip" and (i + 1 < len(grip_seq)):
-            prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
-        prev = child_name
+# Find the cone frame for this script
+cone_frame = find_child(RDK.Item("Machine{config['machine_number']}Base", ITEM_TYPE_FRAME), "{cone_name}")
+assert cone_frame is not None, "Cone frame '{cone_name}' not found"
 
-    # 5. MoveJ to home on rail
-    prog.MoveJ(home_on_rail_target)
+def get_pose(child_name):
+    """Get PoseAbs of a child frame under this cone."""
+    f = find_child(cone_frame, child_name)
+    assert f is not None, f"Frame '{{child_name}}' not found under '{cone_name}'"
+    return f.PoseAbs()
 
-    # 6. MoveJ to home
-    prog.MoveJ(home_target)
+print("[START] {script_name}")
 
+# Home
+robot.MoveJ({home_joints})
 
-def populate_add_cone(RDK, robot, prog, cone_name, targets, config,
-                      home_target, home_on_rail_target):
-    """Populate an add_cone program with movement instructions."""
-    seq = config["add_cone_sequence"]
-    tools_config = config["tools"]
+# Move to rail position
+robot.MoveJ({home_on_rail})
+''')
 
-    # Set reference frame to world (targets have world-space poses)
-    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-    prog.setPoseFrame(world_frame)
+    if script_type == "remove_cone":
+        # Cut phase
+        lines.append(f'# Cut phase')
+        lines.append(f'robot.setPoseTool(RDK.Item("{tools_config["cutting"]}", ITEM_TYPE_TOOL))')
+        prev = None
+        for child_name in seq["cut"]:
+            move = _move_call(child_name, prev)
+            lines.append(f'robot.{move}(get_pose("{child_name}"))')
+            prev = child_name
 
-    # 1. MoveJ to home
-    prog.MoveJ(home_target)
+        # Grip phase
+        lines.append(f'\n# Grip phase')
+        lines.append(f'robot.setPoseTool(RDK.Item("{tools_config["pickup"]}", ITEM_TYPE_TOOL))')
+        grip_seq = seq["grip"]
+        prev = None
+        for i, child_name in enumerate(grip_seq):
+            move = _move_call(child_name, prev)
+            lines.append(f'robot.{move}(get_pose("{child_name}"))')
+            if child_name == "grip" and (i + 1 < len(grip_seq)):
+                lines.append(f'''
+# Attach cone
+from robodk.robolink import ITEM_TYPE_OBJECT
+cone = RDK.Item("{cone_name}", ITEM_TYPE_OBJECT)
+tool = RDK.Item("{tools_config["pickup"]}", ITEM_TYPE_TOOL)
+if cone.Valid() and tool.Valid():
+    cone.setParentStatic(tool)
+    print("Attached: {cone_name}")
+''')
+            prev = child_name
 
-    # 2. MoveJ to home_on_rail (j7 positioning)
-    prog.MoveJ(home_on_rail_target)
+    else:  # add_cone
+        # Grip phase
+        lines.append(f'# Grip phase')
+        lines.append(f'robot.setPoseTool(RDK.Item("{tools_config["pickup"]}", ITEM_TYPE_TOOL))')
+        grip_seq = seq["grip"]
+        prev = None
+        for i, child_name in enumerate(grip_seq):
+            move = _move_call(child_name, prev)
+            lines.append(f'robot.{move}(get_pose("{child_name}"))')
+            if child_name == "grip" and (i + 1 < len(grip_seq)):
+                lines.append(f'''
+# Detach cone
+import json
+from robodk.robolink import ITEM_TYPE_OBJECT
+from robodk.robomath import TxyzRxyz_2_Pose
+cone = RDK.Item("{cone_name}", ITEM_TYPE_OBJECT)
+if cone.Valid():
+    try:
+        with open(r"{to_robodk_path(CONE_POSES_PATH)}", "r") as f:
+            poses = json.load(f)
+        info = poses["{cone_name}"]
+        parent = RDK.Item(info["parent"], ITEM_TYPE_FRAME)
+        if not parent.Valid():
+            parent = RDK.Item(info["parent"])
+        cone.setParentStatic(parent)
+        cone.setPose(TxyzRxyz_2_Pose(info["pose"]))
+        print("Detached: {cone_name}")
+    except Exception as e:
+        print(f"Detach failed: {{e}}")
+''')
+            prev = child_name
 
-    # 3. Grip phase (pickup tool — robot carrying cone)
-    pickup_tool = find_tool(RDK, tools_config["pickup"])
-    prog.setPoseTool(pickup_tool)
-    grip_seq = seq["grip"]
-    prev = None
-    for i, child_name in enumerate(grip_seq):
-        tgt = _get_target(targets, cone_name, child_name)
-        assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        _add_move(prog, tgt, child_name, prev)
-        # Detach cone after reaching grip
-        if child_name == "grip" and (i + 1 < len(grip_seq)):
-            prog.RunInstruction(f"detach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
-        prev = child_name
+        # Suck phase
+        lines.append(f'\n# Suck phase')
+        lines.append(f'robot.setPoseTool(RDK.Item("{tools_config["knotting"]}", ITEM_TYPE_TOOL))')
+        prev = None
+        for child_name in seq["suck"]:
+            move = _move_call(child_name, prev)
+            lines.append(f'robot.{move}(get_pose("{child_name}"))')
+            prev = child_name
 
-    # 4. Suck phase (knotting tool)
-    knotting_tool = find_tool(RDK, tools_config["knotting"])
-    prog.setPoseTool(knotting_tool)
-    prev = None
-    for child_name in seq["suck"]:
-        tgt = _get_target(targets, cone_name, child_name)
-        assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        _add_move(prog, tgt, child_name, prev)
-        prev = child_name
+    # Return home
+    lines.append(f'''
+# Return home
+robot.MoveJ({home_on_rail})
+robot.MoveJ({home_joints})
+print("[DONE] {script_name}")
+''')
 
-    # 5. MoveJ to home on rail
-    prog.MoveJ(home_on_rail_target)
+    with open(script_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
-    # 6. MoveJ to home
-    prog.MoveJ(home_target)
+    return script_path, script_name
 
 
 def create_and_populate_programs(RDK, robot, cones, targets, failures, config):
-    """Create program hierarchy and populate with movement instructions."""
+    """Create Python script programs that execute movements via RoboDK API.
+
+    DHR-style: each program is a Python script that calls robot.MoveJ/MoveL
+    with frame.PoseAbs() directly, after setting OptimAxes and WorldFrame.
+    """
     failed_set = {(c, ch) for c, ch in failures}
-    tools_config = config["tools"]
 
     # Determine which cones have all targets solved
     all_child_names = set()
@@ -656,78 +774,33 @@ def create_and_populate_programs(RDK, robot, cones, targets, failures, config):
     root_folder = get_or_create_folder(RDK, f"machine_{machine_num}_cone_programs")
     root_folder.setVisible(True)
 
-    # Create home targets in root folder
-    home_target = create_home_target(RDK, robot, root_folder, config)
-    home_on_rail_target = create_home_on_rail_target(RDK, robot, root_folder, config)
-
     # Save cone poses for detach scripts
     save_cone_original_poses(RDK, config["cone_frames"])
-
-    # Create helper scripts
-    create_helper_scripts(RDK, config["cone_frames"], config, root_folder)
 
     populated = 0
 
     for cone_name in viable_cones:
         cone_folder = get_or_create_folder(RDK, cone_name, parent=root_folder)
 
-        # ── remove_cone program ──
-        remove_name = f"remove_cone_{cone_name}"
-        remove_prog = RDK.Item(remove_name, ITEM_TYPE_PROGRAM)
-        if remove_prog.Valid() and remove_prog.InstructionCount() > 0:
-            print(f"  [CACHE] {remove_name}")
-        else:
-            if not remove_prog.Valid():
-                remove_prog = RDK.AddProgram(remove_name, robot)
-                remove_prog.setParent(cone_folder)
-            populate_remove_cone(RDK, robot, remove_prog, cone_name, targets,
-                                 config, home_target, home_on_rail_target)
-            print(f"  [OK]   {remove_name}")
-            populated += 1
+        for script_type in ("remove_cone", "add_cone"):
+            prog_name = f"{script_type}_{cone_name}"
+            existing = RDK.Item(prog_name, ITEM_TYPE_PROGRAM_PYTHON)
+            if existing.Valid():
+                print(f"  [CACHE] {prog_name}")
+                continue
 
-        # ── add_cone program ──
-        add_name = f"add_cone_{cone_name}"
-        add_prog = RDK.Item(add_name, ITEM_TYPE_PROGRAM)
-        if add_prog.Valid() and add_prog.InstructionCount() > 0:
-            print(f"  [CACHE] {add_name}")
-        else:
-            if not add_prog.Valid():
-                add_prog = RDK.AddProgram(add_name, robot)
-                add_prog.setParent(cone_folder)
-            populate_add_cone(RDK, robot, add_prog, cone_name, targets,
-                              config, home_target, home_on_rail_target)
-            print(f"  [OK]   {add_name}")
-            populated += 1
+            script_path, script_name = _generate_movement_script(
+                cone_name, config, script_type
+            )
+            prog = RDK.AddFile(to_robodk_path(script_path))
+            if prog.Valid():
+                prog.setParent(cone_folder)
+                print(f"  [OK]   {prog_name}")
+                populated += 1
+            else:
+                print(f"  [FAIL] Could not add {prog_name}")
 
-        # ── remove_add combo program ──
-        combo_name = f"remove_add_{cone_name}"
-        combo_prog = RDK.Item(combo_name, ITEM_TYPE_PROGRAM)
-        if combo_prog.Valid() and combo_prog.InstructionCount() > 0:
-            print(f"  [CACHE] {combo_name}")
-        else:
-            if not combo_prog.Valid():
-                combo_prog = RDK.AddProgram(combo_name, robot)
-                combo_prog.setParent(cone_folder)
-            combo_prog.RunInstruction(remove_name, INSTRUCTION_CALL_PROGRAM)
-            combo_prog.RunInstruction(add_name, INSTRUCTION_CALL_PROGRAM)
-            print(f"  [OK]   {combo_name}")
-            populated += 1
-
-    # ── run_all program ──
-    run_all_name = "run_all"
-    run_all = RDK.Item(run_all_name, ITEM_TYPE_PROGRAM)
-    if run_all.Valid() and run_all.InstructionCount() > 0:
-        print(f"  [CACHE] {run_all_name}")
-    else:
-        if not run_all.Valid():
-            run_all = RDK.AddProgram(run_all_name, robot)
-            run_all.setParent(root_folder)
-        for cone_name in viable_cones:
-            run_all.RunInstruction(f"remove_add_{cone_name}", INSTRUCTION_CALL_PROGRAM)
-        print(f"  [OK]   {run_all_name} ({len(viable_cones)} cones)")
-        populated += 1
-
-    print(f"[programs] {populated} program(s) populated")
+    print(f"[programs] {populated} script(s) created")
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
