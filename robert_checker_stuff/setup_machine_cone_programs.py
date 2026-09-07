@@ -314,16 +314,11 @@ def solve_and_create_targets(RDK, robot, cones, config):
         targets[cone_name] = {}
 
         for child_name, child_frame in children.items():
-            target_name = f"target_{child_name}"
+            target_name = f"target_{cone_name}_{child_name}"
 
-            # Check if target already exists under this child frame
-            existing = None
-            for c in child_frame.Childs():
-                if c.Name() == target_name and c.Type() == ITEM_TYPE_TARGET:
-                    existing = c
-                    break
-
-            if existing is not None:
+            # Check if target already exists
+            existing = RDK.Item(target_name, ITEM_TYPE_TARGET)
+            if existing.Valid():
                 targets[cone_name][child_name] = existing
                 cached += 1
                 continue
@@ -347,11 +342,12 @@ def solve_and_create_targets(RDK, robot, cones, config):
 
             j7_actual = joints[6] if len(joints) >= 7 else 0
 
-            # Create target under the child frame
-            tgt = RDK.AddTarget(target_name, child_frame, robot)
-            from robodk.robomath import eye
-            tgt.setPose(eye(4))  # identity — target is at the child frame's position
-            tgt.setJoints(joints)
+            # Create cartesian target under WorldFrame with world pose
+            # This way MoveL interprets the pose in world coordinates
+            # (matching what we solved IK against)
+            tgt = RDK.AddTarget(target_name, world_frame, robot)
+            tgt.setAsCartesianTarget()
+            tgt.setPose(pose)  # world pose — RoboDK solves IK freely along MoveL paths
             targets[cone_name][child_name] = tgt
             solved += 1
             w_info = f" w={w_used}" if w_used < 100 else ""
@@ -538,6 +534,10 @@ def populate_remove_cone(RDK, robot, prog, cone_name, targets, config,
     seq = config["remove_cone_sequence"]
     tools_config = config["tools"]
 
+    # Set reference frame to world (targets have world-space poses)
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    prog.setPoseFrame(world_frame)
+
     # 1. MoveJ to home
     prog.MoveJ(home_target)
 
@@ -580,6 +580,10 @@ def populate_add_cone(RDK, robot, prog, cone_name, targets, config,
     """Populate an add_cone program with movement instructions."""
     seq = config["add_cone_sequence"]
     tools_config = config["tools"]
+
+    # Set reference frame to world (targets have world-space poses)
+    world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    prog.setPoseFrame(world_frame)
 
     # 1. MoveJ to home
     prog.MoveJ(home_target)
