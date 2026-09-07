@@ -222,12 +222,19 @@ def to_robodk_path(path):
 
 def _find_frame_recursive(parent, name):
     """Search recursively through children for a frame with the given name."""
-    for child in parent.Childs():
-        if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
-            return child
-        found = _find_frame_recursive(child, name)
-        if found is not None:
-            return found
+    try:
+        children = parent.Childs()
+    except Exception:
+        return None
+    for child in children:
+        try:
+            if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
+                return child
+            found = _find_frame_recursive(child, name)
+            if found is not None:
+                return found
+        except Exception:
+            continue
     return None
 
 
@@ -342,7 +349,8 @@ def solve_and_create_targets(RDK, robot, cones, config):
 
             # Create target under the child frame
             tgt = RDK.AddTarget(target_name, child_frame, robot)
-            tgt.setPose(child_frame.Pose())  # relative to parent frame
+            from robodk.robomath import eye
+            tgt.setPose(eye(4))  # identity — target is at the child frame's position
             tgt.setJoints(joints)
             targets[cone_name][child_name] = tgt
             solved += 1
@@ -506,6 +514,24 @@ def _get_target(targets, cone_name, child_name):
     return targets.get(cone_name, {}).get(child_name)
 
 
+def _is_approach(child_name):
+    """Return True if this is an approach frame (MoveJ appropriate)."""
+    return "approach" in child_name.lower()
+
+
+def _add_move(prog, tgt, child_name, prev_child):
+    """Add MoveJ or MoveL based on movement context.
+
+    MoveJ when: moving TO an approach and previous was NOT an action target
+                (i.e. first approach in a phase, or approach-to-approach).
+    MoveL when: moving from action to approach (retract), or any precise move.
+    """
+    if _is_approach(child_name) and (prev_child is None or _is_approach(prev_child)):
+        prog.MoveJ(tgt)
+    else:
+        prog.MoveL(tgt)
+
+
 def populate_remove_cone(RDK, robot, prog, cone_name, targets, config,
                          home_target, home_on_rail_target):
     """Populate a remove_cone program with movement instructions."""
@@ -521,22 +547,26 @@ def populate_remove_cone(RDK, robot, prog, cone_name, targets, config,
     # 3. Cut phase (cutting tool)
     cutting_tool = find_tool(RDK, tools_config["cutting"])
     prog.setPoseTool(cutting_tool)
+    prev = None
     for child_name in seq["cut"]:
         tgt = _get_target(targets, cone_name, child_name)
         assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        prog.MoveL(tgt)
+        _add_move(prog, tgt, child_name, prev)
+        prev = child_name
 
     # 4. Grip phase (pickup tool)
     pickup_tool = find_tool(RDK, tools_config["pickup"])
     prog.setPoseTool(pickup_tool)
     grip_seq = seq["grip"]
+    prev = None
     for i, child_name in enumerate(grip_seq):
         tgt = _get_target(targets, cone_name, child_name)
         assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        prog.MoveL(tgt)
-        # Attach cone after reaching grip (3rd in sequence: index 2)
-        if i == 2 and child_name == "grip":
+        _add_move(prog, tgt, child_name, prev)
+        # Attach cone after reaching grip
+        if child_name == "grip" and (i + 1 < len(grip_seq)):
             prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
+        prev = child_name
 
     # 5. MoveJ to home on rail
     prog.MoveJ(home_on_rail_target)
@@ -561,21 +591,25 @@ def populate_add_cone(RDK, robot, prog, cone_name, targets, config,
     pickup_tool = find_tool(RDK, tools_config["pickup"])
     prog.setPoseTool(pickup_tool)
     grip_seq = seq["grip"]
+    prev = None
     for i, child_name in enumerate(grip_seq):
         tgt = _get_target(targets, cone_name, child_name)
         assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        prog.MoveL(tgt)
-        # Detach cone after reaching grip (3rd in sequence: index 2)
-        if i == 2 and child_name == "grip":
+        _add_move(prog, tgt, child_name, prev)
+        # Detach cone after reaching grip
+        if child_name == "grip" and (i + 1 < len(grip_seq)):
             prog.RunInstruction(f"detach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
+        prev = child_name
 
     # 4. Suck phase (knotting tool)
     knotting_tool = find_tool(RDK, tools_config["knotting"])
     prog.setPoseTool(knotting_tool)
+    prev = None
     for child_name in seq["suck"]:
         tgt = _get_target(targets, cone_name, child_name)
         assert tgt is not None, f"Missing target for {cone_name}/{child_name}"
-        prog.MoveL(tgt)
+        _add_move(prog, tgt, child_name, prev)
+        prev = child_name
 
     # 5. MoveJ to home on rail
     prog.MoveJ(home_on_rail_target)
@@ -614,7 +648,8 @@ def create_and_populate_programs(RDK, robot, cones, targets, failures, config):
         return
 
     # Create folder hierarchy
-    root_folder = get_or_create_folder(RDK, "machine_cone_programs")
+    machine_num = config["machine_number"]
+    root_folder = get_or_create_folder(RDK, f"machine_{machine_num}_cone_programs")
     root_folder.setVisible(True)
 
     # Create home targets in root folder

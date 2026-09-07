@@ -1,0 +1,30 @@
+{
+  "machine_number": 4,
+  "j7_value": 1700,
+  "cone_frames": [
+    "cone_front_closest_to_robot",
+    "cone_front_furthest",
+    "cone_back_closest",
+    "cone_back_furthest"
+  ],
+  "top_plate_frame": "top_plate_frame",
+  "tools": {
+    "cutting": "cutting",
+    "pickup": "pickup",
+    "knotting": "knotting"
+  },
+  "home_joints": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+  "child_frames": {
+    "cut": ["Cut_approach", "Cut_Catch", "Cut"],
+    "grip": ["grip_approach", "grip"],
+    "suck": ["suck_approach", "suck"]
+  },
+  "remove_cone_sequence": {
+    "cut": ["Cut_approach", "Cut_Catch", "Cut", "Cut_approach"],
+    "grip": ["grip_approach", "grip", "grip_approach"]
+  },
+  "add_cone_sequence": {
+    "grip": ["grip_approach", "grip", "grip_approach"],
+    "suck": ["suck_approach", "suck", "suck_approach"]
+  }
+}
