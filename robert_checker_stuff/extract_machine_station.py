@@ -25,7 +25,7 @@ from robodk.robolink import Robolink, ITEM_TYPE_STATION, ITEM_TYPE_ROBOT
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "machine_extract_config.json")
-DEFAULT_DEST = os.path.join(REPO_ROOT, "robo_dk_saves", "rdk_machine_reach_testing.rdk")
+DEFAULT_DEST = os.path.join(REPO_ROOT, "robo_dk_saves", "machine_reachability_v2.rdk")
 
 
 def connect(ip=None):

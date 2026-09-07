@@ -11,6 +11,15 @@
     {"name": "Machine3BackBase"},
     {"name": "Machine5Base", "exclude_containing": "oil"},
     {"name": "Machine5GarmentTrayBase"},
-    {"name": "Machine5BackBase"}
+    {"name": "Machine5BackBase"},
+    {"name": "Machine2Base", "exclude_containing": "oil"},
+    {"name": "Machine2GarmentTrayBase"},
+    {"name": "Machine2BackBase"},
+    {"name": "Machine4Base", "exclude_containing": "oil"},
+    {"name": "Machine4GarmentTrayBase"},
+    {"name": "Machine4BackBase"},
+    {"name": "Machine6Base", "exclude_containing": "oil"},
+    {"name": "Machine6GarmentTrayBase"},
+    {"name": "Machine6BackBase"}
   ]
 }
