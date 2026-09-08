@@ -196,13 +196,12 @@ robot = RDK.Item("Fanuc R2000iC 125L", ITEM_TYPE_ROBOT)
 if not robot.Valid():
     robot = RDK.Item("Fanuc R-2000iC/125L", ITEM_TYPE_ROBOT)
 
-# Set world frame
-world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
-if not world_frame.Valid():
-    station = RDK.ActiveStation()
-    world_frame = RDK.AddFrame("WorldFrame", station)
-    world_frame.setPose(eye(4))
-robot.setPoseFrame(world_frame)
+# Set pose frame to robot's parent (DHR method)
+# robot.Parent() = robot base frame, moves with the rail
+robot.setPoseFrame(robot.Parent())
+
+# Rail base for PoseWrt calculations
+rail_base = robot.Parent().Parent().Parent()
 
 def find_child(parent, name):
     try:
@@ -243,10 +242,10 @@ def set_optim(j7_val):
         robot.setJoints(curr)
 
 def get_pose(child_name):
-    """Get PoseAbs of a child frame under this cone."""
+    """Get pose of a child frame relative to rail base (DHR method)."""
     f = find_child(cone_frame, child_name)
     assert f is not None, f"Frame '{{child_name}}' not found under '{cone_name}'"
-    return f.PoseAbs()
+    return f.PoseWrt(rail_base)
 
 print("[START] {script_name}")
 
