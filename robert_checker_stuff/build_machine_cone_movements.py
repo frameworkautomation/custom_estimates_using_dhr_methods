@@ -114,20 +114,21 @@ def find_optim_frames(RDK, config):
     assert optim_folder is not None, \
         f"'optim_frames' folder not found under Machine{machine_num}Base"
 
-    closest_name = f"closest_m{machine_num}"
-    furthest_name = f"furthest_m{machine_num}"
+    closest = _find_frame_recursive(optim_folder, "closest")
+    furthest = _find_frame_recursive(optim_folder, "furthest")
 
-    closest = _find_frame_recursive(optim_folder, closest_name)
-    furthest = _find_frame_recursive(optim_folder, furthest_name)
+    assert closest is not None, "'closest' not found under optim_frames"
+    assert furthest is not None, "'furthest' not found under optim_frames"
 
-    assert closest is not None, f"'{closest_name}' not found under optim_frames"
-    assert furthest is not None, f"'{furthest_name}' not found under optim_frames"
+    # Derive j7 from PoseWrt rail base (DHR method)
+    robot = find_robot(RDK)
+    rail_base = robot.Parent().Parent().Parent()
 
-    closest_j7 = Pose_2_TxyzRxyz(closest.PoseAbs())[0]
-    furthest_j7 = Pose_2_TxyzRxyz(furthest.PoseAbs())[0]
+    closest_j7 = Pose_2_TxyzRxyz(closest.PoseWrt(rail_base))[0]
+    furthest_j7 = Pose_2_TxyzRxyz(furthest.PoseWrt(rail_base))[0]
 
-    print(f"[OPTIM] {closest_name}: j7={closest_j7:.0f}")
-    print(f"[OPTIM] {furthest_name}: j7={furthest_j7:.0f}")
+    print(f"[OPTIM] closest: j7={closest_j7:.0f} (world X={Pose_2_TxyzRxyz(closest.PoseAbs())[0]:.0f})")
+    print(f"[OPTIM] furthest: j7={furthest_j7:.0f} (world X={Pose_2_TxyzRxyz(furthest.PoseAbs())[0]:.0f})")
 
     return {
         "closest": (closest, closest_j7),
