@@ -18,16 +18,7 @@ if not world_frame.Valid():
     world_frame.setPose(eye(4))
 robot.setPoseFrame(world_frame)
 
-# OptimAxes — soft j7 constraint
-optim = {
-    "AbsOn_7": 1, "AbsJnt_7": 1700, "AbsW_7": 20,
-    "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
-    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
-    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
-    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
-    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
-}
-robot.setParam("OptimAxes", optim)
+from robodk.robomath import Pose_2_TxyzRxyz
 
 def find_child(parent, name):
     """Find a frame by name recursively under parent."""
@@ -46,27 +37,61 @@ def find_child(parent, name):
     return None
 
 # Find the cone frame for this script
-cone_frame = find_child(RDK.Item("Machine3Base", ITEM_TYPE_FRAME), "cone_back_closest")
+cone_frame = find_child(RDK.Item("Machine4Base", ITEM_TYPE_FRAME), "cone_back_closest")
 assert cone_frame is not None, "Cone frame 'cone_back_closest' not found"
 
-def get_pose(child_name):
-    """Get PoseAbs of a child frame under this cone."""
+# Rail joint limits
+joint_limits = robot.JointLimits()
+try:
+    j7_min = joint_limits[0].list()[6] + 10
+    j7_max = joint_limits[1].list()[6] - 10
+except:
+    j7_min = 0
+    j7_max = 9000
+
+def set_optim_for_pose(pose):
+    """Set OptimAxes with j7 locked to the target's X position (rail axis).
+    DHR pattern: extract j7 from frame position along rail axis."""
+    coords = Pose_2_TxyzRxyz(pose)
+    j7_target = max(j7_min, min(coords[0], j7_max))  # X axis = rail
+    optim = {
+        "AbsOn_7": 1, "AbsJnt_7": j7_target, "AbsW_7": 100,
+        "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
+        "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+        "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+        "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+        "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
+    }
+    robot.setParam("OptimAxes", optim)
+    # Nudge j7 away from 0.0 (RoboDK solver bug)
+    curr = robot.Joints().list()
+    if len(curr) >= 7 and curr[6] == 0.0:
+        curr[6] = 0.001
+        robot.setJoints(curr)
+
+def get_pose(child_name, set_optim=True):
+    """Get PoseAbs of a child frame under this cone.
+    set_optim=True: set OptimAxes for MoveJ (locks j7 to frame X position).
+    set_optim=False: skip OptimAxes for MoveL (use current robot config)."""
     f = find_child(cone_frame, child_name)
     assert f is not None, f"Frame '{child_name}' not found under 'cone_back_closest'"
-    return f.PoseAbs()
+    pose = f.PoseAbs()
+    if set_optim:
+        set_optim_for_pose(pose)
+    return pose
 
-print("[START] add_cone_cone_back_closest")
+print("[START] add_cone_m4_cone_back_closest")
 
 # Home
 robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 # Move to rail position
-robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1700])
+robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3450])
 
 # Grip phase
 robot.setPoseTool(RDK.Item("pickup", ITEM_TYPE_TOOL))
-robot.MoveJ(get_pose("grip_approach"))
-robot.MoveL(get_pose("grip"))
+robot.MoveJ(get_pose("grip_approach", set_optim=True))
+robot.MoveL(get_pose("grip", set_optim=False))
 
 # Detach cone
 import json
@@ -87,15 +112,15 @@ if cone.Valid():
     except Exception as e:
         print(f"Detach failed: {e}")
 
-robot.MoveL(get_pose("grip_approach"))
+robot.MoveL(get_pose("grip_approach", set_optim=False))
 
 # Suck phase
 robot.setPoseTool(RDK.Item("knotting", ITEM_TYPE_TOOL))
-robot.MoveJ(get_pose("suck_approach"))
-robot.MoveL(get_pose("suck"))
-robot.MoveL(get_pose("suck_approach"))
+robot.MoveJ(get_pose("suck_approach", set_optim=True))
+robot.MoveL(get_pose("suck", set_optim=False))
+robot.MoveL(get_pose("suck_approach", set_optim=False))
 
 # Return home
-robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1700])
+robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3450])
 robot.MoveJ([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-print("[DONE] add_cone_cone_back_closest")
+print("[DONE] add_cone_m4_cone_back_closest")

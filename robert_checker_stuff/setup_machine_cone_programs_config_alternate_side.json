@@ -1,6 +1,6 @@
 {
   "machine_number": 4,
-  "j7_value": 1700,
+  "j7_value": 3450,
   "cone_frames": [
     "cone_front_closest_to_robot",
     "cone_front_furthest",
