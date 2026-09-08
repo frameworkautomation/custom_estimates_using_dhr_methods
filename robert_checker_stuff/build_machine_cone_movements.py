@@ -375,24 +375,11 @@ def get_or_create_folder(RDK, name, parent=None):
     return folder
 
 
-def main():
-    ap = argparse.ArgumentParser(
-        description="Build movement scripts using optimization frames"
-    )
-    ap.add_argument("--robodk-ip", default=None)
-    ap.add_argument("--config", default=DEFAULT_CONFIG)
-    args = ap.parse_args()
-
-    assert os.path.exists(args.config), f"Config not found: {args.config}"
-    with open(args.config, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
+def build_for_machine(RDK, robot, config):
+    """Build movement scripts for one machine. Returns list of run_all names."""
     machine_num = config["machine_number"]
+    print(f"\n{'='*60}")
     print(f"[CONFIG] Machine {machine_num}, j7={config['j7_value']}")
-
-    RDK = connect(args.robodk_ip)
-    robot = find_robot(RDK)
-    print(f"[INFO] Robot: {robot.Name()}")
 
     # Find optimization frames
     print("\n── Find optimization frames ──")
@@ -426,7 +413,7 @@ def main():
                 print(f"  [OK]   {prog_name} (optim={optim_key}, j7={optim_j7:.0f})")
                 populated += 1
 
-    # run_all program
+    # run_all_m{N} program
     run_all_name = f"run_all_m{machine_num}"
     existing = RDK.Item(run_all_name, ITEM_TYPE_PROGRAM)
     if existing.Valid() and existing.InstructionCount() > 0:
@@ -434,6 +421,7 @@ def main():
     else:
         if not existing.Valid():
             run_all = RDK.AddProgram(run_all_name, robot)
+            run_all.setParent(root_folder)
         else:
             run_all = existing
         for cone_name in config["cone_frames"]:
@@ -444,7 +432,28 @@ def main():
         print(f"  [OK]   {run_all_name}")
         populated += 1
 
-    print(f"\n[DONE] {populated} scripts created")
+    print(f"[DONE] Machine {machine_num}: {populated} scripts created")
+    return run_all_name
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Build movement scripts for one machine using optimization frames"
+    )
+    ap.add_argument("--robodk-ip", default=None)
+    ap.add_argument("--config", default=DEFAULT_CONFIG)
+    args = ap.parse_args()
+
+    assert os.path.exists(args.config), f"Config not found: {args.config}"
+    with open(args.config, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    RDK = connect(args.robodk_ip)
+    robot = find_robot(RDK)
+    print(f"[INFO] Robot: {robot.Name()}")
+
+    build_for_machine(RDK, robot, config)
+    print("\n[DONE]")
 
 
 if __name__ == "__main__":
