@@ -1,5 +1,11 @@
 # Project Context for Claude
 
+## ── PROJECT TODO LIST ────────────────────────────────────────────────────────
+
+**See `TODO.md` in the repo root for the full task list with branch assignments.**
+
+Current branch: `back_box_reachability` — tasks 3-6.
+
 ## ── BRANCH: positioning_robert_end_effector_etc ──────────────────────────────
 
 **Goal:** Evaluate end-effector mounting and reachability for Robert's tools in simulation.
