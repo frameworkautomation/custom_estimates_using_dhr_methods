@@ -20,7 +20,7 @@
 
 ## Branch: `machine_reachability`
 
-8. **End effector access on 8-gauge machine** — check reachability for knotter, cone picking, and cutting on 8-gauge machine
+8. ~~**End effector access on 8-gauge machine** — check reachability for knotter, cone picking, and cutting on 8-gauge machine~~ DONE
 
 ## Branch: `dhr_framework_cone_movement`
 
@@ -28,10 +28,16 @@
    - All AI-generated code must be clearly marked as AI-written (with or without human review). This code runs on a physical robot — everything gets human review.
    - Cone positions and frames from `place_cones.py` need to be reflected in DHR's station and YAML config longer term
    - Mounting plate, bin, cone positions in bin, and cone array positions need to be added to DHR's `robodk.yaml` build config
+   - **All cone frames and child frames (grip, Cut, suck, etc.) must have globally unique names** — currently duplicated per cone per machine. `RDK.Item(name)` grabs the first match globally. Need a renaming script to prefix with machine + cone name (e.g. `m3_cone_front_closest_grip`). Applies to both the source station and extracted stations.
 
 ## Branch: `plc_end_effector`
 
 10. **Understand PLC interaction with end effector** — how the PLC communicates with and controls the end effector, and how to program it
+    - Pogo pin / tool changer IO runs at **24V DC** (confirmed with Atenas)
+
+## Known Issues
+
+- **RoboDK program MoveL vs Python API MoveL** — RoboDK program MoveL instructions (target items) pre-compute the entire linear path with a fixed joint configuration and fail if any point along the path is unreachable in that config. Python API `robot.MoveL(pose)` solves IK step-by-step from current joints with `OptimAxes` active, so j7 can flex along the path. Use Python script programs (DHR's approach) instead of RoboDK program instructions for movement sequences involving MoveL with external axes.
 
 ## Low Priority
 
