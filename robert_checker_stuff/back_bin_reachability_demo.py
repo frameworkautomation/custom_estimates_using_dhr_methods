@@ -38,7 +38,8 @@ from robodk.robomath import Pose_2_TxyzRxyz
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
 TOOL_CHANGER_NAME = "ToolChanger"
-GRIPPER_NAME = "GrabbingGripper"
+GRIPPER_TOOL_NAME = "GrabbingGripper"
+GRIPPER_VISUAL_NAME = "GrabbingGripperVisual"
 GRAB_OBJECT = "cone_bin_buffer"
 
 # Gripper slot frames (DHR pattern: approach MoveJ, slot MoveL)
@@ -144,10 +145,13 @@ def main():
     assert tool_changer.Valid(), f"Tool '{TOOL_CHANGER_NAME}' not found"
     print(f"  ToolChanger: {tool_changer.Name()}")
 
-    gripper = RDK.Item(GRIPPER_NAME, ITEM_TYPE_TOOL)
-    assert gripper.Valid(), f"Tool '{GRIPPER_NAME}' not found"
-    gripper_home_parent = gripper.Parent().Name()
-    print(f"  Gripper: {gripper.Name()} (parent: {gripper_home_parent})")
+    gripper_tool = RDK.Item(GRIPPER_TOOL_NAME, ITEM_TYPE_TOOL)
+    gripper_visual = RDK.Item(GRIPPER_VISUAL_NAME, ITEM_TYPE_OBJECT)
+    if gripper_tool.Valid():
+        print(f"  Gripper tool: {gripper_tool.Name()}")
+    assert gripper_visual.Valid(), f"Object '{GRIPPER_VISUAL_NAME}' not found"
+    gripper_home_parent = gripper_visual.Parent().Name()
+    print(f"  Gripper visual: {gripper_visual.Name()} (parent: {gripper_home_parent})")
 
     # Gripper slot frames
     gripper_slot = RDK.Item(GRIPPER_SLOT_FRAME, ITEM_TYPE_FRAME)
@@ -224,24 +228,24 @@ def main():
     print("\n[PROGRAMS] Creating helper sub-programs...")
 
     helper_scripts = {
-        "attach_gripper": f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL
+        "attach_gripper": f'''from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_TOOL
 RDK = Robolink()
-gripper = RDK.Item("{GRIPPER_NAME}", ITEM_TYPE_TOOL)
+visual = RDK.Item("{GRIPPER_VISUAL_NAME}", ITEM_TYPE_OBJECT)
 tool_changer = RDK.Item("{TOOL_CHANGER_NAME}", ITEM_TYPE_TOOL)
-gripper.setParentStatic(tool_changer)
-print("Attached {GRIPPER_NAME} to {TOOL_CHANGER_NAME}")
+visual.setParentStatic(tool_changer)
+print("Attached {GRIPPER_VISUAL_NAME} to {TOOL_CHANGER_NAME}")
 ''',
-        "detach_gripper": f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME
+        "detach_gripper": f'''from robodk.robolink import Robolink, ITEM_TYPE_OBJECT
 RDK = Robolink()
-gripper = RDK.Item("{GRIPPER_NAME}", ITEM_TYPE_TOOL)
+visual = RDK.Item("{GRIPPER_VISUAL_NAME}", ITEM_TYPE_OBJECT)
 slot = RDK.Item("{gripper_home_parent}")
-gripper.setParentStatic(slot)
-print("Detached {GRIPPER_NAME} to {gripper_home_parent}")
+visual.setParentStatic(slot)
+print("Detached {GRIPPER_VISUAL_NAME} to {gripper_home_parent}")
 ''',
         "grab_cone_bin_buffer": f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_OBJECT
 RDK = Robolink()
 obj = RDK.Item("{GRAB_OBJECT}", ITEM_TYPE_OBJECT)
-gripper = RDK.Item("{GRIPPER_NAME}", ITEM_TYPE_TOOL)
+gripper = RDK.Item("{GRIPPER_TOOL_NAME}", ITEM_TYPE_TOOL)
 obj.setParentStatic(gripper)
 print("Grabbed {GRAB_OBJECT}")
 ''',
@@ -284,7 +288,7 @@ print("Released {GRAB_OBJECT} to {grab_obj_home_parent}")
 
     # ── Phase 2: Go to bin, grab object ───────────────────────────────
     prog.RunInstruction("# Phase 2: Approach bin and grab", 0)
-    prog.setPoseTool(gripper)
+    prog.setPoseTool(gripper_tool if gripper_tool.Valid() else tool_changer)
     prog.MoveJ(home_target)
     print("  MoveJ -> home (GrabbingGripper)")
 
