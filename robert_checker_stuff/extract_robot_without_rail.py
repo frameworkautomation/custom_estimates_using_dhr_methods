@@ -253,15 +253,12 @@ def main():
               f"x={st_txyz[0]:.1f} y={st_txyz[1]:.1f} z={st_txyz[2]:.1f}")
         subtree_data.append((st_name, st_pose))
 
-    # ── Process robot first (must be done before creating new station) ───
-    # Robot needs special handling: read base pose, Copy, then after new
-    # station is created, Paste and reposition.
-    robot_data = None
-    for item_cfg in all_items:
-        if item_cfg["type"] != "robot":
-            continue
-        name = item_cfg["name"]
-        robot_src = find_robot_in_station(RDK, name)
+    # ── Set j7=0 on the source robot before subtree copy ─────────────────
+    # The robot comes via the subtree copy (e.g. Fanuc R2000iC 125LBase),
+    # NOT as a separate Copy/Paste. We just need to set j7=0 so the subtree
+    # copies with the robot at the correct rail position.
+    robot_src = find_robot_in_station(RDK, ROBOT_NAMES[0])
+    if robot_src:
         src_joints = robot_src.Joints()
         try:
             jlist = src_joints.list()
@@ -278,52 +275,12 @@ def main():
         print(f"\n[READ] Robot '{robot_src.Name()}' base at j7=0: "
               f"x={base_txyz[0]:.1f} y={base_txyz[1]:.1f} z={base_txyz[2]:.1f}")
 
-        robot_src.Copy()
-        robot_data = {
-            "name": name,
-            "base_pose": robot_base_world,
-            "base_txyz": base_txyz,
-        }
-        break  # only one robot
-
     # Keep a reference to the source station before creating the new one
     src_station_ref = src_station
 
     # ── Create destination station ───────────────────────────────────────
     print(f"\n[CREATE] Creating new station...")
     dest_station_ref = RDK.AddStation("for_robert_relative_to_base")
-
-    # ── Paste robot ──────────────────────────────────────────────────────
-    if robot_data:
-        base_pose = robot_data["base_pose"]
-        base_txyz = robot_data["base_txyz"]
-
-        robot_dst = RDK.Paste()
-        assert robot_dst.Valid(), "Paste() failed — no robot in clipboard"
-        assert robot_dst.Type() == ITEM_TYPE_ROBOT, \
-            f"Pasted item is not a robot (type={robot_dst.Type()})"
-
-        dst_joints = robot_dst.Joints()
-        try:
-            dst_jlist = dst_joints.list()
-        except AttributeError:
-            dst_jlist = list(dst_joints)
-        assert len(dst_jlist) == 6, \
-            f"Expected 6-DOF robot but got {len(dst_jlist)} joints"
-
-        station_dst = RDK.ActiveStation()
-        base_frame = RDK.AddFrame("RobotBase", station_dst)
-        base_frame.setPose(base_pose)
-        robot_dst.setParent(base_frame)
-        robot_dst.setJoints([0.0] * 6)
-
-        actual_base = robot_dst.PoseAbs()
-        actual_txyz = Pose_2_TxyzRxyz(actual_base)
-        pos_err = math.sqrt(
-            sum((actual_txyz[i] - base_txyz[i])**2 for i in range(3))
-        )
-        assert pos_err < 1.0, f"Robot base position mismatch: {pos_err:.2f} mm"
-        print(f"[ROBOT] 6-DOF robot placed (error: {pos_err:.2f} mm)")
 
     # ── Copy/Paste subtrees ─────────────────────────────────────────────
     for st_name, st_pose in subtree_data:
@@ -344,6 +301,21 @@ def main():
 
         children = pasted_subtree.Childs()
         print(f"[SUBTREE] Pasted '{pasted_subtree.Name()}' with {len(children)} direct child(ren)")
+
+    # ── Verify robot came via subtree ─────────────────────────────────────
+    RDK.setActiveStation(dest_station_ref)
+    robots_in_dest = RDK.ItemList(ITEM_TYPE_ROBOT)
+    assert len(robots_in_dest) >= 1, \
+        "No robot found in destination after subtree paste — check that the robot's parent frame is in copy_subtrees_from"
+    robot_dst = robots_in_dest[0]
+    try:
+        dst_jlist = robot_dst.Joints().list()
+    except AttributeError:
+        dst_jlist = list(robot_dst.Joints())
+    assert len(dst_jlist) == 6, \
+        f"Expected 6-DOF robot but got {len(dst_jlist)} joints — rail mechanism may have been included in subtree"
+    robot_dst.setJoints([0.0] * 6)
+    print(f"[ROBOT] Found 6-DOF robot '{robot_dst.Name()}' in subtree (parent: '{robot_dst.Parent().Name()}')")
 
     # ── Copy/Paste remaining items one at a time ─────────────────────────
     # We need to switch back to the source station to Copy each item,
@@ -418,7 +390,7 @@ def main():
     print(f"\n[VERIFY] Querying destination station...")
     robots = RDK.ItemList(ITEM_TYPE_ROBOT)
     print(f"  Robots: {[r.Name() for r in robots]}")
-    assert len(robots) >= 1, "No robots in destination station!"
+    assert len(robots) == 1, f"Expected exactly 1 robot but found {len(robots)}: {[r.Name() for r in robots]}"
 
     frames = RDK.ItemList(ITEM_TYPE_FRAME)
     print(f"  Frames: {[f.Name() for f in frames]}")

@@ -4,12 +4,17 @@ Back bin reachability demo — build a RoboDK program that proves the robot
 and return home.
 
 Creates:
-  - Targets from each approach/retract frame
+  - Targets from each approach/retract frame (bin + gripper slot)
   - A home (transport) joint target
   - A main program "back_bin_demo" with MoveJ/MoveL instructions
-  - Helper sub-programs "grab_cone_bin_buffer" and "release_cone_bin_buffer"
+  - Helper sub-programs for attach/detach of gripper and bin object
 
-The program can be stepped through in RoboDK's GUI.
+The full sequence (matching DHR's change_tool + move_task pattern):
+  1. Home -> GrabbingGripperSlot (pick up gripper visual)
+  2. Home -> Cone bin approach/grab/retract with object
+  3. Home -> Cone bin approach/place object/retract (return bin)
+  4. Home -> GrabbingGripperSlot (drop off gripper visual)
+  5. Home
 
 Usage:
     python robert_checker_stuff/back_bin_reachability_demo.py --robodk-ip 172.23.208.1 --use-current
@@ -35,16 +40,19 @@ TOOL_CHANGER_NAME = "ToolChanger"
 GRIPPER_NAME = "GrabbingGripper"
 GRAB_OBJECT = "cone_bin_buffer"
 
-# Movement sequence: (frame_name, move_type, label)
-# MoveJ for coarse approach/return, MoveL for precise moves near the bin
-APPROACH_SEQUENCE = [
-    ("ApproachConeBinBuffer",      "J", "approach_coarse"),
-    ("ApproachConeBinBufferBelow", "L", "approach_below"),
-    ("Cone_Bin_Frame",             "L", "at_bin"),
+# Gripper slot frames (DHR pattern: approach MoveJ, slot MoveL)
+GRIPPER_SLOT_FRAME = "GrabbingGripperSlot"
+GRIPPER_APPROACH_FRAME = "ApproachGrabbingGripperSlot"
+
+# Bin movement sequence: (frame_name, move_type, label)
+BIN_APPROACH_SEQUENCE = [
+    ("ApproachConeBinBuffer",      "J", "bin_approach_coarse"),
+    ("ApproachConeBinBufferBelow", "L", "bin_approach_below"),
+    ("Cone_Bin_Frame",             "L", "bin_at_grab"),
 ]
-RETRACT_SEQUENCE = [
-    ("ApproachConeBinBufferUp",    "L", "retract_up"),
-    ("ApproachConeBinBuffer",      "L", "retract_clear"),
+BIN_RETRACT_SEQUENCE = [
+    ("ApproachConeBinBufferUp",    "L", "bin_retract_up"),
+    ("ApproachConeBinBuffer",      "L", "bin_retract_clear"),
 ]
 
 # DHR's transport pose (6-DOF)
@@ -100,8 +108,8 @@ def main():
     assert robot is not None, f"Robot not found. Tried: {ROBOT_NAMES}"
     print(f"  Robot: {robot.Name()}")
 
-    robot_base = RDK.Item("RobotBase", ITEM_TYPE_FRAME)
-    assert robot_base.Valid(), "RobotBase frame not found"
+    robot_base = robot.Parent()
+    assert robot_base.Valid(), "Robot has no valid parent frame"
     print(f"  Base:  {robot_base.Name()}")
 
     tool_changer = RDK.Item(TOOL_CHANGER_NAME, ITEM_TYPE_TOOL)
@@ -112,15 +120,23 @@ def main():
     assert gripper.Valid(), f"Tool '{GRIPPER_NAME}' not found"
     print(f"  Gripper: {gripper.Name()}")
 
-    # Collect all unique frame names from approach + retract
-    all_steps = APPROACH_SEQUENCE + RETRACT_SEQUENCE
-    all_frame_names = set(s[0] for s in all_steps)
+    # Gripper slot frames
+    gripper_slot = RDK.Item(GRIPPER_SLOT_FRAME, ITEM_TYPE_FRAME)
+    assert gripper_slot.Valid(), f"Frame '{GRIPPER_SLOT_FRAME}' not found in station"
+    print(f"  Frame: {GRIPPER_SLOT_FRAME} -> {describe_pose(gripper_slot.PoseWrt(robot_base))}")
+
+    gripper_approach = RDK.Item(GRIPPER_APPROACH_FRAME, ITEM_TYPE_FRAME)
+    assert gripper_approach.Valid(), f"Frame '{GRIPPER_APPROACH_FRAME}' not found in station"
+    print(f"  Frame: {GRIPPER_APPROACH_FRAME} -> {describe_pose(gripper_approach.PoseWrt(robot_base))}")
+
+    # Bin frames
+    all_bin_steps = BIN_APPROACH_SEQUENCE + BIN_RETRACT_SEQUENCE
+    all_bin_frame_names = set(s[0] for s in all_bin_steps)
     frames = {}
-    for fname in all_frame_names:
+    for fname in all_bin_frame_names:
         f = RDK.Item(fname, ITEM_TYPE_FRAME)
         assert f.Valid(), f"Frame '{fname}' not found in station"
-        pose = f.PoseWrt(robot_base)
-        print(f"  Frame: {fname} -> {describe_pose(pose)}")
+        print(f"  Frame: {fname} -> {describe_pose(f.PoseWrt(robot_base))}")
         frames[fname] = f
 
     grab_obj = RDK.Item(GRAB_OBJECT, ITEM_TYPE_OBJECT)
@@ -129,28 +145,18 @@ def main():
 
     print("\n[OK] All items found.")
 
-    # ── Attach GrabbingGripper to ToolChanger ─────────────────────────
-    print("\n[SETUP] Attaching GrabbingGripper to ToolChanger...")
-    gripper.setParent(tool_changer)
-    robot.setTool(gripper)
-    print(f"  GrabbingGripper parent: {gripper.Parent().Name()}")
-
     # ── Clean up old program/targets if re-running ────────────────────
-    old_prog = RDK.Item(PROGRAM_NAME, ITEM_TYPE_PROGRAM)
-    if old_prog.Valid():
-        old_prog.Delete()
-        print(f"[CLEAN] Deleted old program '{PROGRAM_NAME}'")
+    for prog_name in [PROGRAM_NAME, "attach_gripper", "detach_gripper",
+                      "grab_cone_bin_buffer", "release_cone_bin_buffer"]:
+        old = RDK.Item(prog_name, ITEM_TYPE_PROGRAM)
+        if old.Valid():
+            old.Delete()
+            print(f"[CLEAN] Deleted old program '{prog_name}'")
 
     old_folder = RDK.Item("bin_demo_targets", ITEM_TYPE_FRAME)
     if old_folder.Valid():
         old_folder.Delete()
         print("[CLEAN] Deleted old bin_demo_targets folder")
-
-    for helper_name in ["grab_cone_bin_buffer", "release_cone_bin_buffer"]:
-        old = RDK.Item(helper_name, ITEM_TYPE_PROGRAM)
-        if old.Valid():
-            old.Delete()
-            print(f"[CLEAN] Deleted old program '{helper_name}'")
 
     # ── Create targets ────────────────────────────────────────────────
     print("\n[TARGETS] Creating targets...")
@@ -163,73 +169,149 @@ def main():
     home_target.setAsJointTarget()
     print(f"  Created: bin_home (joints: {TRANSPORT_JOINTS})")
 
-    # Targets from frames
+    # Gripper slot targets (use ToolChanger as active tool for these moves)
+    gripper_slot_target = RDK.AddTarget("bin_gripper_slot", target_folder, robot)
+    gripper_slot_target.setPose(gripper_slot.PoseWrt(robot_base))
+    print(f"  Created: bin_gripper_slot")
+
+    gripper_approach_target = RDK.AddTarget("bin_gripper_approach", target_folder, robot)
+    gripper_approach_target.setPose(gripper_approach.PoseWrt(robot_base))
+    print(f"  Created: bin_gripper_approach")
+
+    # Bin targets
     targets = {}
-    for fname in all_frame_names:
+    for fname in all_bin_frame_names:
         tname = f"bin_{fname}"
         pose = frames[fname].PoseWrt(robot_base)
         tgt = RDK.AddTarget(tname, target_folder, robot)
         tgt.setPose(pose)
         targets[fname] = tgt
-        print(f"  Created: {tname} -> {describe_pose(pose)}")
+        print(f"  Created: {tname}")
 
     # ── Create helper sub-programs ────────────────────────────────────
     print("\n[PROGRAMS] Creating helper sub-programs...")
 
+    attach_gripper_prog = RDK.AddProgram("attach_gripper", robot)
+    attach_gripper_prog.RunInstruction(
+        "# setParent: GrabbingGripper -> ToolChanger", 0)
+    print("  Created: attach_gripper")
+
+    detach_gripper_prog = RDK.AddProgram("detach_gripper", robot)
+    detach_gripper_prog.RunInstruction(
+        "# setParent: GrabbingGripper -> GrabbingGripperSlot", 0)
+    print("  Created: detach_gripper")
+
     grab_prog = RDK.AddProgram("grab_cone_bin_buffer", robot)
     grab_prog.RunInstruction(
-        "# Attach cone_bin_buffer to GrabbingGripper (run manually or via script)",
-        0,  # INSTRUCTION_COMMENT
-    )
+        "# setParent: cone_bin_buffer -> GrabbingGripper", 0)
     print("  Created: grab_cone_bin_buffer")
 
     release_prog = RDK.AddProgram("release_cone_bin_buffer", robot)
     release_prog.RunInstruction(
-        "# Release cone_bin_buffer back to original parent",
-        0,  # INSTRUCTION_COMMENT
-    )
+        "# setParent: cone_bin_buffer -> original parent", 0)
     print("  Created: release_cone_bin_buffer")
 
     # ── Build main program ────────────────────────────────────────────
     print(f"\n[PROGRAM] Building '{PROGRAM_NAME}'...")
     prog = RDK.AddProgram(PROGRAM_NAME, robot)
     prog.setPoseFrame(robot_base)
-    prog.setPoseTool(gripper)
 
-    # 1. Start at home
+    # ── Phase 1: Pick up gripper ──────────────────────────────────────
+    prog.RunInstruction("# Phase 1: Pick up GrabbingGripper", 0)
+    prog.setPoseTool(tool_changer)
     prog.MoveJ(home_target)
-    print("  MoveJ -> bin_home")
+    print("  MoveJ -> home (ToolChanger)")
 
-    # 2. Approach sequence
-    for fname, mtype, label in APPROACH_SEQUENCE:
+    prog.MoveJ(gripper_approach_target)
+    print("  MoveJ -> gripper approach")
+
+    prog.MoveL(gripper_slot_target)
+    print("  MoveL -> gripper slot")
+
+    prog.RunInstruction("attach_gripper", INSTRUCTION_CALL_PROGRAM)
+    print("  Call -> attach_gripper")
+
+    prog.MoveL(gripper_approach_target)
+    print("  MoveL -> gripper approach (retract)")
+
+    # ── Phase 2: Go to bin, grab object ───────────────────────────────
+    prog.RunInstruction("# Phase 2: Approach bin and grab", 0)
+    prog.setPoseTool(gripper)
+    prog.MoveJ(home_target)
+    print("  MoveJ -> home (GrabbingGripper)")
+
+    for fname, mtype, label in BIN_APPROACH_SEQUENCE:
         tgt = targets[fname]
         if mtype == "J":
             prog.MoveJ(tgt)
         else:
             prog.MoveL(tgt)
-        print(f"  Move{mtype} -> {label} ({fname})")
+        print(f"  Move{mtype} -> {label}")
 
-    # 3. Grab
     prog.RunInstruction("grab_cone_bin_buffer", INSTRUCTION_CALL_PROGRAM)
     print("  Call -> grab_cone_bin_buffer")
 
-    # 4. Retract sequence
-    for fname, mtype, label in RETRACT_SEQUENCE:
+    # ── Phase 3: Retract from bin ─────────────────────────────────────
+    prog.RunInstruction("# Phase 3: Retract from bin", 0)
+    for fname, mtype, label in BIN_RETRACT_SEQUENCE:
         tgt = targets[fname]
         if mtype == "J":
             prog.MoveJ(tgt)
         else:
             prog.MoveL(tgt)
-        print(f"  Move{mtype} -> {label} ({fname})")
+        print(f"  Move{mtype} -> {label}")
 
-    # 5. Return home
     prog.MoveJ(home_target)
-    print("  MoveJ -> bin_home")
+    prog.Pause(5000)
+    print("  MoveJ -> home (pause 5s with object)")
+
+    # ── Phase 4: Return to bin, place object ──────────────────────────
+    prog.RunInstruction("# Phase 4: Return to bin and place object", 0)
+    for fname, mtype, label in BIN_APPROACH_SEQUENCE:
+        tgt = targets[fname]
+        if mtype == "J":
+            prog.MoveJ(tgt)
+        else:
+            prog.MoveL(tgt)
+        print(f"  Move{mtype} -> {label} (return)")
+
+    prog.RunInstruction("release_cone_bin_buffer", INSTRUCTION_CALL_PROGRAM)
+    print("  Call -> release_cone_bin_buffer")
+
+    for fname, mtype, label in BIN_RETRACT_SEQUENCE:
+        tgt = targets[fname]
+        if mtype == "J":
+            prog.MoveJ(tgt)
+        else:
+            prog.MoveL(tgt)
+        print(f"  Move{mtype} -> {label} (return retract)")
+
+    prog.MoveJ(home_target)
+    print("  MoveJ -> home")
+
+    # ── Phase 5: Drop off gripper ─────────────────────────────────────
+    prog.RunInstruction("# Phase 5: Return GrabbingGripper to slot", 0)
+
+    prog.setPoseTool(tool_changer)
+    prog.MoveJ(gripper_approach_target)
+    print("  MoveJ -> gripper approach")
+
+    prog.MoveL(gripper_slot_target)
+    print("  MoveL -> gripper slot")
+
+    prog.RunInstruction("detach_gripper", INSTRUCTION_CALL_PROGRAM)
+    print("  Call -> detach_gripper")
+
+    prog.MoveL(gripper_approach_target)
+    print("  MoveL -> gripper approach (retract)")
+
+    prog.MoveJ(home_target)
+    print("  MoveJ -> home (done)")
 
     n_ins = prog.InstructionCount()
     print(f"\n[DONE] Program '{PROGRAM_NAME}' created with {n_ins} instructions.")
     print("       Step through it in RoboDK: right-click -> Run step-by-step")
-    print("       grab/release sub-programs are placeholders — run setParent manually or via script")
+    print("       Helper sub-programs are placeholders — run setParent manually or via script")
 
 
 if __name__ == "__main__":
