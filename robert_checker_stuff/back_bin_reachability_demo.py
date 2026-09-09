@@ -71,9 +71,9 @@ def find_robot(RDK):
 
 # ── POSE HELPERS ────────────────────────────────────────────────────────────
 
-def frame_pose_for_robot(frame, robot):
+def frame_pose_for_robot(frame, robot_base_frame):
     """Get frame pose relative to robot base (the proven pattern)."""
-    return frame.PoseWrt(robot.Parent())
+    return frame.PoseWrt(robot_base_frame)
 
 
 def describe_pose(pose):
@@ -106,13 +106,17 @@ def main():
     assert gripper.Valid(), f"Tool '{GRIPPER_NAME}' not found"
     print(f"  Tool:  {gripper.Name()}")
 
+    robot_base = RDK.Item("RobotBase", ITEM_TYPE_FRAME)
+    assert robot_base.Valid(), "RobotBase frame not found"
+    print(f"  Base:  {robot_base.Name()}")
+
     # Find all approach/retract frames
     all_frame_names = set(APPROACH_FRAMES + RETRACT_FRAMES)
     frames = {}
     for fname in all_frame_names:
         f = RDK.Item(fname, ITEM_TYPE_FRAME)
         assert f.Valid(), f"Frame '{fname}' not found in station"
-        pose = frame_pose_for_robot(f, robot)
+        pose = frame_pose_for_robot(f, robot_base)
         print(f"  Frame: {fname} -> {describe_pose(pose)}")
         frames[fname] = f
 
@@ -127,7 +131,7 @@ def main():
         return
 
     # ── Setup ─────────────────────────────────────────────────────────
-    robot.setPoseFrame(robot.Parent())
+    robot.setPoseFrame(robot_base)
     robot.setTool(gripper)
     robot.setSpeed(SPEED_LINEAR, SPEED_JOINTS)
 
@@ -136,7 +140,7 @@ def main():
     def do_move(move_type, frame_name, label=None):
         """Execute a move and record result."""
         label = label or frame_name
-        pose = frame_pose_for_robot(frames[frame_name], robot)
+        pose = frame_pose_for_robot(frames[frame_name], robot_base)
         try:
             if move_type == "J":
                 robot.MoveJ(pose)
