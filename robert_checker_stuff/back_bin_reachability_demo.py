@@ -1,10 +1,15 @@
 """
-Back bin reachability demo — prove the robot (6-DOF, no rail, j7=0) can reach
-the cone bin, pick up cone_bin_buffer, and return home.
+Back bin reachability demo — build a RoboDK program that proves the robot
+(6-DOF, no rail, j7=0) can reach the cone bin, pick up cone_bin_buffer,
+and return home.
 
-Uses direct Python API calls (robot.MoveJ/MoveL) against the extracted station
-(for_robert_relative_to_base.rdk), following the same pattern as machine
-reachability work.
+Creates:
+  - Targets from each approach/retract frame
+  - A home (transport) joint target
+  - A main program "back_bin_demo" with MoveJ/MoveL instructions
+  - Helper sub-programs "grab_cone_bin_buffer" and "release_cone_bin_buffer"
+
+The program can be stepped through in RoboDK's GUI.
 
 Usage:
     python robert_checker_stuff/back_bin_reachability_demo.py --robodk-ip 172.23.208.1 --use-current
@@ -17,7 +22,8 @@ sys.path.append("C:/RoboDK/Python")
 
 from robodk.robolink import (
     Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
-    ITEM_TYPE_OBJECT,
+    ITEM_TYPE_OBJECT, ITEM_TYPE_TARGET, ITEM_TYPE_PROGRAM,
+    INSTRUCTION_CALL_PROGRAM,
 )
 from robodk.robomath import Pose_2_TxyzRxyz
 
@@ -25,25 +31,26 @@ from robodk.robomath import Pose_2_TxyzRxyz
 
 ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 
-# Frames in the station that define the approach/grab sequence
-APPROACH_FRAMES = [
-    "ApproachConeBinBuffer",       # coarse approach (MoveJ)
-    "ApproachConeBinBufferBelow",  # descend into bin area (MoveL)
-    "Cone_Bin_Frame",              # at bin (MoveL)
-]
-RETRACT_FRAMES = [
-    "ApproachConeBinBufferUp",     # lift out (MoveL)
-    "ApproachConeBinBuffer",       # clear bin area (MoveL)
-]
-
-GRAB_OBJECT = "cone_bin_buffer"
+TOOL_CHANGER_NAME = "ToolChanger"
 GRIPPER_NAME = "GrabbingGripper"
+GRAB_OBJECT = "cone_bin_buffer"
+
+# Movement sequence: (frame_name, move_type, label)
+# MoveJ for coarse approach/return, MoveL for precise moves near the bin
+APPROACH_SEQUENCE = [
+    ("ApproachConeBinBuffer",      "J", "approach_coarse"),
+    ("ApproachConeBinBufferBelow", "L", "approach_below"),
+    ("Cone_Bin_Frame",             "L", "at_bin"),
+]
+RETRACT_SEQUENCE = [
+    ("ApproachConeBinBufferUp",    "L", "retract_up"),
+    ("ApproachConeBinBuffer",      "L", "retract_clear"),
+]
 
 # DHR's transport pose (6-DOF)
 TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90]
 
-SPEED_LINEAR = 200    # mm/s
-SPEED_JOINTS = 60     # deg/s
+PROGRAM_NAME = "back_bin_demo"
 
 
 # ── CONNECT ─────────────────────────────────────────────────────────────────
@@ -69,13 +76,6 @@ def find_robot(RDK):
     return None
 
 
-# ── POSE HELPERS ────────────────────────────────────────────────────────────
-
-def frame_pose_for_robot(frame, robot_base_frame):
-    """Get frame pose relative to robot base (the proven pattern)."""
-    return frame.PoseWrt(robot_base_frame)
-
-
 def describe_pose(pose):
     t = Pose_2_TxyzRxyz(pose)
     return f"x={t[0]:.1f} y={t[1]:.1f} z={t[2]:.1f}"
@@ -89,8 +89,6 @@ def main():
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
     ap.add_argument("--use-current", action="store_true",
                     help="Use the currently open station")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="Only check items exist, don't move the robot")
     args = ap.parse_args()
 
     RDK = connect(args.robodk_ip)
@@ -102,21 +100,26 @@ def main():
     assert robot is not None, f"Robot not found. Tried: {ROBOT_NAMES}"
     print(f"  Robot: {robot.Name()}")
 
-    gripper = RDK.Item(GRIPPER_NAME, ITEM_TYPE_TOOL)
-    assert gripper.Valid(), f"Tool '{GRIPPER_NAME}' not found"
-    print(f"  Tool:  {gripper.Name()}")
-
     robot_base = RDK.Item("RobotBase", ITEM_TYPE_FRAME)
     assert robot_base.Valid(), "RobotBase frame not found"
     print(f"  Base:  {robot_base.Name()}")
 
-    # Find all approach/retract frames
-    all_frame_names = set(APPROACH_FRAMES + RETRACT_FRAMES)
+    tool_changer = RDK.Item(TOOL_CHANGER_NAME, ITEM_TYPE_TOOL)
+    assert tool_changer.Valid(), f"Tool '{TOOL_CHANGER_NAME}' not found"
+    print(f"  ToolChanger: {tool_changer.Name()}")
+
+    gripper = RDK.Item(GRIPPER_NAME, ITEM_TYPE_TOOL)
+    assert gripper.Valid(), f"Tool '{GRIPPER_NAME}' not found"
+    print(f"  Gripper: {gripper.Name()}")
+
+    # Collect all unique frame names from approach + retract
+    all_steps = APPROACH_SEQUENCE + RETRACT_SEQUENCE
+    all_frame_names = set(s[0] for s in all_steps)
     frames = {}
     for fname in all_frame_names:
         f = RDK.Item(fname, ITEM_TYPE_FRAME)
         assert f.Valid(), f"Frame '{fname}' not found in station"
-        pose = frame_pose_for_robot(f, robot_base)
+        pose = f.PoseWrt(robot_base)
         print(f"  Frame: {fname} -> {describe_pose(pose)}")
         frames[fname] = f
 
@@ -126,93 +129,107 @@ def main():
 
     print("\n[OK] All items found.")
 
-    if args.dry_run:
-        print("[DRY-RUN] Stopping before movement.")
-        return
-
-    # ── Setup ─────────────────────────────────────────────────────────
-    robot.setPoseFrame(robot_base)
+    # ── Attach GrabbingGripper to ToolChanger ─────────────────────────
+    print("\n[SETUP] Attaching GrabbingGripper to ToolChanger...")
+    gripper.setParent(tool_changer)
     robot.setTool(gripper)
-    robot.setSpeed(SPEED_LINEAR, SPEED_JOINTS)
+    print(f"  GrabbingGripper parent: {gripper.Parent().Name()}")
 
-    results = []
+    # ── Clean up old program/targets if re-running ────────────────────
+    old_prog = RDK.Item(PROGRAM_NAME, ITEM_TYPE_PROGRAM)
+    if old_prog.Valid():
+        old_prog.Delete()
+        print(f"[CLEAN] Deleted old program '{PROGRAM_NAME}'")
 
-    def do_move(move_type, frame_name, label=None):
-        """Execute a move and record result."""
-        label = label or frame_name
-        pose = frame_pose_for_robot(frames[frame_name], robot_base)
-        try:
-            if move_type == "J":
-                robot.MoveJ(pose)
-            else:
-                robot.MoveL(pose)
-            print(f"  [OK]   Move{move_type} -> {label}")
-            results.append((label, True, None))
-        except Exception as e:
-            err = str(e)
-            print(f"  [FAIL] Move{move_type} -> {label}: {err}")
-            results.append((label, False, err))
+    old_folder = RDK.Item("bin_demo_targets", ITEM_TYPE_FRAME)
+    if old_folder.Valid():
+        old_folder.Delete()
+        print("[CLEAN] Deleted old bin_demo_targets folder")
 
-    # ── Move home ─────────────────────────────────────────────────────
-    print("\n[MOVE] Going to transport pose...")
-    try:
-        robot.MoveJ(TRANSPORT_JOINTS)
-        print("  [OK]   MoveJ -> transport")
-        results.append(("transport_start", True, None))
-    except Exception as e:
-        print(f"  [FAIL] MoveJ -> transport: {e}")
-        results.append(("transport_start", False, str(e)))
+    for helper_name in ["grab_cone_bin_buffer", "release_cone_bin_buffer"]:
+        old = RDK.Item(helper_name, ITEM_TYPE_PROGRAM)
+        if old.Valid():
+            old.Delete()
+            print(f"[CLEAN] Deleted old program '{helper_name}'")
 
-    # ── Approach sequence ─────────────────────────────────────────────
-    print("\n[MOVE] Approach sequence...")
-    do_move("J", APPROACH_FRAMES[0], "approach_coarse")
-    do_move("L", APPROACH_FRAMES[1], "approach_below")
-    do_move("L", APPROACH_FRAMES[2], "at_bin")
+    # ── Create targets ────────────────────────────────────────────────
+    print("\n[TARGETS] Creating targets...")
+    target_folder = RDK.AddFrame("bin_demo_targets")
+    robot.setPoseFrame(robot_base)
 
-    # ── Simulate grab ─────────────────────────────────────────────────
-    print("\n[GRAB] Attaching cone_bin_buffer to gripper...")
-    try:
-        grab_obj.setParent(gripper)
-        print("  [OK]   cone_bin_buffer attached to GrabbingGripper")
-        results.append(("grab", True, None))
-    except Exception as e:
-        print(f"  [FAIL] setParent: {e}")
-        results.append(("grab", False, str(e)))
+    # Home / transport target
+    home_target = RDK.AddTarget("bin_home", target_folder, robot)
+    home_target.setJoints(TRANSPORT_JOINTS)
+    home_target.setAsJointTarget()
+    print(f"  Created: bin_home (joints: {TRANSPORT_JOINTS})")
 
-    # ── Retract sequence ──────────────────────────────────────────────
-    print("\n[MOVE] Retract sequence...")
-    do_move("L", RETRACT_FRAMES[0], "retract_up")
-    do_move("L", RETRACT_FRAMES[1], "retract_clear")
+    # Targets from frames
+    targets = {}
+    for fname in all_frame_names:
+        tname = f"bin_{fname}"
+        pose = frames[fname].PoseWrt(robot_base)
+        tgt = RDK.AddTarget(tname, target_folder, robot)
+        tgt.setPose(pose)
+        targets[fname] = tgt
+        print(f"  Created: {tname} -> {describe_pose(pose)}")
 
-    # ── Move home ─────────────────────────────────────────────────────
-    print("\n[MOVE] Returning to transport pose...")
-    try:
-        robot.MoveJ(TRANSPORT_JOINTS)
-        print("  [OK]   MoveJ -> transport")
-        results.append(("transport_end", True, None))
-    except Exception as e:
-        print(f"  [FAIL] MoveJ -> transport: {e}")
-        results.append(("transport_end", False, str(e)))
+    # ── Create helper sub-programs ────────────────────────────────────
+    print("\n[PROGRAMS] Creating helper sub-programs...")
 
-    # ── Report ────────────────────────────────────────────────────────
-    print("\n" + "=" * 60)
-    print("RESULTS")
-    print("=" * 60)
-    all_ok = True
-    for label, ok, err in results:
-        status = "PASS" if ok else "FAIL"
-        suffix = "" if ok else f" — {err}"
-        print(f"  [{status}] {label}{suffix}")
-        if not ok:
-            all_ok = False
+    grab_prog = RDK.AddProgram("grab_cone_bin_buffer", robot)
+    grab_prog.RunInstruction(
+        "# Attach cone_bin_buffer to GrabbingGripper (run manually or via script)",
+        0,  # INSTRUCTION_COMMENT
+    )
+    print("  Created: grab_cone_bin_buffer")
 
-    print("=" * 60)
-    if all_ok:
-        print("ALL MOVES PASSED — bin is reachable from j7=0 position.")
-    else:
-        failed = [r[0] for r in results if not r[1]]
-        print(f"FAILURES: {', '.join(failed)}")
-    print("=" * 60)
+    release_prog = RDK.AddProgram("release_cone_bin_buffer", robot)
+    release_prog.RunInstruction(
+        "# Release cone_bin_buffer back to original parent",
+        0,  # INSTRUCTION_COMMENT
+    )
+    print("  Created: release_cone_bin_buffer")
+
+    # ── Build main program ────────────────────────────────────────────
+    print(f"\n[PROGRAM] Building '{PROGRAM_NAME}'...")
+    prog = RDK.AddProgram(PROGRAM_NAME, robot)
+    prog.setPoseFrame(robot_base)
+    prog.setPoseTool(gripper)
+
+    # 1. Start at home
+    prog.MoveJ(home_target)
+    print("  MoveJ -> bin_home")
+
+    # 2. Approach sequence
+    for fname, mtype, label in APPROACH_SEQUENCE:
+        tgt = targets[fname]
+        if mtype == "J":
+            prog.MoveJ(tgt)
+        else:
+            prog.MoveL(tgt)
+        print(f"  Move{mtype} -> {label} ({fname})")
+
+    # 3. Grab
+    prog.RunInstruction("grab_cone_bin_buffer", INSTRUCTION_CALL_PROGRAM)
+    print("  Call -> grab_cone_bin_buffer")
+
+    # 4. Retract sequence
+    for fname, mtype, label in RETRACT_SEQUENCE:
+        tgt = targets[fname]
+        if mtype == "J":
+            prog.MoveJ(tgt)
+        else:
+            prog.MoveL(tgt)
+        print(f"  Move{mtype} -> {label} ({fname})")
+
+    # 5. Return home
+    prog.MoveJ(home_target)
+    print("  MoveJ -> bin_home")
+
+    n_ins = prog.InstructionCount()
+    print(f"\n[DONE] Program '{PROGRAM_NAME}' created with {n_ins} instructions.")
+    print("       Step through it in RoboDK: right-click -> Run step-by-step")
+    print("       grab/release sub-programs are placeholders — run setParent manually or via script")
 
 
 if __name__ == "__main__":
