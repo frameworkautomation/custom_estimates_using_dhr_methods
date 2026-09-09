@@ -5,9 +5,9 @@
 1. ~~**Get simplified cone mesh** — get simplified cone mesh from another folder for use in RoboDK scripts~~ DONE
 2. ~~**Cone placement scripts (replacing Grasshopper)** — RoboDK scripts to place cones inside bins and on top of machines, with proper cone names and frames~~ DONE
 
-## Branch: `back_box_reachability`
+## Branch: `back_bin_reachability`
 
-3. **Back box reachability check** — check if DHR's box picker-upper mechanism can reach the back box position on the machine, with robot at j7=0
+3. **Back bin reachability demo** — demonstrate that the robot (at j7=0, no rail) can reach the back bin position, pick up cone_bin_buffer, and return home
 4. **End effector rear reachability** — verify end effector can reach items in the rear of the robot (knotter, cone picker-upper)
    - 4a. IK optimizer constraints (no side-flipping) — when searching for poses, optimizer must ensure robot doesn't flip sides while using end effector
    - 4b. J1 continuity constraint (no 360-degree wrap) — ensure robot doesn't rotate ~360 degrees about J1 between yarn pickup and cone pickup. May not be needed — Robert provided better knotter movement specifications

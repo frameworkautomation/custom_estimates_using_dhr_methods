@@ -4,7 +4,7 @@
 
 **See `TODO.md` in the repo root for the full task list with branch assignments.**
 
-Current branch: `back_box_reachability` — tasks 3-6.
+Current branch: `back_bin_reachability` — tasks 3-6.
 
 ## ── BRANCH: positioning_robert_end_effector_etc ──────────────────────────────
 

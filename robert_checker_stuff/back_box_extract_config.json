@@ -12,6 +12,10 @@
     {
       "name": "FrontWall",
       "type": "object"
+    },
+    {
+      "name": "Fence",
+      "type": "object"
     }
   ],
   "copy_subtrees_from": ["Fanuc R2000iC 125LBase", "Rack1GarmentTrayBase"],
