@@ -11,6 +11,7 @@
 4. **End effector rear reachability** — verify end effector can reach items in the rear of the robot (knotter, cone picker-upper)
    - 4a. IK optimizer constraints (no side-flipping) — when searching for poses, optimizer must ensure robot doesn't flip sides while using end effector
    - 4b. J1 continuity constraint (no 360-degree wrap) — ensure robot doesn't rotate ~360 degrees about J1 between yarn pickup and cone pickup. May not be needed — Robert provided better knotter movement specifications
+   - 4c. **Coupled feasibility search for vacuum-to-pickup pivot** — the movement sequence is: vacuum base cone → vacuum offset → vacuum rotate into pickup offset → pickup. The transition to pickup requires pivoting about the vacuum point, which is a series of MoveL instructions with an end effector change. These moves must be searched for feasibility **together** (not individually) — find a Z-rotation where the entire series of L-moves is feasible, not just each pose in isolation.
 5. **Run DHR's code against back position** — run DHR's existing code with the back bin positioned in the rear, visually check for collisions *(not a coding task — constraint that affects the work)*
 6. **Visual collision check** — verify mechanism doesn't go through back wall or hit robo fence *(human task)*
 
