@@ -51,7 +51,7 @@ Three tasks, in order:
    the program target, or the joint seed differing between Phase 4 solving and
    program execution.
 
-**TODO (script 1): Station extraction — `extract_station.py`**
+**TODO (script 1): Station extraction — `extract_robot_without_rail.py`**
 
 Single-file script that reads a source RoboDK station and builds a new station
 containing only the items listed in a config file. Gives repeatability — run it
@@ -59,7 +59,7 @@ every time you need a clean starting point for movement-sequence testing.
 
 **CLI:**
 ```
-python robert_checker_stuff/extract_station.py \
+python robert_checker_stuff/extract_robot_without_rail.py \
   --source for_robert_n1.rdk \
   --dest for_robert_relative_to_base.rdk \
   --config robert_checker_stuff/station_extract_config.json

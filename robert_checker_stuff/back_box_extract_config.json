@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "name": "Fanuc R-2000iC/125L",
+      "type": "robot",
+      "comment": "6-DOF arm extracted at j7=0 world pose, without the rail mechanism"
+    },
+    {
+      "name": "RobotPedestal",
+      "type": "object"
+    },
+    {
+      "name": "FrontWall",
+      "type": "object"
+    }
+  ],
+  "copy_subtrees_from": ["Fanuc R2000iC 125LBase", "Rack1GarmentTrayBase"],
+  "comment": "Robot base subtree (bins, cones, etc.) + garment tray rack with all children"
+}

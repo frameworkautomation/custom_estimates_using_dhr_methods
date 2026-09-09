@@ -13,9 +13,9 @@ the source station and pasted into the destination. For the robot, Copy/Paste
 strips the rail mechanism, giving a clean 6-DOF arm.
 
 Usage:
-    python robert_checker_stuff/extract_station.py
-    python robert_checker_stuff/extract_station.py --robodk-ip 172.23.208.1
-    python robert_checker_stuff/extract_station.py --source my_station.rdk --dest output.rdk
+    python robert_checker_stuff/extract_robot_without_rail.py
+    python robert_checker_stuff/extract_robot_without_rail.py --robodk-ip 172.23.208.1
+    python robert_checker_stuff/extract_robot_without_rail.py --source my_station.rdk --dest output.rdk
 """
 
 import sys
@@ -148,6 +148,8 @@ def main():
                     help=f"Config JSON (default: {os.path.basename(DEFAULT_CONFIG)})")
     ap.add_argument("--robodk-ip", default=None,
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
+    ap.add_argument("--use-current", action="store_true",
+                    help="Use the currently open station instead of loading --source")
     args = ap.parse_args()
 
     # ── Load config ──────────────────────────────────────────────────────
@@ -157,8 +159,13 @@ def main():
 
     explicit_items = config.get("items", [])
     patterns = config.get("patterns", [])
-    assert len(explicit_items) > 0 or len(patterns) > 0, \
-        "Config has no items or patterns to extract"
+    # Support both single string and list forms
+    subtree_single = config.get("copy_subtree_from")
+    subtree_list = config.get("copy_subtrees_from", [])
+    subtrees_from = subtree_list if subtree_list else ([subtree_single] if subtree_single else [])
+
+    assert len(explicit_items) > 0 or len(patterns) > 0 or subtrees_from, \
+        "Config has no items, patterns, or copy_subtree(s)_from to extract"
 
     # Validate explicit items
     for item_cfg in explicit_items:
@@ -168,17 +175,24 @@ def main():
             f"Unknown type '{item_cfg['type']}' for item '{item_cfg['name']}'"
 
     print(f"[CONFIG] {len(explicit_items)} explicit item(s), {len(patterns)} pattern(s)")
+    if subtrees_from:
+        print(f"[CONFIG] Subtree copies: {subtrees_from}")
 
     # ── Connect to RoboDK ────────────────────────────────────────────────
     RDK = connect(args.robodk_ip)
 
     # ── Load source station ──────────────────────────────────────────────
-    assert os.path.exists(args.source), f"Source station not found: {args.source}"
-    source_path = to_robodk_path(args.source)
-    print(f"\n[LOAD] Opening source station: {source_path}")
-    src_station = RDK.AddFile(source_path)
-    assert src_station.Valid(), f"Failed to load source station: {args.source}"
-    print(f"[LOAD] Source station loaded: '{src_station.Name()}'")
+    if args.use_current:
+        src_station = RDK.ActiveStation()
+        assert src_station.Valid(), "No active station in RoboDK"
+        print(f"\n[LOAD] Using current station: '{src_station.Name()}'")
+    else:
+        assert os.path.exists(args.source), f"Source station not found: {args.source}"
+        source_path = to_robodk_path(args.source)
+        print(f"\n[LOAD] Opening source station: {source_path}")
+        src_station = RDK.AddFile(source_path)
+        assert src_station.Valid(), f"Failed to load source station: {args.source}"
+        print(f"[LOAD] Source station loaded: '{src_station.Name()}'")
 
     # ── Resolve patterns into concrete items ─────────────────────────────
     if patterns:
@@ -220,6 +234,24 @@ def main():
             assert item.Valid(), \
                 f"Item '{name}' (type={type_str}) not found in source station"
     print(f"[VERIFY] All {len(all_items)} items confirmed in source")
+
+    # ── Verify subtree sources exist ─────────────────────────────────────
+    subtree_data = []  # list of (name, world_pose) tuples
+    for st_name in subtrees_from:
+        st_item = RDK.Item(st_name, ITEM_TYPE_FRAME)
+        if not st_item.Valid():
+            st_item = RDK.Item(st_name)
+        if not st_item.Valid():
+            print(f"\n[ERROR] Subtree source '{st_name}' not found.")
+            print(f"  Available frames in station:")
+            for f in RDK.ItemList(ITEM_TYPE_FRAME):
+                print(f"    - {f.Name()}")
+            assert False, f"copy_subtree_from item '{st_name}' not found in source station"
+        st_pose = st_item.PoseAbs()
+        st_txyz = Pose_2_TxyzRxyz(st_pose)
+        print(f"[VERIFY] Subtree root '{st_item.Name()}' found at "
+              f"x={st_txyz[0]:.1f} y={st_txyz[1]:.1f} z={st_txyz[2]:.1f}")
+        subtree_data.append((st_name, st_pose))
 
     # ── Process robot first (must be done before creating new station) ───
     # Robot needs special handling: read base pose, Copy, then after new
@@ -292,6 +324,26 @@ def main():
         )
         assert pos_err < 1.0, f"Robot base position mismatch: {pos_err:.2f} mm"
         print(f"[ROBOT] 6-DOF robot placed (error: {pos_err:.2f} mm)")
+
+    # ── Copy/Paste subtrees ─────────────────────────────────────────────
+    for st_name, st_pose in subtree_data:
+        # Switch to source to copy the subtree root (brings all children)
+        RDK.setActiveStation(src_station_ref)
+        st_item = RDK.Item(st_name, ITEM_TYPE_FRAME)
+        if not st_item.Valid():
+            st_item = RDK.Item(st_name)
+        st_item.Copy()
+
+        # Switch to dest and paste
+        RDK.setActiveStation(dest_station_ref)
+        pasted_subtree = RDK.Paste()
+        assert pasted_subtree.Valid(), f"Paste() failed for subtree '{st_name}'"
+
+        # Position at original world pose
+        pasted_subtree.setPose(st_pose)
+
+        children = pasted_subtree.Childs()
+        print(f"[SUBTREE] Pasted '{pasted_subtree.Name()}' with {len(children)} direct child(ren)")
 
     # ── Copy/Paste remaining items one at a time ─────────────────────────
     # We need to switch back to the source station to Copy each item,
