@@ -21,6 +21,7 @@ Usage:
 """
 
 import sys
+import os
 import argparse
 
 sys.path.append("C:/RoboDK/Python")
@@ -28,7 +29,7 @@ sys.path.append("C:/RoboDK/Python")
 from robodk.robolink import (
     Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
     ITEM_TYPE_OBJECT, ITEM_TYPE_TARGET, ITEM_TYPE_PROGRAM,
-    INSTRUCTION_CALL_PROGRAM,
+    ITEM_TYPE_PROGRAM_PYTHON, INSTRUCTION_CALL_PROGRAM,
 )
 from robodk.robomath import Pose_2_TxyzRxyz
 
@@ -89,6 +90,33 @@ def describe_pose(pose):
     return f"x={t[0]:.1f} y={t[1]:.1f} z={t[2]:.1f}"
 
 
+def to_robodk_path(path):
+    """Convert WSL /mnt/c/... path to C:/... for RoboDK."""
+    abs_path = os.path.abspath(path)
+    if abs_path.startswith("/mnt/"):
+        parts = abs_path.split("/")
+        drive = parts[2].upper()
+        rest = "/".join(parts[3:])
+        return f"{drive}:/{rest}"
+    return abs_path
+
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def add_python_program(RDK, name, code):
+    """Write a Python script to the project dir and add it to RoboDK as a program."""
+    script_path = os.path.join(SCRIPT_DIR, f"_tmp_{name}.py")
+    with open(script_path, "w", encoding="utf-8") as f:
+        f.write(code)
+    robodk_path = to_robodk_path(script_path)
+    prog = RDK.AddFile(robodk_path)
+    if prog.Valid():
+        prog.setName(name)
+    os.unlink(script_path)
+    return prog
+
+
 # ── MAIN ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -118,7 +146,8 @@ def main():
 
     gripper = RDK.Item(GRIPPER_NAME, ITEM_TYPE_TOOL)
     assert gripper.Valid(), f"Tool '{GRIPPER_NAME}' not found"
-    print(f"  Gripper: {gripper.Name()}")
+    gripper_home_parent = gripper.Parent().Name()
+    print(f"  Gripper: {gripper.Name()} (parent: {gripper_home_parent})")
 
     # Gripper slot frames
     gripper_slot = RDK.Item(GRIPPER_SLOT_FRAME, ITEM_TYPE_FRAME)
@@ -141,17 +170,20 @@ def main():
 
     grab_obj = RDK.Item(GRAB_OBJECT, ITEM_TYPE_OBJECT)
     assert grab_obj.Valid(), f"Object '{GRAB_OBJECT}' not found"
-    print(f"  Object: {grab_obj.Name()}")
+    grab_obj_home_parent = grab_obj.Parent().Name()
+    print(f"  Object: {grab_obj.Name()} (parent: {grab_obj_home_parent})")
 
     print("\n[OK] All items found.")
 
     # ── Clean up old program/targets if re-running ────────────────────
-    for prog_name in [PROGRAM_NAME, "attach_gripper", "detach_gripper",
-                      "grab_cone_bin_buffer", "release_cone_bin_buffer"]:
-        old = RDK.Item(prog_name, ITEM_TYPE_PROGRAM)
-        if old.Valid():
-            old.Delete()
-            print(f"[CLEAN] Deleted old program '{prog_name}'")
+    helper_names = ["attach_gripper", "detach_gripper",
+                    "grab_cone_bin_buffer", "release_cone_bin_buffer"]
+    for prog_name in [PROGRAM_NAME] + helper_names:
+        for ptype in [ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON]:
+            old = RDK.Item(prog_name, ptype)
+            if old.Valid():
+                old.Delete()
+                print(f"[CLEAN] Deleted old program '{prog_name}'")
 
     old_folder = RDK.Item("bin_demo_targets", ITEM_TYPE_FRAME)
     if old_folder.Valid():
@@ -188,28 +220,44 @@ def main():
         targets[fname] = tgt
         print(f"  Created: {tname}")
 
-    # ── Create helper sub-programs ────────────────────────────────────
+    # ── Create helper sub-programs (real setParentStatic calls) ─────────
     print("\n[PROGRAMS] Creating helper sub-programs...")
 
-    attach_gripper_prog = RDK.AddProgram("attach_gripper", robot)
-    attach_gripper_prog.RunInstruction(
-        "# setParent: GrabbingGripper -> ToolChanger", 0)
-    print("  Created: attach_gripper")
+    helper_scripts = {
+        "attach_gripper": f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL
+RDK = Robolink()
+gripper = RDK.Item("{GRIPPER_NAME}", ITEM_TYPE_TOOL)
+tool_changer = RDK.Item("{TOOL_CHANGER_NAME}", ITEM_TYPE_TOOL)
+gripper.setParentStatic(tool_changer)
+print("Attached {GRIPPER_NAME} to {TOOL_CHANGER_NAME}")
+''',
+        "detach_gripper": f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME
+RDK = Robolink()
+gripper = RDK.Item("{GRIPPER_NAME}", ITEM_TYPE_TOOL)
+slot = RDK.Item("{gripper_home_parent}")
+gripper.setParentStatic(slot)
+print("Detached {GRIPPER_NAME} to {gripper_home_parent}")
+''',
+        "grab_cone_bin_buffer": f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_OBJECT
+RDK = Robolink()
+obj = RDK.Item("{GRAB_OBJECT}", ITEM_TYPE_OBJECT)
+gripper = RDK.Item("{GRIPPER_NAME}", ITEM_TYPE_TOOL)
+obj.setParentStatic(gripper)
+print("Grabbed {GRAB_OBJECT}")
+''',
+        "release_cone_bin_buffer": f'''from robodk.robolink import Robolink, ITEM_TYPE_OBJECT
+RDK = Robolink()
+obj = RDK.Item("{GRAB_OBJECT}", ITEM_TYPE_OBJECT)
+home = RDK.Item("{grab_obj_home_parent}")
+obj.setParentStatic(home)
+print("Released {GRAB_OBJECT} to {grab_obj_home_parent}")
+''',
+    }
 
-    detach_gripper_prog = RDK.AddProgram("detach_gripper", robot)
-    detach_gripper_prog.RunInstruction(
-        "# setParent: GrabbingGripper -> GrabbingGripperSlot", 0)
-    print("  Created: detach_gripper")
-
-    grab_prog = RDK.AddProgram("grab_cone_bin_buffer", robot)
-    grab_prog.RunInstruction(
-        "# setParent: cone_bin_buffer -> GrabbingGripper", 0)
-    print("  Created: grab_cone_bin_buffer")
-
-    release_prog = RDK.AddProgram("release_cone_bin_buffer", robot)
-    release_prog.RunInstruction(
-        "# setParent: cone_bin_buffer -> original parent", 0)
-    print("  Created: release_cone_bin_buffer")
+    for name, code in helper_scripts.items():
+        prog = add_python_program(RDK, name, code)
+        assert prog.Valid(), f"Failed to create helper program '{name}'"
+        print(f"  Created: {name}")
 
     # ── Build main program ────────────────────────────────────────────
     print(f"\n[PROGRAM] Building '{PROGRAM_NAME}'...")
@@ -311,7 +359,7 @@ def main():
     n_ins = prog.InstructionCount()
     print(f"\n[DONE] Program '{PROGRAM_NAME}' created with {n_ins} instructions.")
     print("       Step through it in RoboDK: right-click -> Run step-by-step")
-    print("       Helper sub-programs are placeholders — run setParent manually or via script")
+    print("       Helper sub-programs use setParentStatic to attach/detach meshes")
 
 
 if __name__ == "__main__":
