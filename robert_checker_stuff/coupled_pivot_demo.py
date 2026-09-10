@@ -1,9 +1,20 @@
 """
-Coupled pivot solver demo — task 4c (reworked: split before/after, decoupled search).
+Coupled pivot solver demo — task 4c (simplified sequence).
 
-Decouples the suction and pivot searches into independent sweeps, then matches
-viable pairs by wrist configuration. All solutions saved as RoboDK joint targets
-in a structured folder hierarchy for visual inspection.
+Three independent sweeps (suction, pivot, pickup) find reachable poses at each
+theta × seed. Solutions with matching wrist configs can be combined into a full
+sequence. All solutions saved as RoboDK joint targets for visual inspection.
+
+Forward sequence:
+  F1: JMove home → suction_offset_1 (Z-free, independent)
+  F2: JMove suction_offset_1 → suction_offset_2
+  F3: LMove suction_offset_2 → suction_position (grab string)
+  F4: LMove suction_position → suction_offset_2 (retract with string)
+  F5: LMove suction_offset_2 → pivot_after (pivot pose, knotting tool)
+  F6: tool switch (same joints, knotting → pickup)
+  F7: LMove before_pickup_offset → cone_pickup_pose (grab cone)
+  F8: LMove cone_pickup_pose → post_pickup_above (lift out)
+  F9: JMove post_pickup_above → home
 
 See coupled_pivot_spec.md for the full specification.
 
@@ -26,7 +37,7 @@ from robodk.robolink import (
     ITEM_TYPE_TARGET, ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON,
     ITEM_TYPE_FOLDER, INSTRUCTION_CALL_PROGRAM,
 )
-from robodk.robomath import transl, rotz, rotx, invH, Mat, Pose_2_TxyzRxyz, eye
+from robodk.robomath import transl, rotz, invH, Mat, Pose_2_TxyzRxyz, eye
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
 
@@ -66,9 +77,6 @@ SWEEP_SEEDS = {
 }
 
 TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90, 0]  # 7-DOF (j7=0)
-
-# Pivot approach angle: pivot_before is rotated this many degrees about local X from pivot_after
-PIVOT_APPROACH_ANGLE_DEG = 90
 
 # FK verification tolerance
 FK_TOL_MM = 5.0
@@ -298,38 +306,33 @@ def delete_if_exists(RDK, name, item_type):
 # ── SWEEP FUNCTIONS (decoupled) ─────────────────────────────────────────────
 
 def sweep_suction(robot, RDK, suction_tool, poses, step_deg):
-    """Independent sweep over suction chain: offset1, offset2, suction_position.
+    """Independent sweep over suction chain: suction_offset_2 and suction_position.
 
-    For each theta × seed, solve IK for all three suction poses.
+    suction_offset_1 is a JMove (solved independently, not part of this sweep).
+    The LMove chain is: suction_offset_2 → suction_position → suction_offset_2 (retract).
+    We need both offset_2 and suction_position reachable at the same theta+seed.
+
     Returns (solutions, attempts) where attempts tracks per-pose pass/fail.
     """
-    offset1_pose = poses["suction_offset_1"]
     offset2_pose = poses["suction_offset_2"]
     suction_pose = poses["suction_position"]
 
     robot.setPoseTool(suction_tool)
     n_steps = int(360 / step_deg)
     solutions = []
-    attempts = []  # every attempt with per-pose pass/fail
+    attempts = []
 
     for i in range(n_steps):
         theta_deg = step_deg * i
         theta_rad = theta_deg * math.pi / 180.0
         rz = rotz(theta_rad)
 
-        rotated_offset1 = offset1_pose * rz
         rotated_offset2 = offset2_pose * rz
         rotated_suction = suction_pose * rz
 
         for seed_name, seed in SWEEP_SEEDS.items():
             rec = {"theta_deg": theta_deg, "seed_name": seed_name,
-                   "offset1": False, "offset2": False, "suction": False}
-
-            j_offset1 = try_ik(robot, RDK, rotated_offset1, seed=seed)
-            if j_offset1 is None:
-                attempts.append(rec)
-                continue
-            rec["offset1"] = True
+                   "offset2": False, "suction": False}
 
             j_offset2 = try_ik(robot, RDK, rotated_offset2, seed=seed)
             if j_offset2 is None:
@@ -343,12 +346,11 @@ def sweep_suction(robot, RDK, suction_tool, poses, step_deg):
                 continue
             rec["suction"] = True
 
-            cfg = get_config_flags(robot, j_suction)
+            cfg = get_config_flags(robot, j_offset2)
             sol = {
                 "theta_deg": theta_deg,
                 "seed_name": seed_name,
                 "joints": {
-                    "suction_offset_1": j_offset1,
                     "suction_offset_2": j_offset2,
                     "suction_position": j_suction,
                 },
@@ -362,15 +364,15 @@ def sweep_suction(robot, RDK, suction_tool, poses, step_deg):
 
 
 def sweep_pivot(robot, RDK, suction_tool, poses, T_pickup_to_suction, step_deg):
-    """Independent sweep over pivot chain: pivot_before and pivot_after.
+    """Independent sweep over pivot_after pose (suction tool).
 
     pivot_after = rotated_before_pickup * T_pickup_to_suction
-    pivot_before = pivot_after * rotx(approach_angle)
+    This is where the suction TCP sits when the pickup TCP is on before_pickup_offset.
+    The robot LMoves here from suction_offset_2 after retracting from the grab.
 
     Returns (solutions, attempts) where attempts tracks per-pose pass/fail.
     """
     before_pickup_pose = poses["before_pickup_offset"]
-    approach_rad = PIVOT_APPROACH_ANGLE_DEG * math.pi / 180.0
 
     robot.setPoseTool(suction_tool)
     n_steps = int(360 / step_deg)
@@ -384,17 +386,10 @@ def sweep_pivot(robot, RDK, suction_tool, poses, T_pickup_to_suction, step_deg):
 
         rotated_before_pickup = before_pickup_pose * rz
         pivot_after = rotated_before_pickup * T_pickup_to_suction
-        pivot_before = pivot_after * rotx(approach_rad)
 
         for seed_name, seed in SWEEP_SEEDS.items():
             rec = {"theta_deg": theta_deg, "seed_name": seed_name,
-                   "pivot_before": False, "pivot_after": False}
-
-            j_before = try_ik(robot, RDK, pivot_before, seed=seed)
-            if j_before is None:
-                attempts.append(rec)
-                continue
-            rec["pivot_before"] = True
+                   "pivot_after": False}
 
             j_after = try_ik(robot, RDK, pivot_after, seed=seed)
             if j_after is None:
@@ -402,12 +397,11 @@ def sweep_pivot(robot, RDK, suction_tool, poses, T_pickup_to_suction, step_deg):
                 continue
             rec["pivot_after"] = True
 
-            cfg = get_config_flags(robot, j_before)
+            cfg = get_config_flags(robot, j_after)
             sol = {
                 "theta_deg": theta_deg,
                 "seed_name": seed_name,
                 "joints": {
-                    "pivot_before": j_before,
                     "pivot_after": j_after,
                 },
                 "wrist_cfg": cfg,
@@ -718,7 +712,7 @@ def main():
             suction_sols, suction_attempts = sweep_suction(robot, RDK, suction_tool, poses, args.step_deg)
             print(f"    {len(suction_sols)} suction solutions")
             print_attempt_report("suction", suction_attempts,
-                                 ["offset1", "offset2", "suction"])
+                                 ["offset2", "suction"])
             all_results.setdefault(cone_name, {})["suction_sols"] = suction_sols
     else:
         print("\n── Phase 4: SKIPPED ──")
@@ -748,7 +742,7 @@ def main():
             pivot_sols, pivot_attempts = sweep_pivot(robot, RDK, suction_tool, poses, T_pickup_to_suction, args.step_deg)
             print(f"    {len(pivot_sols)} pivot pairs")
             print_attempt_report("pivot", pivot_attempts,
-                                 ["pivot_before", "pivot_after"])
+                                 ["pivot_after"])
             all_results[cone_name]["pivot_sols"] = pivot_sols
 
             suction_sols = all_results[cone_name]["suction_sols"]
@@ -776,7 +770,6 @@ def main():
         print(f"{'='*60}")
         print(f"Step size: {args.step_deg} deg")
         print(f"Seeds: {list(SWEEP_SEEDS.keys())}")
-        print(f"Approach angle: {PIVOT_APPROACH_ANGLE_DEG} deg")
         print(f"Cones tested: {len(all_results)}")
         print()
 
