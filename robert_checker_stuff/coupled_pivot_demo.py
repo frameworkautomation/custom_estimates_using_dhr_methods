@@ -103,7 +103,11 @@ def find_robot(RDK):
 # ── IK HELPERS (copied from setup_base_movements.py) ───────────────────────
 
 def _try_ik_single(robot, pose, seed):
-    """Try IK with a single seed. Returns joints or None."""
+    """Try IK with a single seed. Returns joints or None.
+
+    Does NOT reset joints after success — leaves the robot at the solved pose
+    so the user can see it in RoboDK.
+    """
     robot.setParam("OptimAxes", _OPT_AXES_6DOF)
     robot.setJoints(seed)
     try:
@@ -113,14 +117,12 @@ def _try_ik_single(robot, pose, seed):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-        robot.setJoints(seed)
         if len(joints) < 6:
             return None
         if all(abs(j) < 1e-6 for j in joints):
             return None
         return joints
     except Exception:
-        robot.setJoints(seed)
         return None
 
 
@@ -165,7 +167,6 @@ def fk_verify(robot, joints, expected_pose, tol_mm=FK_TOL_MM):
     t = Pose_2_TxyzRxyz(expected_pose)
     a = Pose_2_TxyzRxyz(achieved)
     err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
-    robot.setJoints(HOME_SEED_6DOF)
     return err, err <= tol_mm
 
 
@@ -333,7 +334,6 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         t = Pose_2_TxyzRxyz(before_pickup_pose)
         a = Pose_2_TxyzRxyz(achieved_pickup)
         pivot_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
-        robot.setJoints(HOME_SEED_6DOF)
 
         if pivot_err > FK_TOL_MM:
             print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
