@@ -1248,6 +1248,7 @@ def main():
 
         built = 0
         skipped = 0
+        built_programs = []
         for cone_name, res in all_results.items():
             suction_sols = res.get("suction_sols", [])
             pivot_sols = res.get("pivot_sols", [])
@@ -1295,6 +1296,7 @@ def main():
             )
             n_ins = prog.InstructionCount()
             print(f"  [PROG] {cone_name}: {n_ins} instructions")
+            built_programs.append(prog)
             built += 1
 
         print(f"\n  Built: {built}, Skipped: {skipped}")
@@ -1302,6 +1304,47 @@ def main():
             print(f"  Step through in RoboDK: right-click program → Run step-by-step")
     else:
         print("\n── Phase 7: SKIPPED ──")
+        built_programs = []
+
+    # ── Phase 8: Build run_all program ────────────────────────────────
+    if "8" not in skip:
+        print(f"\n── Phase 8: Build run_all program ──")
+
+        # If Phase 7 was skipped, find existing cone programs in the station
+        if not built_programs:
+            prog_folder = RDK.Item(PROGRAM_PROGRAMS_SUBFOLDER, ITEM_TYPE_FOLDER)
+            if prog_folder.Valid():
+                for child in prog_folder.Childs():
+                    if child.Type() == ITEM_TYPE_PROGRAM and child.Name().endswith("_pivot_sequence"):
+                        built_programs.append(child)
+                print(f"  Found {len(built_programs)} existing programs in station")
+
+        if not built_programs:
+            print("  [SKIP] No programs to combine")
+        else:
+            run_all_name = "run_all_pivot_sequences"
+            old = RDK.Item(run_all_name, ITEM_TYPE_PROGRAM)
+            if old.Valid():
+                old.Delete()
+
+            # Find the program folder to put run_all in
+            prog_folder = RDK.Item(PROGRAM_PROGRAMS_SUBFOLDER, ITEM_TYPE_FOLDER)
+            if not prog_folder.Valid():
+                prog_folder = RDK.Item(PROGRAM_FOLDER_NAME, ITEM_TYPE_FOLDER)
+
+            run_all = RDK.AddProgram(run_all_name, robot)
+            run_all.RunInstruction("# Run all cone pivot sequences", 0)
+            for prog in built_programs:
+                run_all.RunInstruction(prog.Name(), INSTRUCTION_CALL_PROGRAM)
+
+            if prog_folder.Valid():
+                run_all.setParent(prog_folder)
+
+            print(f"  [PROG] {run_all_name}: calls {len(built_programs)} programs")
+            for p in built_programs:
+                print(f"    → {p.Name()}")
+    else:
+        print("\n── Phase 8: SKIPPED ──")
 
 
 if __name__ == "__main__":
