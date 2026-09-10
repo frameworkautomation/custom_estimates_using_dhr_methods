@@ -207,38 +207,36 @@ def discover_bin_cones(RDK):
     return sorted(cones, key=lambda x: x[0])
 
 
-def find_child_frame(parent, name):
-    """Recursively find a frame by name under parent (scoped search)."""
+def _collect_all_frames(parent):
+    """Recursively collect all (name, item) pairs under parent. Single API traversal."""
+    result = {}
     try:
         for child in parent.Childs():
             try:
-                if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
-                    return child
-                found = find_child_frame(child, name)
-                if found is not None:
-                    return found
+                if child.Type() == ITEM_TYPE_FRAME:
+                    result[child.Name()] = child
+                result.update(_collect_all_frames(child))
             except Exception:
                 continue
     except Exception:
         pass
-    return None
+    return result
 
 
 def assert_cone_frames(cone_name, cone_item):
     """Assert all 6 child frames exist for a cone. Returns dict of suffix -> item.
 
-    Searches by suffix — the child frame can be named either '<cone>_<suffix>'
-    or just '<suffix>' directly.
+    Collects all frames under the cone in one traversal, then looks up by name.
     """
+    all_frames = _collect_all_frames(cone_item)
+
     frames = {}
     for suffix in CHILD_SUFFIXES:
         # Try prefixed name first, then bare suffix
-        child = find_child_frame(cone_item, f"{cone_name}_{suffix}")
-        if child is None:
-            child = find_child_frame(cone_item, suffix)
+        child = all_frames.get(f"{cone_name}_{suffix}") or all_frames.get(suffix)
         assert child is not None, (
             f"Missing child frame '{suffix}' (or '{cone_name}_{suffix}') "
-            f"under cone '{cone_name}'"
+            f"under cone '{cone_name}'. Found: {list(all_frames.keys())}"
         )
         frames[suffix] = child
     return frames
