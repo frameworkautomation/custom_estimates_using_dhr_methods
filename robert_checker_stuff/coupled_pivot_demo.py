@@ -705,7 +705,7 @@ def test_lmove(robot, RDK, from_joints, to_joints, tool):
     """Test if an LMove from from_joints to to_joints succeeds.
 
     Sets the robot to from_joints, then attempts MoveL to the pose
-    corresponding to to_joints. Returns True if it succeeds.
+    corresponding to to_joints. Returns (True, "") or (False, error_str).
     """
     robot.setPoseTool(tool)
     robot.setJoints(from_joints)
@@ -717,19 +717,75 @@ def test_lmove(robot, RDK, from_joints, to_joints, tool):
     try:
         robot.MoveL(target_pose)
         robot.setJoints(HOME_SEED)
-        return True
-    except Exception:
+        return True, ""
+    except Exception as e:
         robot.setJoints(HOME_SEED)
-        return False
+        return False, str(e)
 
 
-def find_viable_triplet(robot, RDK, suction_tool, suction_sols, pivot_sols, pickup_sols):
-    """Find a (suction, pivot, pickup) triplet where the LMove from
-    suction_offset_2 → pivot_after actually works.
+# J5 singularity threshold — reject solutions where J5 is within this many degrees of 0
+J5_SINGULARITY_THRESHOLD_DEG = 5.0
 
-    Tries all suction+pivot combos with matching config, tests the LMove,
-    picks the first that passes. Pickup can use any theta (tool switch
-    breaks LMove continuity) but must share config.
+
+def check_j5_singularity(joints, threshold=J5_SINGULARITY_THRESHOLD_DEG):
+    """Check if J5 is near zero (wrist singularity). Returns True if safe."""
+    j5 = joints[4]  # 0-indexed: j1=0, j2=1, ..., j5=4
+    return abs(j5) > threshold
+
+
+def verify_all_lmoves(robot, RDK, suction_tool, pickup_tool,
+                       suction_sol, pivot_sol, pickup_sol):
+    """Verify every LMove pair in the full sequence. Returns (ok, fail_step).
+
+    LMove pairs tested:
+      F3: offset_2 → suction (knotting)
+      F4: suction → offset_2 (knotting)
+      F5: offset_2 → pivot_after (knotting)
+      F7: pivot_after → cone_pickup (pickup tool — after tool switch)
+      F8: cone_pickup → post_pickup (pickup)
+
+    Also checks J5 singularity for all poses involved in LMoves.
+    """
+    s = suction_sol["joints"]
+    p = pivot_sol["joints"]
+    pk = pickup_sol["joints"]
+
+    # Check J5 singularity on all LMove-involved joints
+    lmove_joints = [
+        ("suction_offset_2", s["suction_offset_2"]),
+        ("suction_position", s["suction_position"]),
+        ("pivot_after", p["pivot_after"]),
+        ("cone_pickup_pose", pk["cone_pickup_pose"]),
+        ("post_pickup_above", pk["post_pickup_above"]),
+    ]
+    for name, joints in lmove_joints:
+        if not check_j5_singularity(joints):
+            return False, f"J5 singularity at {name} (J5={joints[4]:.1f}°)"
+
+    # Test each LMove pair
+    steps = [
+        ("F3 offset2→suction", s["suction_offset_2"], s["suction_position"], suction_tool),
+        ("F4 suction→offset2", s["suction_position"], s["suction_offset_2"], suction_tool),
+        ("F5 offset2→pivot", s["suction_offset_2"], p["pivot_after"], suction_tool),
+        ("F7 pivot→pickup", p["pivot_after"], pk["cone_pickup_pose"], pickup_tool),
+        ("F8 pickup→post", pk["cone_pickup_pose"], pk["post_pickup_above"], pickup_tool),
+    ]
+    for label, from_j, to_j, tool in steps:
+        ok, err = test_lmove(robot, RDK, from_j, to_j, tool)
+        if not ok:
+            return False, f"{label}: {err}"
+
+    return True, ""
+
+
+def find_viable_triplet(robot, RDK, suction_tool, pickup_tool,
+                        suction_sols, pivot_sols, pickup_sols):
+    """Find a (suction, pivot, pickup) triplet where ALL LMoves in the
+    full sequence pass, including J5 singularity checks.
+
+    Tries combos sorted by theta distance (same theta first). For each
+    suction+pivot pair, tries each pickup solution. First fully-verified
+    triplet wins.
 
     Returns (suction_sol, pivot_sol, pickup_sol, cfg_key) or (None, None, None, None).
     """
@@ -753,8 +809,9 @@ def find_viable_triplet(robot, RDK, suction_tool, suction_sols, pivot_sols, pick
     for cfg in sorted(shared_cfgs):
         s_list = sorted(suction_by_cfg[cfg], key=lambda x: x["theta_deg"])
         p_list = sorted(pivot_by_cfg[cfg], key=lambda x: x["theta_deg"])
+        pk_list = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])
 
-        # Try same-theta pairs first (most likely to work), then cross-theta
+        # Build suction+pivot pairs sorted by theta distance
         pairs = []
         for i, s in enumerate(s_list):
             for j, p in enumerate(p_list):
@@ -764,17 +821,19 @@ def find_viable_triplet(robot, RDK, suction_tool, suction_sols, pivot_sols, pick
         pairs.sort(key=lambda x: x[:4])
 
         for _, dist, _, _, s_sol, p_sol in pairs:
-            from_j = s_sol["joints"]["suction_offset_2"]
-            to_j = p_sol["joints"]["pivot_after"]
-            ok = test_lmove(robot, RDK, from_j, to_j, suction_tool)
-            if ok:
-                pk_sol = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])[0]
-                print(f"    [LMove OK] suction theta={s_sol['theta_deg']:.0f} → "
-                      f"pivot theta={p_sol['theta_deg']:.0f} (delta={dist:.0f})")
-                return s_sol, p_sol, pk_sol, cfg
-            else:
-                print(f"    [LMove FAIL] suction theta={s_sol['theta_deg']:.0f} → "
-                      f"pivot theta={p_sol['theta_deg']:.0f} (delta={dist:.0f})")
+            for pk_sol in pk_list:
+                ok, fail_reason = verify_all_lmoves(
+                    robot, RDK, suction_tool, pickup_tool,
+                    s_sol, p_sol, pk_sol
+                )
+                if ok:
+                    print(f"    [VERIFIED] suction theta={s_sol['theta_deg']:.0f} "
+                          f"pivot theta={p_sol['theta_deg']:.0f} "
+                          f"pickup theta={pk_sol['theta_deg']:.0f} — all LMoves pass")
+                    return s_sol, p_sol, pk_sol, cfg
+                else:
+                    print(f"    [FAIL] s={s_sol['theta_deg']:.0f} p={p_sol['theta_deg']:.0f} "
+                          f"pk={pk_sol['theta_deg']:.0f} — {fail_reason}")
 
     return None, None, None, None
 
@@ -1139,9 +1198,10 @@ def main():
             pivot_sols = res.get("pivot_sols", [])
             pickup_sols = res.get("pickup_sols", [])
 
-            # Find triplet: matching config + verified LMove from offset_2 → pivot_after
+            # Find triplet: matching config + ALL LMoves verified (incl. J5 singularity)
             s_sol, p_sol, pk_sol, cfg = find_viable_triplet(
-                robot, RDK, suction_tool, suction_sols, pivot_sols, pickup_sols
+                robot, RDK, suction_tool, pickup_tool,
+                suction_sols, pivot_sols, pickup_sols
             )
 
             if s_sol is None:
