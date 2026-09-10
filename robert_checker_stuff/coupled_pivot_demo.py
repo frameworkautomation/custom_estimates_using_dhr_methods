@@ -291,12 +291,14 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
     Returns (theta_deg, step_joints) or (None, None) on failure.
     """
     suction_pose = poses["suction_position"]
-    offset1_pose = poses["suction_offset_2"]
+    offset2_pose = poses["suction_offset_2"]
     before_pickup_pose = poses["before_pickup_offset"]
     cone_pickup_pose_val = poses["cone_pickup_pose"]
 
-    # pivot_as_suction_tcp is deterministic — does not change with theta
-    pivot_as_suction_tcp = before_pickup_pose * T_pickup_to_suction
+    # Print T_pickup_to_suction as full matrix
+    t_full = Pose_2_TxyzRxyz(T_pickup_to_suction)
+    print(f"    T_pickup_to_suction: [{t_full[0]:.1f}, {t_full[1]:.1f}, {t_full[2]:.1f}, "
+          f"{t_full[3]:.4f}, {t_full[4]:.4f}, {t_full[5]:.4f}]")
 
     n_steps = int(360 / step_deg)
 
@@ -304,52 +306,70 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
         theta_deg = step_deg * i
         theta_rad = theta_deg * math.pi / 180.0
 
-        # Rotate all suction poses around their Z axis by theta
+        # Rotate ALL poses around their Z axis by theta — cone is round
         rz = rotz(theta_rad)
         rotated_suction = suction_pose * rz
-        rotated_offset1 = offset1_pose * rz
+        rotated_offset2 = offset2_pose * rz
+        rotated_before_pickup = before_pickup_pose * rz
+        rotated_cone_pickup = cone_pickup_pose_val * rz
+
+        # Recompute pivot per theta (depends on rotated before_pickup)
+        rotated_pivot = rotated_before_pickup * T_pickup_to_suction
 
         # ── F2: suction_offset_2 -> rotated_suction (suction tool) ──
         robot.setPoseTool(suction_tool)
 
-        lbl = f"offset1@{theta_deg:.0f}" if verbose else ""
-        j_offset1 = try_ik(robot, RDK, rotated_offset1, label=lbl)
-        if j_offset1 is None:
+        lbl = f"offset2@{theta_deg:.0f}" if verbose else ""
+        j_offset2 = try_ik(robot, RDK, rotated_offset2, label=lbl)
+        if j_offset2 is None:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=FAIL")
+                print(f"    [B] theta={theta_deg:5.0f}  offset2=FAIL")
             continue
 
         lbl = f"suction@{theta_deg:.0f}" if verbose else ""
         j_suction = try_ik(robot, RDK, rotated_suction, label=lbl)
         if j_suction is None:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=FAIL")
+                print(f"    [B] theta={theta_deg:5.0f}  offset2=ok  suction=FAIL")
             continue
 
-        # ── F3: rotated_suction -> pivot_as_suction_tcp (suction tool) ──
+        # ── Create visual frame at pivot position for inspection ──
+        pivot_xyz = Pose_2_TxyzRxyz(rotated_pivot)[:3]
+        if verbose:
+            print(f"    [B] theta={theta_deg:5.0f}  offset2=ok  suction=ok  trying pivot at [{pivot_xyz[0]:.0f},{pivot_xyz[1]:.0f},{pivot_xyz[2]:.0f}]")
+
+        # Create a frame at the pivot so user can see it in RoboDK
+        pivot_frame_name = f"_debug_pivot_{theta_deg:.0f}"
+        old_pf = RDK.Item(pivot_frame_name, ITEM_TYPE_FRAME)
+        if old_pf.Valid():
+            old_pf.Delete()
+        pf = RDK.AddFrame(pivot_frame_name)
+        pf.setPoseAbs(rotated_pivot)
+
+        # ── F3: rotated_suction -> pivot (suction tool) ──
         lbl = f"pivot@{theta_deg:.0f}" if verbose else ""
-        j_pivot = try_ik(robot, RDK, pivot_as_suction_tcp, label=lbl)
+        j_pivot = try_ik(robot, RDK, rotated_pivot, label=lbl)
         if j_pivot is None:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=FAIL")
+                print(f"    [B] theta={theta_deg:5.0f}  offset2=ok  suction=ok  pivot=FAIL")
             continue
 
-        # ── FK verify pivot: switch to pickup, check TCP ≈ before_pickup_offset ──
+        # ── FK verify pivot: switch to pickup, check TCP ≈ rotated before_pickup ──
         robot.setPoseTool(pickup_tool)
         robot.setJoints(j_pivot)
         achieved_pickup = robot.Pose()
-        t = Pose_2_TxyzRxyz(before_pickup_pose)
+        t = Pose_2_TxyzRxyz(rotated_before_pickup)
         a = Pose_2_TxyzRxyz(achieved_pickup)
         pivot_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
         robot.setJoints(HOME_SEED)
 
         if pivot_err > FK_TOL_MM:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
+                print(f"    [B] theta={theta_deg:5.0f}  ...  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
             continue
 
         # ── Check config consistency F2-F3 ──
-        cfg_offset1 = get_config_flags(robot, j_offset1)
+        cfg_offset2 = get_config_flags(robot, j_offset2)
         cfg_suction = get_config_flags(robot, j_suction)
         cfg_pivot = get_config_flags(robot, j_pivot)
         if cfg_suction != cfg_pivot:
@@ -357,10 +377,10 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
                 print(f"    [B] theta={theta_deg:5.0f}  ...  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
             continue
 
-        # ── F5: before_pickup_offset -> cone_pickup_pose (pickup tool) ──
+        # ── F5: rotated before_pickup -> rotated cone_pickup (pickup tool) ──
         robot.setPoseTool(pickup_tool)
         lbl = f"pickup@{theta_deg:.0f}" if verbose else ""
-        j_pickup = try_ik(robot, RDK, cone_pickup_pose_val, label=lbl)
+        j_pickup = try_ik(robot, RDK, rotated_cone_pickup, label=lbl)
         if j_pickup is None:
             if verbose:
                 print(f"    [B] theta={theta_deg:5.0f}  ...  cfg=ok  pickup=FAIL")
@@ -375,7 +395,7 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
 
         # All passed!
         step_joints = {
-            "suction_offset_2": j_offset1,
+            "suction_offset_2": j_offset2,
             "rotated_suction": j_suction,
             "pivot_as_suction_tcp": j_pivot,
             "cone_pickup_pose": j_pickup,
