@@ -791,12 +791,12 @@ def verify_all_lmoves(robot, RDK, suction_tool, pickup_tool,
 
 def find_viable_triplet(robot, RDK, suction_tool, pickup_tool,
                         suction_sols, pivot_sols, pickup_sols):
-    """Find a (suction, pivot, pickup) triplet where ALL LMoves in the
-    full sequence pass, including J5 singularity checks.
+    """Find a (suction, pivot, pickup) triplet where ALL LMoves pass.
 
-    Tries combos sorted by theta distance (same theta first). For each
-    suction+pivot pair, tries each pickup solution. First fully-verified
-    triplet wins.
+    Tests in stages to avoid redundant work:
+      1. Filter suction solutions: F3 (offset2→suction) + F4 (suction→offset2)
+      2. For each passing suction, try pivot solutions: F5 (offset2→pivot)
+      3. For each passing suction+pivot, try pickup solutions: F7 (pivot→pickup) + F8 (pickup→post)
 
     Returns (suction_sol, pivot_sol, pickup_sol, cfg_key) or (None, None, None, None).
     """
@@ -822,29 +822,73 @@ def find_viable_triplet(robot, RDK, suction_tool, pickup_tool,
         p_list = sorted(pivot_by_cfg[cfg], key=lambda x: x["theta_deg"])
         pk_list = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])
 
-        # Build suction+pivot pairs sorted by theta distance
-        pairs = []
-        for i, s in enumerate(s_list):
-            for j, p in enumerate(p_list):
-                dist = abs(s["theta_deg"] - p["theta_deg"])
-                same = (dist == 0)
-                pairs.append((not same, dist, i, j, s, p))
-        pairs.sort(key=lambda x: x[:4])
+        # Stage 1: filter suction solutions that pass F3+F4
+        valid_suction = []
+        for s_sol in s_list:
+            sj = s_sol["joints"]
+            # J5 check on suction poses
+            if not check_j5_singularity(sj["suction_offset_2"]):
+                continue
+            if not check_j5_singularity(sj["suction_position"]):
+                continue
+            # F3: offset2 → suction
+            ok, err = test_lmove(robot, RDK, sj["suction_offset_2"], sj["suction_position"], suction_tool)
+            if not ok:
+                print(f"    [F3 FAIL] suction theta={s_sol['theta_deg']:.0f}: {err}")
+                continue
+            # F4: suction → offset2
+            ok, err = test_lmove(robot, RDK, sj["suction_position"], sj["suction_offset_2"], suction_tool)
+            if not ok:
+                print(f"    [F4 FAIL] suction theta={s_sol['theta_deg']:.0f}: {err}")
+                continue
+            valid_suction.append(s_sol)
 
-        for _, dist, _, _, s_sol, p_sol in pairs:
-            for pk_sol in pk_list:
-                ok, fail_reason = verify_all_lmoves(
-                    robot, RDK, suction_tool, pickup_tool,
-                    s_sol, p_sol, pk_sol
-                )
-                if ok:
-                    print(f"    [VERIFIED] suction theta={s_sol['theta_deg']:.0f} "
-                          f"pivot theta={p_sol['theta_deg']:.0f} "
-                          f"pickup theta={pk_sol['theta_deg']:.0f} — all LMoves pass")
+        if not valid_suction:
+            print(f"    [SKIP] config={cfg}: no suction solutions pass F3+F4")
+            continue
+
+        print(f"    {len(valid_suction)}/{len(s_list)} suction solutions pass F3+F4")
+
+        # Stage 2: for each valid suction, try pivot solutions for F5
+        for s_sol in valid_suction:
+            sj = s_sol["joints"]
+
+            # Sort pivots by theta distance from this suction
+            pivots_by_dist = sorted(p_list,
+                key=lambda p: abs(p["theta_deg"] - s_sol["theta_deg"]))
+
+            for p_sol in pivots_by_dist:
+                pj = p_sol["joints"]
+                if not check_j5_singularity(pj["pivot_after"]):
+                    continue
+                ok, err = test_lmove(robot, RDK, sj["suction_offset_2"], pj["pivot_after"], suction_tool)
+                if not ok:
+                    print(f"    [F5 FAIL] s={s_sol['theta_deg']:.0f} p={p_sol['theta_deg']:.0f}: {err}")
+                    continue
+
+                # Stage 3: try pickup solutions for F7+F8
+                for pk_sol in pk_list:
+                    pkj = pk_sol["joints"]
+                    if not check_j5_singularity(pkj["cone_pickup_pose"]):
+                        continue
+                    if not check_j5_singularity(pkj["post_pickup_above"]):
+                        continue
+                    # F7: pivot → pickup (pickup tool after tool switch)
+                    ok, err = test_lmove(robot, RDK, pj["pivot_after"], pkj["cone_pickup_pose"], pickup_tool)
+                    if not ok:
+                        continue  # don't spam — lots of pickup combos
+                    # F8: pickup → post
+                    ok, err = test_lmove(robot, RDK, pkj["cone_pickup_pose"], pkj["post_pickup_above"], pickup_tool)
+                    if not ok:
+                        continue
+
+                    print(f"    [VERIFIED] s={s_sol['theta_deg']:.0f} "
+                          f"p={p_sol['theta_deg']:.0f} "
+                          f"pk={pk_sol['theta_deg']:.0f} — all LMoves pass")
                     return s_sol, p_sol, pk_sol, cfg
-                else:
-                    print(f"    [FAIL] s={s_sol['theta_deg']:.0f} p={p_sol['theta_deg']:.0f} "
-                          f"pk={pk_sol['theta_deg']:.0f} — {fail_reason}")
+
+                print(f"    [F7/F8 FAIL] s={s_sol['theta_deg']:.0f} p={p_sol['theta_deg']:.0f}: "
+                      f"no pickup solution passed")
 
     return None, None, None, None
 
