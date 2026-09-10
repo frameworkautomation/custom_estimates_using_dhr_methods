@@ -4,8 +4,8 @@
 
 | Step | Tool | Move | From | To | Constraint |
 |------|------|------|------|-----|------------|
-| F1 | suction | JMove | suction_offset_2 | suction_offset_1 | Search A: unconstrained |
-| F2 | suction | LMove | suction_offset_1 | suction_position | Search B: coupled Z-rotation |
+| F1 | suction | JMove | suction_offset_1 | suction_offset_2 | Search A: unconstrained |
+| F2 | suction | LMove | suction_offset_2 | suction_position | Search B: coupled Z-rotation |
 | F3 | suction | LMove | suction_position | pivot_as_suction_tcp | Search B: derived pose — flange puts pickup TCP on before_pickup_offset |
 | F4 | — | tool switch | — | — | same joints as F3 end, suction → pickup |
 | F5 | pickup | LMove | before_pickup_offset | cone_pickup_pose | Search B: orientation preserved, no config flip |
@@ -15,8 +15,8 @@
 
 | Pose | Description | Setup |
 |------|-------------|-------|
-| suction_offset_2 | Safe JMove target away from bin area | Manual (RoboDK) |
-| suction_offset_1 | LMove-safe approach to suction position | Manual (RoboDK) |
+| suction_offset_1 | Safe JMove target away from bin area | Manual (RoboDK) |
+| suction_offset_2 | LMove-safe approach to suction position | Manual (RoboDK) |
 | suction_position | Where vacuum grabs the string on the cone | Manual (RoboDK) |
 | before_pickup_offset | Where pickup tool needs to be before cone grab | Manual (RoboDK) |
 | cone_pickup_pose | Where pickup tool grabs the cone | Manual (RoboDK) |
@@ -27,7 +27,7 @@
 
 | Search | Steps | Search Variable | Description |
 |--------|-------|-----------------|-------------|
-| Search A | F1 | free | JMove to suction_offset_1 — unconstrained, solve independently |
+| Search A | F1 | free | JMove to suction_offset_2 — unconstrained, solve independently |
 | Search B | F2–F5 | single Z-rotation | Coupled chain: suction_position → pivot_as_suction_tcp → tool switch → cone_pickup_pose. One Z-rotation must make all poses reachable with consistent joint configs |
 | Search C | F6 | Z-free | LMove from cone_pickup_pose to post_pickup_above — solve independently with Z-rotation freedom |
 
@@ -52,13 +52,13 @@
 3. **For each cone — Search B (coupled Z-rotation sweep):** For each θ in `range(0, 360, step_deg)`:
    - `rotated_suction = suction_position × rotz(θ)`
    - `pivot_as_suction_tcp = before_pickup_offset × T_pickup_to_suction` (recomputed at each θ)
-   - Solve IK chain: `suction_offset_1` → `rotated_suction` → `pivot_as_suction_tcp` (suction tool)
+   - Solve IK chain: `suction_offset_2` → `rotated_suction` → `pivot_as_suction_tcp` (suction tool)
    - FK verify pivot: at pivot_joints, switch to pickup, check achieved pickup TCP ≈ `before_pickup_offset` (within tolerance)
    - Continue chain: `before_pickup_offset` → `cone_pickup_pose` (pickup tool)
    - Check joint config flags consistent across chain
    - If all pass → store θ + all joint solutions, stop
 
-4. **For each cone — Search A:** Solve F1 independently (JMove to suction_offset_1, unconstrained)
+4. **For each cone — Search A:** Solve F1 independently (JMove to suction_offset_2, unconstrained)
 
 5. **For each cone — Search C:** Solve F6 independently (LMove from cone_pickup_pose to post_pickup_above, Z-free sweep)
 
@@ -90,8 +90,8 @@ Connect to RoboDK, find the robot, then:
 
 **Assert the 6 manual pose frames exist for every cone in the bin.** The script discovers all cones in the bin (same pattern as `setup_base_movements.py`), then for each cone asserts that these 6 child frames exist under it:
 
-- `<cone>_suction_offset_2`
 - `<cone>_suction_offset_1`
+- `<cone>_suction_offset_2`
 - `<cone>_suction_position`
 - `<cone>_before_pickup_offset`
 - `<cone>_cone_pickup_pose`
@@ -164,7 +164,7 @@ The search finds a θ where the entire chain is IK-reachable with consistent joi
 1. `rotated_suction = suction_position × rotz(θ)`
 2. `pivot_as_suction_tcp = before_pickup_offset × T_pickup_to_suction` (recomputed at each θ)
 3. Solve IK chain (all must succeed with consistent joint configs):
-   - Set tool = suction → solve IK at `suction_offset_1` (F2 from-pose)
+   - Set tool = suction → solve IK at `suction_offset_2` (F2 from-pose)
    - Set tool = suction → solve IK at `rotated_suction` (F2 to-pose = grab)
    - Set tool = suction → solve IK at `pivot_as_suction_tcp` (F3 to-pose = pivot) → get pivot_joints
    - FK verify pivot: set pivot_joints, switch to pickup tool, read achieved pickup TCP. Check `‖achieved_pickup_tcp − before_pickup_offset‖ < tolerance` (e.g. 5mm). If drift too large, reject this θ.
@@ -175,7 +175,7 @@ The search finds a θ where the entire chain is IK-reachable with consistent joi
 
 ### Step 5: Search A — solve F1
 
-Solve IK for `suction_offset_1` with suction tool, unconstrained (try_ik with home seed). This is a JMove so no config continuity needed.
+Solve IK for `suction_offset_2` with suction tool, unconstrained (try_ik with home seed). This is a JMove so no config continuity needed.
 
 ### Step 6: Search C — solve F6
 
@@ -187,8 +187,8 @@ For each cone in the bin, create a program `<cone>_coupled_pivot` (delete old on
 
 ```
 Set tool = suction
-MoveJ → <cone>_suction_offset_2 target (home/safe)
-MoveJ → <cone>_suction_offset_1 target         (F1)
+MoveJ → <cone>_suction_offset_1 target (home/safe)
+MoveJ → <cone>_suction_offset_2 target         (F1)
 MoveL → <cone>_suction_position target          (F2)
 MoveL → <cone>_pivot_as_suction_tcp target       (F3)
 Set tool = pickup                                (F4)

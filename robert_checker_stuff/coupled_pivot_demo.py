@@ -41,8 +41,8 @@ EXPECTED_CONE_COUNT = 6
 
 # The 6 child frame suffixes each cone must have
 CHILD_SUFFIXES = [
-    "suction_offset_2",
     "suction_offset_1",
+    "suction_offset_2",
     "suction_position",
     "before_pickup_offset",
     "cone_pickup_pose",
@@ -291,7 +291,7 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
     Returns (theta_deg, step_joints) or (None, None) on failure.
     """
     suction_pose = poses["suction_position"]
-    offset1_pose = poses["suction_offset_1"]
+    offset1_pose = poses["suction_offset_2"]
     before_pickup_pose = poses["before_pickup_offset"]
     cone_pickup_pose_val = poses["cone_pickup_pose"]
 
@@ -309,7 +309,7 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
         rotated_suction = suction_pose * rz
         rotated_offset1 = offset1_pose * rz
 
-        # ── F2: suction_offset_1 -> rotated_suction (suction tool) ──
+        # ── F2: suction_offset_2 -> rotated_suction (suction tool) ──
         robot.setPoseTool(suction_tool)
 
         lbl = f"offset1@{theta_deg:.0f}" if verbose else ""
@@ -375,7 +375,7 @@ def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
 
         # All passed!
         step_joints = {
-            "suction_offset_1": j_offset1,
+            "suction_offset_2": j_offset1,
             "rotated_suction": j_suction,
             "pivot_as_suction_tcp": j_pivot,
             "cone_pickup_pose": j_pickup,
@@ -494,12 +494,12 @@ def main():
     suction_tcp_xyz = Pose_2_TxyzRxyz(robot.PoseTool())[:3]
     print(f"  Active tool TCP: [{suction_tcp_xyz[0]:.0f}, {suction_tcp_xyz[1]:.0f}, {suction_tcp_xyz[2]:.0f}]")
     print(f"  Pose frame: WorldFrame={world_frame.Valid()}")
-    # Quick reachability test — try to reach the first cone's suction_offset_1
+    # Quick reachability test — try to reach the first cone's suction_offset_2
     first_cone = list(cone_poses.keys())[0]
-    test_pose = cone_poses[first_cone]["suction_offset_1"]
+    test_pose = cone_poses[first_cone]["suction_offset_2"]
     test_xyz = Pose_2_TxyzRxyz(test_pose)[:3]
     dist = math.sqrt(sum((test_xyz[i] - robot_base_pose[i]) ** 2 for i in range(3)))
-    print(f"  First target (suction_offset_1): [{test_xyz[0]:.0f}, {test_xyz[1]:.0f}, {test_xyz[2]:.0f}]")
+    print(f"  First target (suction_offset_2): [{test_xyz[0]:.0f}, {test_xyz[1]:.0f}, {test_xyz[2]:.0f}]")
     print(f"  Distance from robot base: {dist:.0f}mm (robot reach: 3024mm)")
 
     # ── Steps 4-6: Solve all three searches per cone ────────────────────
@@ -524,14 +524,14 @@ def main():
             continue
         result["search_b"] = {"theta_deg": theta, "joints": step_joints}
 
-        # ── Search A (F1: JMove to suction_offset_2, Z-free sweep) ──
-        print(f"  [Search A] Solve suction_offset_2 (Z-free sweep)...")
+        # ── Search A (F1: JMove to suction_offset_1, Z-free sweep) ──
+        print(f"  [Search A] Solve suction_offset_1 (Z-free sweep)...")
         robot.setPoseTool(suction_tool)
         a_joints, a_pose, a_angle = try_ik_z_sweep(
-            robot, RDK, poses["suction_offset_2"], label="offset2"
+            robot, RDK, poses["suction_offset_1"], label="offset2"
         )
         if a_joints is None:
-            print(f"    [A] FAILED — suction_offset_2 unreachable")
+            print(f"    [A] FAILED — suction_offset_1 unreachable")
             results[cone_name] = result
             continue
         print(f"    [A] SUCCESS at {a_angle:.0f} deg")
@@ -590,8 +590,8 @@ def main():
             return tgt
 
         t_home = make_joint_target(f"{cone_name}_home", TRANSPORT_JOINTS)
-        t_offset2 = make_joint_target(f"{cone_name}_suction_offset_2", search_a["joints"])
-        t_offset1 = make_joint_target(f"{cone_name}_suction_offset_1", b_joints["suction_offset_1"])
+        t_offset2 = make_joint_target(f"{cone_name}_suction_offset_1", search_a["joints"])
+        t_offset1 = make_joint_target(f"{cone_name}_suction_offset_2", b_joints["suction_offset_2"])
         t_suction = make_joint_target(f"{cone_name}_rotated_suction", b_joints["rotated_suction"])
         t_pivot = make_joint_target(f"{cone_name}_pivot", b_joints["pivot_as_suction_tcp"])
         t_pickup = make_joint_target(f"{cone_name}_cone_pickup", b_joints["cone_pickup_pose"])
