@@ -1,0 +1,338 @@
+{
+  "end_effectors": [
+    {
+      "end_effector_name": "pickup",
+      "paths_and_points_to_check": [
+        {
+          "name": "bin_cone_in_bin_00_frame_cone_pickup_pose",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_00_frame_cone_pickup_pose",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_00_frame_before_pickup_offset",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_00_frame_before_pickup_offset",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_00_frame_post_pickup_above",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_00_frame_post_pickup_above",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_01_frame_cone_pickup_pose",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_01_frame_cone_pickup_pose",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_01_frame_before_pickup_offset",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_01_frame_before_pickup_offset",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_01_frame_post_pickup_above",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_01_frame_post_pickup_above",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_02_frame_cone_pickup_pose",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_02_frame_cone_pickup_pose",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_02_frame_before_pickup_offset",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_02_frame_before_pickup_offset",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_02_frame_post_pickup_above",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_02_frame_post_pickup_above",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_10_frame_cone_pickup_pose",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_10_frame_cone_pickup_pose",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_10_frame_before_pickup_offset",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_10_frame_before_pickup_offset",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_10_frame_post_pickup_above",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_10_frame_post_pickup_above",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_11_frame_cone_pickup_pose",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_11_frame_cone_pickup_pose",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_11_frame_before_pickup_offset",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_11_frame_before_pickup_offset",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_11_frame_post_pickup_above",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_11_frame_post_pickup_above",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_12_frame_cone_pickup_pose",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_12_frame_cone_pickup_pose",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_12_frame_before_pickup_offset",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_12_frame_before_pickup_offset",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_12_frame_post_pickup_above",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_12_frame_post_pickup_above",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        }
+      ]
+    },
+    {
+      "end_effector_name": "knotting",
+      "paths_and_points_to_check": [
+        {
+          "name": "bin_cone_in_bin_00_frame_suction_position",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_00_frame_suction_position",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_00_frame_suction_offset_1",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_00_frame_suction_offset_1",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_00_frame_suction_offset_2",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_00_frame_suction_offset_2",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_01_frame_suction_position",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_01_frame_suction_position",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_01_frame_suction_offset_1",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_01_frame_suction_offset_1",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_01_frame_suction_offset_2",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_01_frame_suction_offset_2",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_02_frame_suction_position",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_02_frame_suction_position",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_02_frame_suction_offset_1",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_02_frame_suction_offset_1",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_02_frame_suction_offset_2",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_02_frame_suction_offset_2",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_10_frame_suction_position",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_10_frame_suction_position",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_10_frame_suction_offset_1",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_10_frame_suction_offset_1",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_10_frame_suction_offset_2",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_10_frame_suction_offset_2",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_11_frame_suction_position",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_11_frame_suction_position",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_11_frame_suction_offset_1",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_11_frame_suction_offset_1",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_11_frame_suction_offset_2",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_11_frame_suction_offset_2",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_12_frame_suction_position",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_12_frame_suction_position",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_12_frame_suction_offset_1",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_12_frame_suction_offset_1",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        },
+        {
+          "name": "bin_cone_in_bin_12_frame_suction_offset_2",
+          "type": "point",
+          "name_path": "BinSanityCheckTargets/bin_cone_in_bin_12_frame_suction_offset_2",
+          "z_axis_free": true,
+          "special_track_conditions": {
+            "type": "Locked_at_j7_0"
+          }
+        }
+      ]
+    }
+  ]
+}
