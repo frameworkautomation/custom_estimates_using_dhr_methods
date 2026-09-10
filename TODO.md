@@ -39,6 +39,7 @@
 ## Immediate TODOs (branch: `back_bin_reachability`)
 
 - **Fix suction_offset_1 for cone_02 and cone_12** — these two cones' suction_offset_1 frames are unreachable at any Z-rotation. Need to reposition them in RoboDK to a reachable spot near the bin.
+- **Verify new bin position can be gripped** — check that the robot can reach and grip the bin at its new position (Robert's preferred config where robot doesn't enter cells).
 
 ## Known Issues
 
