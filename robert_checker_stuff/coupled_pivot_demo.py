@@ -706,13 +706,19 @@ def test_lmove(robot, RDK, from_joints, to_joints, tool):
 
     Sets the robot to from_joints, then attempts MoveL to the pose
     corresponding to to_joints. Returns (True, "") or (False, error_str).
+    Also reports J5 values at endpoints to help diagnose singularity issues.
     """
     robot.setPoseTool(tool)
+    from_j5 = from_joints[4]
+    to_j5 = to_joints[4]
+    j5_info = f"J5: {from_j5:.1f}→{to_j5:.1f}"
+
+    # Check if J5 crosses zero between endpoints (sign change)
+    j5_crosses_zero = (from_j5 * to_j5 < 0)
+
     robot.setJoints(from_joints)
-    # Get the target pose from to_joints
     robot.setJoints(to_joints)
     target_pose = robot.Pose()
-    # Now move back to start and try LMove
     robot.setJoints(from_joints)
     try:
         robot.MoveL(target_pose)
@@ -720,7 +726,12 @@ def test_lmove(robot, RDK, from_joints, to_joints, tool):
         return True, ""
     except Exception as e:
         robot.setJoints(HOME_SEED)
-        return False, str(e)
+        err = str(e) if str(e) else "MoveL rejected"
+        if j5_crosses_zero:
+            err += f" (J5 crosses zero: {j5_info})"
+        else:
+            err += f" ({j5_info})"
+        return False, err
 
 
 # J5 singularity threshold — reject solutions where J5 is within this many degrees of 0
