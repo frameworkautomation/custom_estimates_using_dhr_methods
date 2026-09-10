@@ -103,12 +103,15 @@ def find_robot(RDK):
 
 # ── IK HELPERS (copied from setup_base_movements.py) ───────────────────────
 
+_last_ik_error = None  # stash last error for verbose reporting
+
 def _try_ik_single(robot, pose, seed):
     """Try IK with a single seed. Returns joints or None.
 
     Does NOT reset joints after success — leaves the robot at the solved pose
     so the user can see it in RoboDK.
     """
+    global _last_ik_error
     robot.setParam("OptimAxes", _OPT_AXES_6DOF)
     robot.setJoints(seed)
     try:
@@ -119,11 +122,14 @@ def _try_ik_single(robot, pose, seed):
         except AttributeError:
             joints = list(raw)
         if len(joints) < 6:
+            _last_ik_error = f"got {len(joints)} joints"
             return None
         if all(abs(j) < 1e-6 for j in joints):
+            _last_ik_error = "all-zero solution"
             return None
         return joints
     except Exception as e:
+        _last_ik_error = str(e)
         return None
 
 
@@ -145,7 +151,19 @@ def try_ik(robot, pose, seed=None, label=""):
 
     if label:
         xyz = Pose_2_TxyzRxyz(pose)[:3]
-        print(f"      [try_ik] {label} FAILED all {len(tried)} seeds. target=[{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}]")
+        tool_name = "?"
+        try:
+            tool_name = robot.PoseTool().__class__.__name__
+        except Exception:
+            pass
+        frame_name = "?"
+        try:
+            frame_name = robot.PoseFrame().__class__.__name__
+        except Exception:
+            pass
+        print(f"      [try_ik] {label} FAILED all {len(tried)} seeds. "
+              f"target=[{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}] "
+              f"last_err={_last_ik_error}")
     return None
 
 
@@ -477,6 +495,22 @@ def main():
         poses["pivot_as_suction_tcp"] = pivot
         pxyz = Pose_2_TxyzRxyz(pivot)[:3]
         print(f"  {cone_name}: pivot at [{pxyz[0]:.1f}, {pxyz[1]:.1f}, {pxyz[2]:.1f}]")
+
+    # ── Diagnostic: verify robot setup ──────────────────────────────────
+    print("\n[DIAG] Robot setup before solving:")
+    robot_base_pose = Pose_2_TxyzRxyz(robot.PoseAbs())
+    print(f"  Robot base (world): [{robot_base_pose[0]:.0f}, {robot_base_pose[1]:.0f}, {robot_base_pose[2]:.0f}]")
+    robot.setPoseTool(suction_tool)
+    suction_tcp_xyz = Pose_2_TxyzRxyz(robot.PoseTool())[:3]
+    print(f"  Active tool TCP: [{suction_tcp_xyz[0]:.0f}, {suction_tcp_xyz[1]:.0f}, {suction_tcp_xyz[2]:.0f}]")
+    print(f"  Pose frame: WorldFrame={world_frame.Valid()}")
+    # Quick reachability test — try to reach the first cone's suction_offset_1
+    first_cone = list(cone_poses.keys())[0]
+    test_pose = cone_poses[first_cone]["suction_offset_1"]
+    test_xyz = Pose_2_TxyzRxyz(test_pose)[:3]
+    dist = math.sqrt(sum((test_xyz[i] - robot_base_pose[i]) ** 2 for i in range(3)))
+    print(f"  First target (suction_offset_1): [{test_xyz[0]:.0f}, {test_xyz[1]:.0f}, {test_xyz[2]:.0f}]")
+    print(f"  Distance from robot base: {dist:.0f}mm (robot reach: 3024mm)")
 
     # ── Steps 4-6: Solve all three searches per cone ────────────────────
     print(f"\n[STEP 4-6] Solving (step_deg={args.step_deg})...")
