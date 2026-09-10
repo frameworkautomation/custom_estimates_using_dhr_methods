@@ -35,6 +35,7 @@ ROBOT_NAMES = ["Fanuc R-2000iC/125L", "Fanuc R2000iC 125L"]
 SUCTION_TOOL_NAME = "knotting"
 PICKUP_TOOL_NAME = "pickup"
 BIN_PARENT_NAME = "Cone_Bin_Frame"
+BIN_CONE_SUBFRAME = "bottom_corner"
 
 EXPECTED_CONE_COUNT = 6
 
@@ -159,15 +160,25 @@ def get_config_flags(robot, joints):
 # ── CONE DISCOVERY ──────────────────────────────────────────────────────────
 
 def discover_bin_cones(RDK):
-    """Find all cone_ frames under Cone_Bin_Frame.
+    """Find all cone_ frames under Cone_Bin_Frame/bottom_corner.
 
     Returns a sorted list of (cone_name, cone_item) tuples.
     """
     bin_frame = RDK.Item(BIN_PARENT_NAME, ITEM_TYPE_FRAME)
     assert bin_frame.Valid(), f"Frame '{BIN_PARENT_NAME}' not found in station"
 
-    cones = []
+    # Navigate to bottom_corner subframe
+    bottom_corner = None
     for child in bin_frame.Childs():
+        if child.Name() == BIN_CONE_SUBFRAME and child.Type() == ITEM_TYPE_FRAME:
+            bottom_corner = child
+            break
+    assert bottom_corner is not None, (
+        f"Frame '{BIN_CONE_SUBFRAME}' not found under '{BIN_PARENT_NAME}'"
+    )
+
+    cones = []
+    for child in bottom_corner.Childs():
         if child.Type() == ITEM_TYPE_FRAME and child.Name().startswith("cone_"):
             cones.append((child.Name(), child))
 
@@ -175,21 +186,37 @@ def discover_bin_cones(RDK):
 
 
 def find_child_frame(parent, name):
-    """Find a direct child frame by name. Returns None if not found."""
-    for child in parent.Childs():
-        if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
-            return child
+    """Recursively find a frame by name under parent (scoped search)."""
+    try:
+        for child in parent.Childs():
+            try:
+                if child.Name() == name and child.Type() == ITEM_TYPE_FRAME:
+                    return child
+                found = find_child_frame(child, name)
+                if found is not None:
+                    return found
+            except Exception:
+                continue
+    except Exception:
+        pass
     return None
 
 
 def assert_cone_frames(cone_name, cone_item):
-    """Assert all 6 child frames exist for a cone. Returns dict of suffix -> item."""
+    """Assert all 6 child frames exist for a cone. Returns dict of suffix -> item.
+
+    Searches by suffix — the child frame can be named either '<cone>_<suffix>'
+    or just '<suffix>' directly.
+    """
     frames = {}
     for suffix in CHILD_SUFFIXES:
-        child_name = f"{cone_name}_{suffix}"
-        child = find_child_frame(cone_item, child_name)
+        # Try prefixed name first, then bare suffix
+        child = find_child_frame(cone_item, f"{cone_name}_{suffix}")
+        if child is None:
+            child = find_child_frame(cone_item, suffix)
         assert child is not None, (
-            f"Missing child frame '{child_name}' under cone '{cone_name}'"
+            f"Missing child frame '{suffix}' (or '{cone_name}_{suffix}') "
+            f"under cone '{cone_name}'"
         )
         frames[suffix] = child
     return frames
@@ -333,6 +360,7 @@ def main():
     args = ap.parse_args()
 
     RDK = connect(args.robodk_ip)
+    RDK._setTimeout(300)  # 5 min — IK solver loop can be slow
 
     # ── Step 1: Assert prereqs ──────────────────────────────────────────
     print("\n[STEP 1] Assert prerequisites...")
@@ -417,7 +445,6 @@ def main():
 
         # ── Search B (coupled) ──
         print(f"  [Search B] Coupled Z-rotation sweep...")
-        robot.setPoseTool(suction_tool)
         theta, step_joints = search_b_coupled(
             robot, robot_base, suction_tool, pickup_tool,
             poses, T_pickup_to_suction, args.step_deg
