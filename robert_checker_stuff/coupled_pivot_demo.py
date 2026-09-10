@@ -701,16 +701,38 @@ def pick_best_solution(solutions, target_cfg, required_theta=None):
     return None
 
 
-def find_viable_triplet(suction_sols, pivot_sols, pickup_sols):
-    """Find a (suction, pivot, pickup) triplet that shares config AND theta.
+def test_lmove(robot, RDK, from_joints, to_joints, tool):
+    """Test if an LMove from from_joints to to_joints succeeds.
 
-    The suction→pivot LMove requires the same Z-rotation (theta) so the TCP
-    orientations are compatible. Pickup can use a different theta (JMove after
-    tool switch breaks the continuity), but must share the wrist config.
+    Sets the robot to from_joints, then attempts MoveL to the pose
+    corresponding to to_joints. Returns True if it succeeds.
+    """
+    robot.setPoseTool(tool)
+    robot.setJoints(from_joints)
+    # Get the target pose from to_joints
+    robot.setJoints(to_joints)
+    target_pose = robot.Pose()
+    # Now move back to start and try LMove
+    robot.setJoints(from_joints)
+    try:
+        robot.MoveL(target_pose)
+        robot.setJoints(HOME_SEED)
+        return True
+    except Exception:
+        robot.setJoints(HOME_SEED)
+        return False
+
+
+def find_viable_triplet(robot, RDK, suction_tool, suction_sols, pivot_sols, pickup_sols):
+    """Find a (suction, pivot, pickup) triplet where the LMove from
+    suction_offset_2 → pivot_after actually works.
+
+    Tries all suction+pivot combos with matching config, tests the LMove,
+    picks the first that passes. Pickup can use any theta (tool switch
+    breaks LMove continuity) but must share config.
 
     Returns (suction_sol, pivot_sol, pickup_sol, cfg_key) or (None, None, None, None).
     """
-    # Group by config
     suction_by_cfg = {}
     for s in suction_sols:
         k = config_key(s["wrist_cfg"])
@@ -726,24 +748,34 @@ def find_viable_triplet(suction_sols, pivot_sols, pickup_sols):
         k = config_key(pk["wrist_cfg"])
         pickup_by_cfg.setdefault(k, []).append(pk)
 
-    # Find configs present in all three
     shared_cfgs = set(suction_by_cfg) & set(pivot_by_cfg) & set(pickup_by_cfg)
 
     for cfg in sorted(shared_cfgs):
-        # Find suction+pivot pairs at the same theta
-        suction_thetas = {s["theta_deg"]: s for s in suction_by_cfg[cfg]}
-        pivot_thetas = {p["theta_deg"]: p for p in pivot_by_cfg[cfg]}
-        common_thetas = sorted(set(suction_thetas) & set(pivot_thetas))
+        s_list = sorted(suction_by_cfg[cfg], key=lambda x: x["theta_deg"])
+        p_list = sorted(pivot_by_cfg[cfg], key=lambda x: x["theta_deg"])
 
-        if not common_thetas:
-            continue
+        # Try same-theta pairs first (most likely to work), then cross-theta
+        # Build candidate pairs: same theta first, then by theta distance
+        pairs = []
+        for s in s_list:
+            for p in p_list:
+                dist = abs(s["theta_deg"] - p["theta_deg"])
+                same = (dist == 0)
+                pairs.append((not same, dist, s, p))  # sort: same first, then by distance
+        pairs.sort()
 
-        # Pick lowest common theta for suction+pivot, any pickup with matching config
-        theta = common_thetas[0]
-        s_sol = suction_thetas[theta]
-        p_sol = pivot_thetas[theta]
-        pk_sol = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])[0]
-        return s_sol, p_sol, pk_sol, cfg
+        for _, dist, s_sol, p_sol in pairs:
+            from_j = s_sol["joints"]["suction_offset_2"]
+            to_j = p_sol["joints"]["pivot_after"]
+            ok = test_lmove(robot, RDK, from_j, to_j, suction_tool)
+            if ok:
+                pk_sol = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])[0]
+                print(f"    [LMove OK] suction theta={s_sol['theta_deg']:.0f} → "
+                      f"pivot theta={p_sol['theta_deg']:.0f} (delta={dist:.0f})")
+                return s_sol, p_sol, pk_sol, cfg
+            else:
+                print(f"    [LMove FAIL] suction theta={s_sol['theta_deg']:.0f} → "
+                      f"pivot theta={p_sol['theta_deg']:.0f} (delta={dist:.0f})")
 
     return None, None, None, None
 
@@ -1108,9 +1140,9 @@ def main():
             pivot_sols = res.get("pivot_sols", [])
             pickup_sols = res.get("pickup_sols", [])
 
-            # Find triplet with matching config AND same theta for suction+pivot
+            # Find triplet: matching config + verified LMove from offset_2 → pivot_after
             s_sol, p_sol, pk_sol, cfg = find_viable_triplet(
-                suction_sols, pivot_sols, pickup_sols
+                robot, RDK, suction_tool, suction_sols, pivot_sols, pickup_sols
             )
 
             if s_sol is None:

@@ -36,6 +36,10 @@
 10. **Understand PLC interaction with end effector** — how the PLC communicates with and controls the end effector, and how to program it
     - Pogo pin / tool changer IO runs at **24V DC** (confirmed with Atenas)
 
+## Immediate TODOs (branch: `back_bin_reachability`)
+
+- **Fix suction_offset_1 for cone_02 and cone_12** — these two cones' suction_offset_1 frames are unreachable at any Z-rotation. Need to reposition them in RoboDK to a reachable spot near the bin.
+
 ## Known Issues
 
 - **RoboDK program MoveL vs Python API MoveL** — RoboDK program MoveL instructions (target items) pre-compute the entire linear path with a fixed joint configuration and fail if any point along the path is unreachable in that config. Python API `robot.MoveL(pose)` solves IK step-by-step from current joints with `OptimAxes` active, so j7 can flex along the path. Use Python script programs (DHR's approach) instead of RoboDK program instructions for movement sequences involving MoveL with external axes.
