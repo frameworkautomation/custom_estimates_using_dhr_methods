@@ -49,17 +49,23 @@ CHILD_SUFFIXES = [
     "post_pickup_above",
 ]
 
-# IK settings (6-DOF, no rail)
+# IK settings (6-DOF, no rail) — NO j2/j3 lock (workspace edge needs full extension)
 _OPT_AXES_6DOF = {
     "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
-    "AbsJnt_2": 0, "AbsOn_2": 1, "AbsW_2": 100,
-    "AbsJnt_3": 0, "AbsOn_3": 1, "AbsW_3": 100,
     "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1,
     "RelOn_4": 1, "RelOn_5": 1, "RelOn_6": 1,
     "RelW_1": 50, "RelW_2": 50, "RelW_3": 50,
     "RelW_4": 50, "RelW_5": 50, "RelW_6": 50,
 }
-HOME_SEED_6DOF = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+HOME_SEEDS = {
+    "home":      [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_p170": [170.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_n170": [-170.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_p180": [180.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home_n180": [-180.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+}
+HOME_SEED_6DOF = HOME_SEEDS["home"]
 
 TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90]
 
@@ -96,9 +102,8 @@ def find_robot(RDK):
 
 # ── IK HELPERS (copied from setup_base_movements.py) ───────────────────────
 
-def try_ik(robot, pose, seed=None):
-    if seed is None:
-        seed = HOME_SEED_6DOF
+def _try_ik_single(robot, pose, seed):
+    """Try IK with a single seed. Returns joints or None."""
     robot.setParam("OptimAxes", _OPT_AXES_6DOF)
     robot.setJoints(seed)
     try:
@@ -117,6 +122,22 @@ def try_ik(robot, pose, seed=None):
     except Exception:
         robot.setJoints(seed)
         return None
+
+
+def try_ik(robot, pose, seed=None):
+    """Try IK with given seed first, then cycle all HOME_SEEDS as fallback."""
+    if seed is not None:
+        result = _try_ik_single(robot, pose, seed)
+        if result is not None:
+            return result
+
+    for s in HOME_SEEDS.values():
+        if seed is not None and s == seed:
+            continue
+        result = _try_ik_single(robot, pose, s)
+        if result is not None:
+            return result
+    return None
 
 
 def solve_with_z_sweep(robot, target_pose, step_deg, seed=None):
