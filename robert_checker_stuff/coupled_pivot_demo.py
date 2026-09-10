@@ -1,16 +1,15 @@
 """
-Coupled pivot solver demo — task 4c.
+Coupled pivot solver demo — task 4c (reworked: split before/after, decoupled search).
 
-Solves the vacuum-to-pickup pivot sequence for each cone in the bin.
-The robot grabs the string with suction, pivots so the pickup tool aligns
-with the cone, then picks it up. A single Z-rotation must make the entire
-chain feasible.
+Decouples the suction and pivot searches into independent sweeps, then matches
+viable pairs by wrist configuration. All solutions saved as RoboDK joint targets
+in a structured folder hierarchy for visual inspection.
 
 See coupled_pivot_spec.md for the full specification.
 
 Usage:
     python robert_checker_stuff/coupled_pivot_demo.py --robodk-ip 172.23.208.1
-    python robert_checker_stuff/coupled_pivot_demo.py --robodk-ip 172.23.208.1 --step-deg 5
+    python robert_checker_stuff/coupled_pivot_demo.py --robodk-ip 172.23.208.1 --step-deg 10
 
 AI-generated code (Claude Opus 4.6) — human-reviewed before use.
 """
@@ -27,7 +26,7 @@ from robodk.robolink import (
     ITEM_TYPE_TARGET, ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON,
     ITEM_TYPE_FOLDER, INSTRUCTION_CALL_PROGRAM,
 )
-from robodk.robomath import transl, rotz, invH, Mat, Pose_2_TxyzRxyz, eye
+from robodk.robomath import transl, rotz, rotx, invH, Mat, Pose_2_TxyzRxyz, eye
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
 
@@ -61,12 +60,20 @@ _OPT_AXES_LOCKED = {
 }
 HOME_SEED = [0.0] * 7  # 7-DOF seed matching the proven checker
 
+SWEEP_SEEDS = {
+    "seeded_at_p180": [180.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "seeded_at_n180": [-180.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+}
+
 TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90, 0]  # 7-DOF (j7=0)
+
+# Pivot approach angle: pivot_before is rotated this many degrees about local X from pivot_after
+PIVOT_APPROACH_ANGLE_DEG = 90
 
 # FK verification tolerance
 FK_TOL_MM = 5.0
 
-TARGET_FOLDER_NAME = "coupled_pivot_targets"
+TARGET_FOLDER_NAME = "discovered_targets"
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -99,14 +106,16 @@ def find_robot(RDK):
 _last_ik_error = None
 
 
-def _solve_ik_locked_j7(robot, RDK, pose, j7_target=0.0):
+def _solve_ik_locked_j7(robot, RDK, pose, j7_target=0.0, seed=None):
     """Solve IK with j7 locked — EXACT copy of proven robert_end_checker pattern."""
     global _last_ik_error
+    if seed is None:
+        seed = HOME_SEED
     props = dict(_OPT_AXES_LOCKED)
     props["AbsJnt_7"] = j7_target
     robot.setParam("OptimAxes", props)
 
-    robot.setJoints(HOME_SEED)
+    robot.setJoints(seed)
     try:
         robot.MoveJ(pose)
         raw = robot.Joints()
@@ -114,20 +123,20 @@ def _solve_ik_locked_j7(robot, RDK, pose, j7_target=0.0):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
-        robot.setJoints(HOME_SEED)
+        robot.setJoints(seed)
         if len(joints) < 6:
             _last_ik_error = f"got {len(joints)} joints"
             return None, False
         return joints, True
     except Exception as e:
         _last_ik_error = str(e)
-        robot.setJoints(HOME_SEED)
+        robot.setJoints(seed)
         return None, False
 
 
-def try_ik(robot, RDK, pose, label=""):
+def try_ik(robot, RDK, pose, label="", seed=None):
     """Single IK attempt using the proven locked-j7 pattern."""
-    joints, ok = _solve_ik_locked_j7(robot, RDK, pose)
+    joints, ok = _solve_ik_locked_j7(robot, RDK, pose, seed=seed)
     if ok:
         return joints
     if label:
@@ -181,6 +190,11 @@ def get_config_flags(robot, joints):
         return cfg.list()[:3]
     except AttributeError:
         return list(cfg)[:3]
+
+
+def config_key(cfg):
+    """Convert config flags [R, L, F] to a string key like 'R0_L0_F0'."""
+    return f"R{int(cfg[0])}_L{int(cfg[1])}_F{int(cfg[2])}"
 
 
 # ── CONE DISCOVERY ──────────────────────────────────────────────────────────
@@ -281,130 +295,297 @@ def delete_if_exists(RDK, name, item_type):
     return False
 
 
-# ── SEARCH B: COUPLED Z-ROTATION SWEEP ─────────────────────────────────────
+# ── SWEEP FUNCTIONS (decoupled) ─────────────────────────────────────────────
 
-def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
-                     poses, T_pickup_to_suction, step_deg, verbose=True):
-    """Coupled Z-rotation sweep over suction_position.
+def sweep_suction(robot, RDK, suction_tool, poses, step_deg):
+    """Independent sweep over suction chain: offset1, offset2, suction_position.
 
-    Uses the proven 7-DOF locked-j7 IK pattern from robert_end_checker.py.
-    Returns (theta_deg, step_joints) or (None, None) on failure.
+    For each theta × seed, solve IK for all three suction poses.
+    Returns (solutions, attempts) where attempts tracks per-pose pass/fail.
     """
-    suction_pose = poses["suction_position"]
+    offset1_pose = poses["suction_offset_1"]
     offset2_pose = poses["suction_offset_2"]
-    before_pickup_pose = poses["before_pickup_offset"]
-    cone_pickup_pose_val = poses["cone_pickup_pose"]
+    suction_pose = poses["suction_position"]
 
-    # Print T_pickup_to_suction as full matrix
-    t_full = Pose_2_TxyzRxyz(T_pickup_to_suction)
-    print(f"    T_pickup_to_suction: [{t_full[0]:.1f}, {t_full[1]:.1f}, {t_full[2]:.1f}, "
-          f"{t_full[3]:.4f}, {t_full[4]:.4f}, {t_full[5]:.4f}]")
-
+    robot.setPoseTool(suction_tool)
     n_steps = int(360 / step_deg)
+    solutions = []
+    attempts = []  # every attempt with per-pose pass/fail
 
     for i in range(n_steps):
         theta_deg = step_deg * i
         theta_rad = theta_deg * math.pi / 180.0
-
-        # Rotate ALL poses around their Z axis by theta — cone is round
         rz = rotz(theta_rad)
-        rotated_suction = suction_pose * rz
+
+        rotated_offset1 = offset1_pose * rz
         rotated_offset2 = offset2_pose * rz
+        rotated_suction = suction_pose * rz
+
+        for seed_name, seed in SWEEP_SEEDS.items():
+            rec = {"theta_deg": theta_deg, "seed_name": seed_name,
+                   "offset1": False, "offset2": False, "suction": False}
+
+            j_offset1 = try_ik(robot, RDK, rotated_offset1, seed=seed)
+            if j_offset1 is None:
+                attempts.append(rec)
+                continue
+            rec["offset1"] = True
+
+            j_offset2 = try_ik(robot, RDK, rotated_offset2, seed=seed)
+            if j_offset2 is None:
+                attempts.append(rec)
+                continue
+            rec["offset2"] = True
+
+            j_suction = try_ik(robot, RDK, rotated_suction, seed=seed)
+            if j_suction is None:
+                attempts.append(rec)
+                continue
+            rec["suction"] = True
+
+            cfg = get_config_flags(robot, j_suction)
+            sol = {
+                "theta_deg": theta_deg,
+                "seed_name": seed_name,
+                "joints": {
+                    "suction_offset_1": j_offset1,
+                    "suction_offset_2": j_offset2,
+                    "suction_position": j_suction,
+                },
+                "wrist_cfg": cfg,
+            }
+            solutions.append(sol)
+            rec["ok"] = True
+            attempts.append(rec)
+
+    return solutions, attempts
+
+
+def sweep_pivot(robot, RDK, suction_tool, poses, T_pickup_to_suction, step_deg):
+    """Independent sweep over pivot chain: pivot_before and pivot_after.
+
+    pivot_after = rotated_before_pickup * T_pickup_to_suction
+    pivot_before = pivot_after * rotx(approach_angle)
+
+    Returns (solutions, attempts) where attempts tracks per-pose pass/fail.
+    """
+    before_pickup_pose = poses["before_pickup_offset"]
+    approach_rad = PIVOT_APPROACH_ANGLE_DEG * math.pi / 180.0
+
+    robot.setPoseTool(suction_tool)
+    n_steps = int(360 / step_deg)
+    solutions = []
+    attempts = []
+
+    for i in range(n_steps):
+        theta_deg = step_deg * i
+        theta_rad = theta_deg * math.pi / 180.0
+        rz = rotz(theta_rad)
+
         rotated_before_pickup = before_pickup_pose * rz
-        rotated_cone_pickup = cone_pickup_pose_val * rz
+        pivot_after = rotated_before_pickup * T_pickup_to_suction
+        pivot_before = pivot_after * rotx(approach_rad)
 
-        # Recompute pivot per theta (depends on rotated before_pickup)
-        rotated_pivot = rotated_before_pickup * T_pickup_to_suction
+        for seed_name, seed in SWEEP_SEEDS.items():
+            rec = {"theta_deg": theta_deg, "seed_name": seed_name,
+                   "pivot_before": False, "pivot_after": False}
 
-        # ── F2: suction_offset_2 -> rotated_suction (suction tool) ──
-        robot.setPoseTool(suction_tool)
+            j_before = try_ik(robot, RDK, pivot_before, seed=seed)
+            if j_before is None:
+                attempts.append(rec)
+                continue
+            rec["pivot_before"] = True
 
-        lbl = f"offset2@{theta_deg:.0f}" if verbose else ""
-        j_offset2 = try_ik(robot, RDK, rotated_offset2, label=lbl)
-        if j_offset2 is None:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset2=FAIL")
-            continue
+            j_after = try_ik(robot, RDK, pivot_after, seed=seed)
+            if j_after is None:
+                attempts.append(rec)
+                continue
+            rec["pivot_after"] = True
 
-        lbl = f"suction@{theta_deg:.0f}" if verbose else ""
-        j_suction = try_ik(robot, RDK, rotated_suction, label=lbl)
-        if j_suction is None:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset2=ok  suction=FAIL")
-            continue
+            cfg = get_config_flags(robot, j_before)
+            sol = {
+                "theta_deg": theta_deg,
+                "seed_name": seed_name,
+                "joints": {
+                    "pivot_before": j_before,
+                    "pivot_after": j_after,
+                },
+                "wrist_cfg": cfg,
+            }
+            solutions.append(sol)
+            rec["ok"] = True
+            attempts.append(rec)
 
-        # ── Create visual frame at pivot position for inspection ──
-        pivot_xyz = Pose_2_TxyzRxyz(rotated_pivot)[:3]
-        if verbose:
-            print(f"    [B] theta={theta_deg:5.0f}  offset2=ok  suction=ok  trying pivot at [{pivot_xyz[0]:.0f},{pivot_xyz[1]:.0f},{pivot_xyz[2]:.0f}]")
+    return solutions, attempts
 
-        # Create a frame at the pivot so user can see it in RoboDK
-        pivot_frame_name = f"_debug_pivot_{theta_deg:.0f}"
-        old_pf = RDK.Item(pivot_frame_name, ITEM_TYPE_FRAME)
-        if old_pf.Valid():
-            old_pf.Delete()
-        pf = RDK.AddFrame(pivot_frame_name)
-        pf.setPoseAbs(rotated_pivot)
 
-        # ── F3: rotated_suction -> pivot (suction tool) ──
-        lbl = f"pivot@{theta_deg:.0f}" if verbose else ""
-        j_pivot = try_ik(robot, RDK, rotated_pivot, label=lbl)
-        if j_pivot is None:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset2=ok  suction=ok  pivot=FAIL")
-            continue
+def sweep_pickup(robot, RDK, pickup_tool, poses, step_deg):
+    """Independent sweep over pickup chain: cone_pickup_pose and post_pickup_above.
 
-        # ── FK verify pivot: switch to pickup, check TCP ≈ rotated before_pickup ──
-        robot.setPoseTool(pickup_tool)
-        robot.setJoints(j_pivot)
-        achieved_pickup = robot.Pose()
-        t = Pose_2_TxyzRxyz(rotated_before_pickup)
-        a = Pose_2_TxyzRxyz(achieved_pickup)
-        pivot_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
-        robot.setJoints(HOME_SEED)
+    Uses pickup tool. For each theta × seed, solve IK for both pickup poses.
+    Returns (solutions, attempts) where attempts tracks per-pose pass/fail.
+    """
+    pickup_pose = poses["cone_pickup_pose"]
+    post_above_pose = poses["post_pickup_above"]
 
-        if pivot_err > FK_TOL_MM:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  ...  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
-            continue
+    robot.setPoseTool(pickup_tool)
+    n_steps = int(360 / step_deg)
+    solutions = []
+    attempts = []
 
-        # ── Check config consistency F2-F3 ──
-        cfg_offset2 = get_config_flags(robot, j_offset2)
-        cfg_suction = get_config_flags(robot, j_suction)
-        cfg_pivot = get_config_flags(robot, j_pivot)
-        if cfg_suction != cfg_pivot:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  ...  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
-            continue
+    for i in range(n_steps):
+        theta_deg = step_deg * i
+        theta_rad = theta_deg * math.pi / 180.0
+        rz = rotz(theta_rad)
 
-        # ── F5: rotated before_pickup -> rotated cone_pickup (pickup tool) ──
-        robot.setPoseTool(pickup_tool)
-        lbl = f"pickup@{theta_deg:.0f}" if verbose else ""
-        j_pickup = try_ik(robot, RDK, rotated_cone_pickup, label=lbl)
-        if j_pickup is None:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  ...  cfg=ok  pickup=FAIL")
-            continue
+        rotated_pickup = pickup_pose * rz
+        rotated_post = post_above_pose * rz
 
-        # ── Check config consistency F4-F5 ──
-        cfg_pickup = get_config_flags(robot, j_pickup)
-        if cfg_pivot != cfg_pickup:
-            if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  ...  pickup_cfg_mismatch pivot={cfg_pivot} pickup={cfg_pickup}")
-            continue
+        for seed_name, seed in SWEEP_SEEDS.items():
+            rec = {"theta_deg": theta_deg, "seed_name": seed_name,
+                   "cone_pickup": False, "post_pickup_above": False}
 
-        # All passed!
-        step_joints = {
-            "suction_offset_2": j_offset2,
-            "rotated_suction": j_suction,
-            "pivot_as_suction_tcp": j_pivot,
-            "cone_pickup_pose": j_pickup,
-        }
-        print(f"    [B] theta={theta_deg:5.0f}  SUCCESS  fk={pivot_err:.1f}mm  cfg={cfg_pivot}")
-        return theta_deg, step_joints
+            j_pickup = try_ik(robot, RDK, rotated_pickup, seed=seed)
+            if j_pickup is None:
+                attempts.append(rec)
+                continue
+            rec["cone_pickup"] = True
 
-    print(f"    [B] FAILED — no theta found in {n_steps} steps")
-    return None, None
+            j_post = try_ik(robot, RDK, rotated_post, seed=seed)
+            if j_post is None:
+                attempts.append(rec)
+                continue
+            rec["post_pickup_above"] = True
+
+            cfg = get_config_flags(robot, j_pickup)
+            sol = {
+                "theta_deg": theta_deg,
+                "seed_name": seed_name,
+                "joints": {
+                    "cone_pickup_pose": j_pickup,
+                    "post_pickup_above": j_post,
+                },
+                "wrist_cfg": cfg,
+            }
+            solutions.append(sol)
+            rec["ok"] = True
+            attempts.append(rec)
+
+    return solutions, attempts
+
+
+def print_attempt_report(label, attempts, pose_keys):
+    """Print a pass/fail grid for each theta × seed, broken down by pose."""
+    # Aggregate: how many times did each pose individually pass?
+    total = len(attempts)
+    if total == 0:
+        print(f"    [{label}] No attempts")
+        return
+
+    pass_counts = {k: sum(1 for a in attempts if a.get(k)) for k in pose_keys}
+    full_pass = sum(1 for a in attempts if a.get("ok"))
+
+    print(f"    [{label}] {total} attempts, {full_pass} full passes")
+    for k in pose_keys:
+        print(f"      {k}: {pass_counts[k]}/{total} passed")
+
+    # Show the failure grid (only failed attempts)
+    failed = [a for a in attempts if not a.get("ok")]
+    if not failed:
+        return
+    # Group failures by which pose was the first to fail
+    first_fail = {}
+    for a in failed:
+        for k in pose_keys:
+            if not a.get(k):
+                first_fail.setdefault(k, []).append(a)
+                break
+    for k in pose_keys:
+        if k in first_fail:
+            thetas = sorted(set(a["theta_deg"] for a in first_fail[k]))
+            print(f"      first failure at {k} ({len(first_fail[k])}x): "
+                  f"thetas={[f'{t:.0f}' for t in thetas[:8]]}{'...' if len(thetas) > 8 else ''}")
+
+
+# ── SAVE SOLUTIONS TO STATION ───────────────────────────────────────────────
+
+def _save_solution_group(RDK, robot, parent_folder, group_name, solutions):
+    """Save a list of solution dicts into a named subfolder with seed/config hierarchy."""
+    if not solutions:
+        return
+    group_folder = get_or_create_folder(RDK, group_name, parent=parent_folder)
+    for sol in solutions:
+        seed_folder = get_or_create_folder(RDK, sol["seed_name"], parent=group_folder)
+        cfg_name = f"config_{config_key(sol['wrist_cfg'])}"
+        cfg_folder = get_or_create_folder(RDK, cfg_name, parent=seed_folder)
+
+        theta_str = f"{sol['theta_deg']:03.0f}"
+        for pose_name, joints in sol["joints"].items():
+            tgt_name = f"{pose_name}_theta_{theta_str}"
+            tgt = RDK.AddTarget(tgt_name, cfg_folder, robot)
+            tgt.setJoints(joints)
+            tgt.setAsJointTarget()
+
+
+def save_solutions_to_station(RDK, robot, cone_name, suction_solutions, pivot_solutions, pickup_solutions):
+    """Create RoboDK folder hierarchy with joint targets for all viable solutions.
+
+    Structure:
+        discovered_targets/<cone_name>/<group>/<seed>/config_<cfg>/<target>
+    """
+    root_folder = get_or_create_folder(RDK, TARGET_FOLDER_NAME)
+    cone_folder = get_or_create_folder(RDK, cone_name, parent=root_folder)
+
+    _save_solution_group(RDK, robot, cone_folder, "suction_solutions", suction_solutions)
+    _save_solution_group(RDK, robot, cone_folder, "pivot_solutions", pivot_solutions)
+    _save_solution_group(RDK, robot, cone_folder, "pickup_solutions", pickup_solutions)
+
+
+# ── MATCH PAIRS BY WRIST CONFIG ─────────────────────────────────────────────
+
+def find_config_overlap(suction_solutions, pivot_solutions, pickup_solutions):
+    """Report which wrist configs have solutions across all three sweeps.
+
+    Actual pairing (which thetas to combine) is deferred to LMove verification.
+    For now we just confirm overlap exists.
+
+    Returns dict of config_key -> {"suction": N, "pivot": N, "pickup": N}.
+    """
+    groups = {
+        "suction": suction_solutions,
+        "pivot": pivot_solutions,
+        "pickup": pickup_solutions,
+    }
+    by_cfg = {}  # group_name -> {cfg_key -> count}
+    for gname, sols in groups.items():
+        counts = {}
+        for s in sols:
+            k = config_key(s["wrist_cfg"])
+            counts[k] = counts.get(k, 0) + 1
+        by_cfg[gname] = counts
+
+    all_cfgs = set()
+    for counts in by_cfg.values():
+        all_cfgs.update(counts.keys())
+
+    # Overlap = configs present in ALL three groups
+    overlap = {}
+    for cfg in sorted(all_cfgs):
+        present = {g: by_cfg[g].get(cfg, 0) for g in groups}
+        if all(v > 0 for v in present.values()):
+            overlap[cfg] = present
+            print(f"    [OVERLAP] config={cfg}: "
+                  f"{present['suction']} suction, {present['pivot']} pivot, {present['pickup']} pickup")
+
+    if not overlap:
+        # Show partial overlap to help debug
+        for cfg in sorted(all_cfgs):
+            present = {g: by_cfg[g].get(cfg, 0) for g in groups}
+            missing = [g for g, v in present.items() if v == 0]
+            has = [f"{g}={v}" for g, v in present.items() if v > 0]
+            print(f"    [PARTIAL] config={cfg}: {', '.join(has)} — missing: {', '.join(missing)}")
+
+    return overlap
 
 
 # ── MAIN ────────────────────────────────────────────────────────────────────
@@ -413,12 +594,18 @@ def main():
     ap = argparse.ArgumentParser(description="Coupled pivot solver demo (task 4c)")
     ap.add_argument("--robodk-ip", default=None,
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
-    ap.add_argument("--step-deg", type=float, default=5.0,
-                    help="Z-rotation step size in degrees (default: 5)")
+    ap.add_argument("--step-deg", type=float, default=15.0,
+                    help="Z-rotation step size in degrees (default: 15)")
+    ap.add_argument("--skip", nargs="*", default=[],
+                    help="Phases to skip, e.g. --skip 3 4 4b 5 6")
     ap.add_argument("--non-verbose", action="store_true",
                     help="Suppress per-angle diagnostic output")
     args = ap.parse_args()
     args.verbose = not args.non_verbose
+
+    skip = {s.upper() for s in args.skip}
+    if skip:
+        print(f"[SKIP] Skipping phases: {', '.join(sorted(skip))}")
 
     RDK = connect(args.robodk_ip)
     RDK._setTimeout(300)  # 5 min — IK solver loop can be slow
@@ -492,19 +679,17 @@ def main():
     print(f"  T_pickup_to_suction: pos=[{t_full[0]:.1f}, {t_full[1]:.1f}, {t_full[2]:.1f}] "
           f"rot=[{t_full[3]:.1f}, {t_full[4]:.1f}, {t_full[5]:.1f}]")
 
-    # ── Step 3: Compute pivot_as_suction_tcp per cone ───────────────────
-    print("\n[STEP 3] Computing pivot_as_suction_tcp for each cone...")
-
-    for cone_name, poses in cone_poses.items():
-        before_pickup = poses["before_pickup_offset"]
-        pivot = before_pickup * T_pickup_to_suction
-        poses["pivot_as_suction_tcp"] = pivot
-        bxyz = Pose_2_TxyzRxyz(before_pickup)[:3]
-        pxyz = Pose_2_TxyzRxyz(pivot)[:3]
-        delta = [pxyz[i] - bxyz[i] for i in range(3)]
-        print(f"  {cone_name}: before_pickup=[{bxyz[0]:.0f},{bxyz[1]:.0f},{bxyz[2]:.0f}] "
-              f"pivot=[{pxyz[0]:.0f},{pxyz[1]:.0f},{pxyz[2]:.0f}] "
-              f"delta=[{delta[0]:.0f},{delta[1]:.0f},{delta[2]:.0f}]")
+    # ── Phase 3: Clean up old folder ─────────────────────────────────────
+    if "3" not in skip:
+        print("\n── Phase 3: Cleaning up old discovered_targets folder ──")
+        old_folder = RDK.Item(TARGET_FOLDER_NAME, ITEM_TYPE_FOLDER)
+        if old_folder.Valid():
+            old_folder.Delete()
+            print(f"  [CLEAN] Deleted old '{TARGET_FOLDER_NAME}' folder")
+        else:
+            print(f"  No previous '{TARGET_FOLDER_NAME}' folder found")
+    else:
+        print("\n── Phase 3: SKIPPED ──")
 
     # ── Diagnostic: verify robot setup ──────────────────────────────────
     print("\n[DIAG] Robot setup before solving:")
@@ -522,165 +707,114 @@ def main():
     print(f"  First target (suction_offset_2): [{test_xyz[0]:.0f}, {test_xyz[1]:.0f}, {test_xyz[2]:.0f}]")
     print(f"  Distance from robot base: {dist:.0f}mm (robot reach: 3024mm)")
 
-    # ── Steps 4-6: Solve all three searches per cone ────────────────────
-    print(f"\n[STEP 4-6] Solving (step_deg={args.step_deg})...")
+    # ── Phases 4-6: Decoupled sweeps per cone ─────────────────────────
+    all_results = {}
 
-    results = {}  # cone_name -> {search_a, search_b, search_c, feasible}
-
-    for cone_name, poses in cone_poses.items():
-        print(f"\n  === {cone_name} ===")
-        result = {"feasible": False}
-
-        # ── Search B (coupled) ──
-        print(f"  [Search B] Coupled Z-rotation sweep...")
-        theta, step_joints = search_b_coupled(
-            robot, RDK, robot_base, suction_tool, pickup_tool,
-            poses, T_pickup_to_suction, args.step_deg,
-            verbose=args.verbose
-        )
-        if theta is None:
-            print(f"  [SKIP] {cone_name} — Search B failed, skipping A and C")
-            results[cone_name] = result
-            continue
-        result["search_b"] = {"theta_deg": theta, "joints": step_joints}
-
-        # ── Search A (F1: JMove to suction_offset_1, Z-free sweep) ──
-        print(f"  [Search A] Solve suction_offset_1 (Z-free sweep)...")
-        robot.setPoseTool(suction_tool)
-        a_joints, a_pose, a_angle = try_ik_z_sweep(
-            robot, RDK, poses["suction_offset_1"], label="offset2"
-        )
-        if a_joints is None:
-            print(f"    [A] FAILED — suction_offset_1 unreachable")
-            results[cone_name] = result
-            continue
-        print(f"    [A] SUCCESS at {a_angle:.0f} deg")
-        result["search_a"] = {"joints": a_joints}
-
-        # ── Search C (F6: post_pickup_above, Z-free sweep) ──
-        print(f"  [Search C] Solve post_pickup_above (Z-free sweep)...")
-        robot.setPoseTool(pickup_tool)
-        c_joints, c_pose, c_angle = try_ik_z_sweep(
-            robot, RDK, poses["post_pickup_above"], label="post_pickup"
-        )
-        if c_joints is None:
-            print(f"    [C] FAILED — post_pickup_above unreachable")
-            results[cone_name] = result
-            continue
-        print(f"    [C] SUCCESS at theta={c_angle:.0f} deg")
-        result["search_c"] = {"joints": c_joints, "theta_deg": c_angle, "pose": c_pose}
-
-        result["feasible"] = True
-        results[cone_name] = result
-
-    # ── Step 7: Build RoboDK programs ───────────────────────────────────
-    print("\n[STEP 7] Building RoboDK programs...")
-
-    # Clean up old targets/programs
-    old_folder = RDK.Item(TARGET_FOLDER_NAME, ITEM_TYPE_FOLDER)
-    if old_folder.Valid():
-        old_folder.Delete()
-        print(f"  [CLEAN] Deleted old '{TARGET_FOLDER_NAME}' folder")
-
-    for cone_name in cone_poses:
-        prog_name = f"{cone_name}_coupled_pivot"
-        for ptype in [ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON]:
-            delete_if_exists(RDK, prog_name, ptype)
-
-    target_folder = get_or_create_folder(RDK, TARGET_FOLDER_NAME)
-
-    feasible_count = 0
-    for cone_name, result in results.items():
-        if not result["feasible"]:
-            print(f"  [SKIP] {cone_name} — not feasible")
-            continue
-
-        feasible_count += 1
-        prog_name = f"{cone_name}_coupled_pivot"
-        search_a = result["search_a"]
-        search_b = result["search_b"]
-        search_c = result["search_c"]
-        b_joints = search_b["joints"]
-
-        # Create joint targets
-        def make_joint_target(name, joints):
-            tgt = RDK.AddTarget(name, target_folder, robot)
-            tgt.setJoints(joints)
-            tgt.setAsJointTarget()
-            return tgt
-
-        t_home = make_joint_target(f"{cone_name}_home", TRANSPORT_JOINTS)
-        t_offset2 = make_joint_target(f"{cone_name}_suction_offset_1", search_a["joints"])
-        t_offset1 = make_joint_target(f"{cone_name}_suction_offset_2", b_joints["suction_offset_2"])
-        t_suction = make_joint_target(f"{cone_name}_rotated_suction", b_joints["rotated_suction"])
-        t_pivot = make_joint_target(f"{cone_name}_pivot", b_joints["pivot_as_suction_tcp"])
-        t_pickup = make_joint_target(f"{cone_name}_cone_pickup", b_joints["cone_pickup_pose"])
-        t_post = make_joint_target(f"{cone_name}_post_pickup_above", search_c["joints"])
-
-        # Build program
-        prog = RDK.AddProgram(prog_name, robot)
-        prog.setPoseFrame(robot_base)
-
-        prog.RunInstruction(f"# {cone_name} coupled pivot sequence", 0)
-
-        # F1: suction tool, JMove to safe position then approach
-        prog.setPoseTool(suction_tool)
-        prog.MoveJ(t_home)
-        prog.MoveJ(t_offset2)
-        prog.MoveJ(t_offset1)
-
-        # F2: LMove to suction grab
-        prog.MoveL(t_suction)
-
-        # F3: LMove to pivot
-        prog.MoveL(t_pivot)
-
-        # F4: tool switch (same joints, different tool)
-        prog.setPoseTool(pickup_tool)
-
-        # F5: LMove to cone pickup
-        prog.MoveL(t_pickup)
-
-        # F6: LMove to post-pickup above
-        prog.MoveL(t_post)
-
-        # Return home
-        prog.MoveJ(t_home)
-
-        n_ins = prog.InstructionCount()
-        print(f"  [PROG] {prog_name}: {n_ins} instructions, theta={search_b['theta_deg']:.0f} deg")
-
-    # ── Step 8: Print summary ───────────────────────────────────────────
-    print(f"\n{'='*60}")
-    print(f"COUPLED PIVOT SOLVER RESULTS")
-    print(f"{'='*60}")
-    print(f"Step size: {args.step_deg} deg")
-    print(f"Cones tested: {len(results)}")
-    print(f"Feasible: {feasible_count} / {len(results)}")
-    print()
-
-    for cone_name, result in results.items():
-        if result["feasible"]:
-            b = result["search_b"]
-            c = result["search_c"]
-            print(f"  {cone_name}: FEASIBLE")
-            print(f"    Search B theta: {b['theta_deg']:.0f} deg")
-            print(f"    Search C theta: {c['theta_deg']:.0f} deg")
-        else:
-            reasons = []
-            if "search_b" not in result:
-                reasons.append("Search B failed")
-            if "search_a" not in result:
-                reasons.append("Search A failed")
-            if "search_c" not in result:
-                reasons.append("Search C failed")
-            print(f"  {cone_name}: INFEASIBLE — {', '.join(reasons)}")
-
-    print(f"\n{'='*60}")
-    if feasible_count > 0:
-        print(f"Programs created. Step through in RoboDK: right-click -> Run step-by-step")
+    # ── Phase 4: Suction sweep ────────────────────────────────────────
+    if "4" not in skip:
+        print(f"\n── Phase 4: Suction sweep (step_deg={args.step_deg}) ──")
+        for cone_name, poses in cone_poses.items():
+            print(f"\n  === {cone_name} ===")
+            suction_sols, suction_attempts = sweep_suction(robot, RDK, suction_tool, poses, args.step_deg)
+            print(f"    {len(suction_sols)} suction solutions")
+            print_attempt_report("suction", suction_attempts,
+                                 ["offset1", "offset2", "suction"])
+            all_results.setdefault(cone_name, {})["suction_sols"] = suction_sols
     else:
-        print("No feasible cones found.")
+        print("\n── Phase 4: SKIPPED ──")
+        for cone_name in cone_poses:
+            all_results.setdefault(cone_name, {})["suction_sols"] = []
+
+    # ── Phase 4b: Pickup sweep ────────────────────────────────────────
+    if "4B" not in skip:
+        print(f"\n── Phase 4b: Pickup sweep (step_deg={args.step_deg}) ──")
+        for cone_name, poses in cone_poses.items():
+            print(f"\n  === {cone_name} ===")
+            pickup_sols, pickup_attempts = sweep_pickup(robot, RDK, pickup_tool, poses, args.step_deg)
+            print(f"    {len(pickup_sols)} pickup solutions")
+            print_attempt_report("pickup", pickup_attempts,
+                                 ["cone_pickup", "post_pickup_above"])
+            all_results[cone_name]["pickup_sols"] = pickup_sols
+    else:
+        print("\n── Phase 4b: SKIPPED ──")
+        for cone_name in cone_poses:
+            all_results[cone_name]["pickup_sols"] = []
+
+    # ── Phase 5: Pivot sweep + save + overlap ─────────────────────────
+    if "5" not in skip:
+        print(f"\n── Phase 5: Pivot sweep (step_deg={args.step_deg}) + save + overlap ──")
+        for cone_name, poses in cone_poses.items():
+            print(f"\n  === {cone_name} ===")
+            pivot_sols, pivot_attempts = sweep_pivot(robot, RDK, suction_tool, poses, T_pickup_to_suction, args.step_deg)
+            print(f"    {len(pivot_sols)} pivot pairs")
+            print_attempt_report("pivot", pivot_attempts,
+                                 ["pivot_before", "pivot_after"])
+            all_results[cone_name]["pivot_sols"] = pivot_sols
+
+            suction_sols = all_results[cone_name]["suction_sols"]
+            pickup_sols = all_results[cone_name]["pickup_sols"]
+
+            # Save all three to station
+            if suction_sols or pivot_sols or pickup_sols:
+                save_solutions_to_station(RDK, robot, cone_name, suction_sols, pivot_sols, pickup_sols)
+                print(f"    Saved to station under {TARGET_FOLDER_NAME}/{cone_name}/")
+
+            # Check config overlap across all three
+            print(f"  [Match] Checking config overlap (suction × pivot × pickup)...")
+            overlap = find_config_overlap(suction_sols, pivot_sols, pickup_sols)
+            all_results[cone_name]["overlap"] = overlap
+    else:
+        print("\n── Phase 5: SKIPPED ──")
+        for cone_name in cone_poses:
+            all_results[cone_name]["pivot_sols"] = []
+            all_results[cone_name]["overlap"] = {}
+
+    # ── Phase 6: Summary ──────────────────────────────────────────────
+    if "6" not in skip:
+        print(f"\n{'='*60}")
+        print(f"DECOUPLED PIVOT SOLVER RESULTS")
+        print(f"{'='*60}")
+        print(f"Step size: {args.step_deg} deg")
+        print(f"Seeds: {list(SWEEP_SEEDS.keys())}")
+        print(f"Approach angle: {PIVOT_APPROACH_ANGLE_DEG} deg")
+        print(f"Cones tested: {len(all_results)}")
+        print()
+
+        for cone_name, res in all_results.items():
+            suction_sols = res.get("suction_sols", [])
+            pivot_sols = res.get("pivot_sols", [])
+            pickup_sols = res.get("pickup_sols", [])
+            overlap = res.get("overlap", {})
+            has_overlap = len(overlap) > 0
+            status = "HAS OVERLAP" if has_overlap else "NO OVERLAP"
+            print(f"  {cone_name}: {status}")
+            print(f"    Suction solutions: {len(suction_sols)}")
+            print(f"    Pivot solutions:   {len(pivot_sols)}")
+            print(f"    Pickup solutions:  {len(pickup_sols)}")
+            if overlap:
+                for cfg, counts in overlap.items():
+                    print(f"    Config {cfg}: {counts['suction']} suction × {counts['pivot']} pivot × {counts['pickup']} pickup")
+            else:
+                suction_cfgs = set(config_key(s["wrist_cfg"]) for s in suction_sols)
+                pivot_cfgs = set(config_key(s["wrist_cfg"]) for s in pivot_sols)
+                pickup_cfgs = set(config_key(s["wrist_cfg"]) for s in pickup_sols)
+                if suction_cfgs:
+                    print(f"    Suction configs: {sorted(suction_cfgs)}")
+                if pivot_cfgs:
+                    print(f"    Pivot configs:   {sorted(pivot_cfgs)}")
+                if pickup_cfgs:
+                    print(f"    Pickup configs:  {sorted(pickup_cfgs)}")
+
+        print(f"\n{'='*60}")
+        cones_with_overlap = sum(1 for r in all_results.values() if r.get("overlap"))
+        print(f"Cones with config overlap: {cones_with_overlap} / {len(all_results)}")
+        if cones_with_overlap > 0:
+            print(f"Inspect targets in RoboDK: {TARGET_FOLDER_NAME}/ → right-click target → Move to Target")
+            print(f"Next step: LMove verification (Phase D) to find viable theta pairings")
+        else:
+            print("No config overlap found for any cone.")
+    else:
+        print("\n── Phase 6: SKIPPED ──")
 
 
 if __name__ == "__main__":
