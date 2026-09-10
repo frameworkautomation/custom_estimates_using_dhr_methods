@@ -339,7 +339,9 @@ def main():
                 target_name = name_path.split("/")[-1]
                 target = RDK.Item(target_name, ITEM_TYPE_TARGET)
                 if not target.Valid():
-                    print(f"  [{name}] TARGET '{target_name}' NOT FOUND — SKIP")
+                    target = RDK.Item(target_name, ITEM_TYPE_FRAME)
+                if not target.Valid():
+                    print(f"  [{name}] TARGET/FRAME '{target_name}' NOT FOUND — SKIP")
                     ee_results[name] = {
                         "reachable": False,
                         "error": f"Target '{target_name}' not found in RoboDK",

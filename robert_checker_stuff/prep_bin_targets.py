@@ -100,12 +100,25 @@ def main():
                 continue
 
             target_name = f"bin_{cone_name}_{suffix}"
-            pose = frame.PoseAbs()
-            xyz = Pose_2_TxyzRxyz(pose)[:3]
+            pose_abs = frame.PoseAbs()
+            xyz = Pose_2_TxyzRxyz(pose_abs)[:3]
+
+            # setPose sets pose relative to parent — if parent (folder) isn't
+            # at world origin, we need to account for that. Use PoseWrt to get
+            # the pose relative to the folder.
+            folder_abs = folder.PoseAbs()
+            from robodk.robomath import invH
+            pose_in_folder = invH(folder_abs) * pose_abs
+
             tgt = RDK.AddTarget(target_name, folder, robot)
-            tgt.setPose(pose)
+            tgt.setPose(pose_in_folder)
+
+            # Verify
+            verify_xyz = Pose_2_TxyzRxyz(tgt.PoseAbs())[:3]
+            err = sum((xyz[i] - verify_xyz[i])**2 for i in range(3)) ** 0.5
+
             created += 1
-            print(f"    {target_name} at [{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}]")
+            print(f"    {target_name} at [{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}] verify_err={err:.1f}mm")
 
     print(f"\n[DONE] Created {created} targets in {TARGET_FOLDER}")
 
