@@ -535,6 +535,109 @@ def save_solutions_to_station(RDK, robot, cone_name, suction_solutions, pivot_so
     _save_solution_group(RDK, robot, cone_folder, "pickup_solutions", pickup_solutions)
 
 
+# ── LOAD SOLUTIONS FROM STATION ──────────────────────────────────────────────
+
+def _parse_config_folder_name(name):
+    """Parse 'config_R0_L0_F0' → [0.0, 0.0, 0.0] or None."""
+    if not name.startswith("config_R"):
+        return None
+    parts = name[len("config_"):].split("_")
+    if len(parts) != 3:
+        return None
+    try:
+        return [float(p[1]) for p in parts]  # R0 -> 0.0, L1 -> 1.0, F0 -> 0.0
+    except (IndexError, ValueError):
+        return None
+
+
+def _parse_target_name(name):
+    """Parse 'suction_offset_2_theta_060' → ('suction_offset_2', 60.0) or None."""
+    idx = name.rfind("_theta_")
+    if idx < 0:
+        return None, None
+    pose_name = name[:idx]
+    try:
+        theta = float(name[idx + len("_theta_"):])
+    except ValueError:
+        return None, None
+    return pose_name, theta
+
+
+def load_solutions_from_station(RDK, cone_name):
+    """Read back solutions from discovered_targets/<cone_name>/ in the station.
+
+    Returns dict: {"suction_sols": [...], "pivot_sols": [...], "pickup_sols": [...]}
+    Each sol has: theta_deg, seed_name, joints (dict), wrist_cfg (list).
+    """
+    root = RDK.Item(TARGET_FOLDER_NAME, ITEM_TYPE_FOLDER)
+    if not root.Valid():
+        return {"suction_sols": [], "pivot_sols": [], "pickup_sols": []}
+
+    cone_folder = None
+    for child in root.Childs():
+        if child.Name() == cone_name and child.Type() == ITEM_TYPE_FOLDER:
+            cone_folder = child
+            break
+    if cone_folder is None:
+        return {"suction_sols": [], "pivot_sols": [], "pickup_sols": []}
+
+    group_map = {
+        "suction_solutions": "suction_sols",
+        "pivot_solutions": "pivot_sols",
+        "pickup_solutions": "pickup_sols",
+    }
+
+    result = {"suction_sols": [], "pivot_sols": [], "pickup_sols": []}
+
+    for group_folder in cone_folder.Childs():
+        if group_folder.Type() != ITEM_TYPE_FOLDER:
+            continue
+        result_key = group_map.get(group_folder.Name())
+        if result_key is None:
+            continue
+
+        # Walk: group_folder / seed_folder / config_folder / targets
+        for seed_folder in group_folder.Childs():
+            if seed_folder.Type() != ITEM_TYPE_FOLDER:
+                continue
+            seed_name = seed_folder.Name()
+
+            for cfg_folder in seed_folder.Childs():
+                if cfg_folder.Type() != ITEM_TYPE_FOLDER:
+                    continue
+                cfg = _parse_config_folder_name(cfg_folder.Name())
+                if cfg is None:
+                    continue
+
+                # Group targets by theta
+                by_theta = {}
+                for tgt in cfg_folder.Childs():
+                    if tgt.Type() != ITEM_TYPE_TARGET:
+                        continue
+                    pose_name, theta = _parse_target_name(tgt.Name())
+                    if pose_name is None:
+                        continue
+                    by_theta.setdefault(theta, {})[pose_name] = tgt
+
+                for theta, targets in sorted(by_theta.items()):
+                    joints_dict = {}
+                    for pose_name, tgt in targets.items():
+                        raw = tgt.Joints()
+                        try:
+                            joints_dict[pose_name] = raw.list()
+                        except AttributeError:
+                            joints_dict[pose_name] = list(raw)
+
+                    result[result_key].append({
+                        "theta_deg": theta,
+                        "seed_name": seed_name,
+                        "joints": joints_dict,
+                        "wrist_cfg": cfg,
+                    })
+
+    return result
+
+
 # ── MATCH PAIRS BY WRIST CONFIG ─────────────────────────────────────────────
 
 def find_config_overlap(suction_solutions, pivot_solutions, pickup_solutions):
@@ -909,6 +1012,28 @@ def main():
     # ── Phase 7: Build RoboDK programs ────────────────────────────────
     if "7" not in skip:
         print(f"\n── Phase 7: Build RoboDK programs ──")
+
+        # If sweeps were skipped, load solutions from the saved station tree
+        for cone_name in cone_poses:
+            res = all_results.get(cone_name, {})
+            has_data = (res.get("suction_sols") or res.get("pivot_sols")
+                        or res.get("pickup_sols"))
+            if not has_data:
+                print(f"  [LOAD] Loading saved targets for {cone_name} from station...")
+                loaded = load_solutions_from_station(RDK, cone_name)
+                all_results.setdefault(cone_name, {}).update(loaded)
+                print(f"    suction={len(loaded['suction_sols'])} "
+                      f"pivot={len(loaded['pivot_sols'])} "
+                      f"pickup={len(loaded['pickup_sols'])}")
+
+        # Recompute overlap for any cone that doesn't have it yet
+        for cone_name, res in all_results.items():
+            if not res.get("overlap"):
+                s = res.get("suction_sols", [])
+                p = res.get("pivot_sols", [])
+                pk = res.get("pickup_sols", [])
+                if s or p or pk:
+                    res["overlap"] = find_config_overlap(s, p, pk)
 
         # Clean up old program folder
         old_prog_folder = RDK.Item(PROGRAM_FOLDER_NAME, ITEM_TYPE_FOLDER)
