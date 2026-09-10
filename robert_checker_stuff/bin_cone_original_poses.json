@@ -1,0 +1,14 @@
+{
+  "sams_simple_cone": {
+    "parent": "cone_in_bin_12_frame",
+    "cone_name": "cone_in_bin_12_frame",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      -0.0,
+      0.0,
+      -0.0
+    ]
+  }
+}
