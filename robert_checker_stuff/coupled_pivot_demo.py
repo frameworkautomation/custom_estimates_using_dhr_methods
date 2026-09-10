@@ -1154,7 +1154,8 @@ def main():
                 if not shared:
                     print(f"  [SKIP] {cone_name} — no config overlap across all three")
                 else:
-                    print(f"  [SKIP] {cone_name} — shared configs {sorted(shared)} but no common theta for suction+pivot")
+                    print(f"  [SKIP] {cone_name} — shared configs {sorted(shared)} but all LMoves failed")
+                    print(f"         Consider using JMove for suction_offset_2 → pivot_after instead")
                 skipped += 1
                 continue
 
