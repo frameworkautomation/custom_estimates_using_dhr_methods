@@ -107,31 +107,33 @@ def to_robodk_path(path):
 
 # ── CONE ATTACH/DETACH ─────────────────────────────────────────────────────
 
+def _get_cone_frame(cone_cache, cone_name):
+    """Get the cone frame item from cone_cache (parent of the child suffix frames)."""
+    frames = cone_cache.get(cone_name, {})
+    for suffix, item in frames.items():
+        return item.Parent()
+    return None
+
+
 def save_cone_original_poses(RDK, cone_cache):
     """Save original parent + pose for each cone's mesh object.
 
-    Finds the first ITEM_TYPE_OBJECT child under each cone frame.
+    Keyed by cone_name (not object name, since all meshes may share a name).
     Saves to bin_cone_original_poses.json for detach restoration.
     """
     from robodk.robolink import ITEM_TYPE_OBJECT
     poses = {}
     for cone_name, frames in cone_cache.items():
-        # The cone mesh is an object child of the cone frame itself
-        # Walk up from any child frame to the cone frame
-        cone_frame = None
-        for suffix, item in frames.items():
-            cone_frame = item.Parent()
-            break
+        cone_frame = _get_cone_frame(cone_cache, cone_name)
         if cone_frame is None:
             continue
 
-        # Find the mesh object under the cone frame
         for child in cone_frame.Childs():
             if child.Type() == ITEM_TYPE_OBJECT:
                 pose = Pose_2_TxyzRxyz(child.Pose())
-                poses[child.Name()] = {
-                    "parent": cone_frame.Name(),
-                    "cone_name": cone_name,
+                poses[cone_name] = {
+                    "parent_frame": cone_frame.Name(),
+                    "object_name": child.Name(),
                     "pose": list(pose),
                 }
                 break
@@ -142,27 +144,15 @@ def save_cone_original_poses(RDK, cone_cache):
     return poses
 
 
-def _find_cone_object_name(RDK, cone_cache, cone_name):
-    """Find the mesh object name for a cone frame."""
-    from robodk.robolink import ITEM_TYPE_OBJECT
-    frames = cone_cache.get(cone_name, {})
-    cone_frame = None
-    for suffix, item in frames.items():
-        cone_frame = item.Parent()
-        break
-    if cone_frame is None:
-        return None
-    for child in cone_frame.Childs():
-        if child.Type() == ITEM_TYPE_OBJECT:
-            return child.Name()
-    return None
-
-
 def create_attach_detach_scripts(RDK, cone_cache, cone_names):
     """Create per-cone attach and detach Python scripts, add to RoboDK station.
 
+    Scripts navigate from the cone FRAME to its child OBJECT (not by global
+    object name, since all cone meshes may share the same name).
+
     Returns dict: cone_name -> {"attach": prog_item, "detach": prog_item}
     """
+    from robodk.robolink import ITEM_TYPE_OBJECT
     os.makedirs(BIN_CONE_ATTACH_SCRIPTS_DIR, exist_ok=True)
 
     scripts_folder = get_or_create_folder(RDK, "bin_cone_scripts")
@@ -170,64 +160,85 @@ def create_attach_detach_scripts(RDK, cone_cache, cone_names):
 
     result = {}
     for cone_name in cone_names:
-        obj_name = _find_cone_object_name(RDK, cone_cache, cone_name)
-        if obj_name is None:
-            print(f"  [WARN] No mesh object found for {cone_name}")
+        cone_frame = _get_cone_frame(cone_cache, cone_name)
+        if cone_frame is None:
+            print(f"  [WARN] No cone frame for {cone_name}")
+            continue
+        cone_frame_name = cone_frame.Name()
+
+        # Verify a mesh object exists
+        has_obj = False
+        for child in cone_frame.Childs():
+            if child.Type() == ITEM_TYPE_OBJECT:
+                has_obj = True
+                break
+        if not has_obj:
+            print(f"  [WARN] No mesh object under {cone_frame_name}")
             continue
 
         # ── Attach script ──
+        # Navigates from the cone frame to find its OBJECT child, then parents to tool
         attach_name = f"attach_{cone_name}"
         attach_path = os.path.join(BIN_CONE_ATTACH_SCRIPTS_DIR, f"{attach_name}.py")
         with open(attach_path, "w", encoding="utf-8") as f:
-            f.write(f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_OBJECT
+            f.write(f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT
 RDK = Robolink()
 tool = RDK.Item("pickup", ITEM_TYPE_TOOL)
-cone = RDK.Item("{obj_name}", ITEM_TYPE_OBJECT)
-if tool.Valid() and cone.Valid():
-    cone.setParentStatic(tool)
-    print("Attached: {obj_name}")
+cone_frame = RDK.Item("{cone_frame_name}", ITEM_TYPE_FRAME)
+if tool.Valid() and cone_frame.Valid():
+    for child in cone_frame.Childs():
+        if child.Type() == ITEM_TYPE_OBJECT:
+            child.setParentStatic(tool)
+            print("Attached cone from {cone_frame_name}")
+            break
+    else:
+        print("No object child under {cone_frame_name}")
 else:
-    print("Failed to attach {obj_name}")
+    print("Failed: tool or frame not found")
 ''')
 
         # ── Detach script ──
+        # Reads saved pose, finds object currently parented to tool, restores it
         detach_name = f"detach_{cone_name}"
         detach_path = os.path.join(BIN_CONE_ATTACH_SCRIPTS_DIR, f"{detach_name}.py")
         with open(detach_path, "w", encoding="utf-8") as f:
             f.write(f'''import json
-from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_FRAME
+from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME, ITEM_TYPE_OBJECT
 from robodk.robomath import TxyzRxyz_2_Pose
 RDK = Robolink()
-cone = RDK.Item("{obj_name}", ITEM_TYPE_OBJECT)
-if cone.Valid():
-    try:
-        with open(r"{poses_robodk}", "r") as f:
-            poses = json.load(f)
-        info = poses["{obj_name}"]
-        parent = RDK.Item(info["parent"], ITEM_TYPE_FRAME)
-        if not parent.Valid():
-            parent = RDK.Item(info["parent"])
-        cone.setParentStatic(parent)
-        cone.setPose(TxyzRxyz_2_Pose(info["pose"]))
-        print("Detached: {obj_name}")
-    except Exception as e:
-        print(f"Detach failed: {{e}}")
-else:
-    print("Cone not found: {obj_name}")
+try:
+    with open(r"{poses_robodk}", "r") as f:
+        poses = json.load(f)
+    info = poses["{cone_name}"]
+    parent = RDK.Item(info["parent_frame"], ITEM_TYPE_FRAME)
+    tool = RDK.Item("pickup", ITEM_TYPE_TOOL)
+    # Find the object currently under the tool
+    if tool.Valid():
+        for child in tool.Childs():
+            if child.Type() == ITEM_TYPE_OBJECT and child.Name() == info["object_name"]:
+                child.setParentStatic(parent)
+                child.setPose(TxyzRxyz_2_Pose(info["pose"]))
+                print("Detached cone back to {cone_frame_name}")
+                break
+        else:
+            print("No matching object found under pickup tool")
+    else:
+        print("Pickup tool not found")
+except Exception as e:
+    print(f"Detach failed: {{e}}")
 ''')
 
-        # Add to RoboDK station
-        attach_item = RDK.Item(attach_name, ITEM_TYPE_PROGRAM_PYTHON)
-        if not attach_item.Valid():
-            attach_item = RDK.AddFile(to_robodk_path(attach_path))
-            if attach_item.Valid():
-                attach_item.setParent(scripts_folder)
+        # Add to RoboDK station (delete old first to force refresh)
+        for script_name, script_path in [(attach_name, attach_path), (detach_name, detach_path)]:
+            old = RDK.Item(script_name, ITEM_TYPE_PROGRAM_PYTHON)
+            if old.Valid():
+                old.Delete()
+            item = RDK.AddFile(to_robodk_path(script_path))
+            if item.Valid():
+                item.setParent(scripts_folder)
 
+        attach_item = RDK.Item(attach_name, ITEM_TYPE_PROGRAM_PYTHON)
         detach_item = RDK.Item(detach_name, ITEM_TYPE_PROGRAM_PYTHON)
-        if not detach_item.Valid():
-            detach_item = RDK.AddFile(to_robodk_path(detach_path))
-            if detach_item.Valid():
-                detach_item.setParent(scripts_folder)
 
         if attach_item.Valid() and detach_item.Valid():
             result[cone_name] = {"attach": attach_item, "detach": detach_item}
