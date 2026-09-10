@@ -1,7 +1,7 @@
 {
-  "sams_simple_cone": {
-    "parent": "cone_in_bin_12_frame",
-    "cone_name": "cone_in_bin_12_frame",
+  "cone_in_bin_12_frame": {
+    "parent_frame": "cone_in_bin_12_frame",
+    "object_name": "sams_simple_cone",
     "pose": [
       0.0,
       0.0,
