@@ -59,13 +59,14 @@ _OPT_AXES_6DOF = {
 }
 
 HOME_SEEDS = {
-    "home":      [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "home_p170": [170.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "home_n170": [-170.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "home_p180": [180.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "home_n180": [-180.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "home":        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "transport":   [0.0, -50.0, 15.0, 0.0, -15.0, -90.0],
+    "elbow_up":    [0.0, 30.0, -90.0, 0.0, -30.0, 0.0],
+    "elbow_down":  [0.0, -30.0, 60.0, 0.0, 30.0, 0.0],
+    "j1_p170":     [170.0, -50.0, 15.0, 0.0, -15.0, -90.0],
+    "j1_n170":     [-170.0, -50.0, 15.0, 0.0, -15.0, -90.0],
 }
-HOME_SEED_6DOF = HOME_SEEDS["home"]
+HOME_SEED_6DOF = HOME_SEEDS["transport"]
 
 TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90]
 
@@ -122,23 +123,29 @@ def _try_ik_single(robot, pose, seed):
         if all(abs(j) < 1e-6 for j in joints):
             return None
         return joints
-    except Exception:
+    except Exception as e:
         return None
 
 
-def try_ik(robot, pose, seed=None):
+def try_ik(robot, pose, seed=None, label=""):
     """Try IK with given seed first, then cycle all HOME_SEEDS as fallback."""
     if seed is not None:
         result = _try_ik_single(robot, pose, seed)
         if result is not None:
             return result
 
-    for s in HOME_SEEDS.values():
+    tried = []
+    for name, s in HOME_SEEDS.items():
         if seed is not None and s == seed:
             continue
         result = _try_ik_single(robot, pose, s)
         if result is not None:
             return result
+        tried.append(name)
+
+    if label:
+        xyz = Pose_2_TxyzRxyz(pose)[:3]
+        print(f"      [try_ik] {label} FAILED all {len(tried)} seeds. target=[{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}]")
     return None
 
 
@@ -280,7 +287,7 @@ def delete_if_exists(RDK, name, item_type):
 # ── SEARCH B: COUPLED Z-ROTATION SWEEP ─────────────────────────────────────
 
 def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
-                     poses, T_pickup_to_suction, step_deg):
+                     poses, T_pickup_to_suction, step_deg, verbose=True):
     """Coupled Z-rotation sweep over suction_position.
 
     poses: dict with keys matching CHILD_SUFFIXES, values are Mat poses.
@@ -308,21 +315,27 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         robot.setPoseTool(suction_tool)
 
         # Solve at suction_offset_1 (the from-pose of the LMove)
-        j_offset1 = try_ik(robot, offset1_pose)
+        lbl = f"offset1@{theta_deg:.0f}" if verbose else ""
+        j_offset1 = try_ik(robot, offset1_pose, label=lbl)
         if j_offset1 is None:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=FAIL")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=FAIL")
             continue
 
         # Solve at rotated_suction (the to-pose of F2)
-        j_suction = try_ik(robot, rotated_suction, seed=j_offset1)
+        lbl = f"suction@{theta_deg:.0f}" if verbose else ""
+        j_suction = try_ik(robot, rotated_suction, seed=j_offset1, label=lbl)
         if j_suction is None:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=FAIL")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=FAIL")
             continue
 
         # ── F3: rotated_suction -> pivot_as_suction_tcp (suction tool) ──
-        j_pivot = try_ik(robot, pivot_as_suction_tcp, seed=j_suction)
+        lbl = f"pivot@{theta_deg:.0f}" if verbose else ""
+        j_pivot = try_ik(robot, pivot_as_suction_tcp, seed=j_suction, label=lbl)
         if j_pivot is None:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=FAIL")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=FAIL")
             continue
 
         # ── FK verify pivot: switch to pickup, check TCP ≈ before_pickup_offset ──
@@ -334,7 +347,8 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         pivot_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
 
         if pivot_err > FK_TOL_MM:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
             continue
 
         # ── Check config consistency F2-F3 ──
@@ -342,20 +356,24 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         cfg_suction = get_config_flags(robot, j_suction)
         cfg_pivot = get_config_flags(robot, j_pivot)
         if cfg_suction != cfg_pivot:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
             continue
 
         # ── F5: before_pickup_offset -> cone_pickup_pose (pickup tool) ──
         robot.setPoseTool(pickup_tool)
-        j_pickup = try_ik(robot, cone_pickup_pose_val, seed=j_pivot)
+        lbl = f"pickup@{theta_deg:.0f}" if verbose else ""
+        j_pickup = try_ik(robot, cone_pickup_pose_val, seed=j_pivot, label=lbl)
         if j_pickup is None:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=FAIL")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=FAIL")
             continue
 
         # ── Check config consistency F4-F5 ──
         cfg_pickup = get_config_flags(robot, j_pickup)
         if cfg_pivot != cfg_pickup:
-            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=ok  pickup_cfg_mismatch pivot={cfg_pivot} pickup={cfg_pickup}")
+            if verbose:
+                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=ok  pickup_cfg_mismatch pivot={cfg_pivot} pickup={cfg_pickup}")
             continue
 
         # All passed!
@@ -380,7 +398,10 @@ def main():
                     help="RoboDK IP (default: localhost then 172.23.208.1)")
     ap.add_argument("--step-deg", type=float, default=5.0,
                     help="Z-rotation step size in degrees (default: 5)")
+    ap.add_argument("--non-verbose", action="store_true",
+                    help="Suppress per-angle diagnostic output")
     args = ap.parse_args()
+    args.verbose = not args.non_verbose
 
     RDK = connect(args.robodk_ip)
     RDK._setTimeout(300)  # 5 min — IK solver loop can be slow
@@ -470,7 +491,8 @@ def main():
         print(f"  [Search B] Coupled Z-rotation sweep...")
         theta, step_joints = search_b_coupled(
             robot, robot_base, suction_tool, pickup_tool,
-            poses, T_pickup_to_suction, args.step_deg
+            poses, T_pickup_to_suction, args.step_deg,
+            verbose=args.verbose
         )
         if theta is None:
             print(f"  [SKIP] {cone_name} — Search B failed, skipping A and C")
