@@ -755,16 +755,15 @@ def find_viable_triplet(robot, RDK, suction_tool, suction_sols, pivot_sols, pick
         p_list = sorted(pivot_by_cfg[cfg], key=lambda x: x["theta_deg"])
 
         # Try same-theta pairs first (most likely to work), then cross-theta
-        # Build candidate pairs: same theta first, then by theta distance
         pairs = []
-        for s in s_list:
-            for p in p_list:
+        for i, s in enumerate(s_list):
+            for j, p in enumerate(p_list):
                 dist = abs(s["theta_deg"] - p["theta_deg"])
                 same = (dist == 0)
-                pairs.append((not same, dist, s, p))  # sort: same first, then by distance
-        pairs.sort()
+                pairs.append((not same, dist, i, j, s, p))
+        pairs.sort(key=lambda x: x[:4])
 
-        for _, dist, s_sol, p_sol in pairs:
+        for _, dist, _, _, s_sol, p_sol in pairs:
             from_j = s_sol["joints"]["suction_offset_2"]
             to_j = p_sol["joints"]["pivot_after"]
             ok = test_lmove(robot, RDK, from_j, to_j, suction_tool)
