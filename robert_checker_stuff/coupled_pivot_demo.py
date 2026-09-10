@@ -489,8 +489,11 @@ def main():
     pickup_TCP = pickup_tool.PoseTool()
     T_pickup_to_suction = invH(pickup_TCP) * suction_TCP
 
-    print(f"  suction TCP: {Pose_2_TxyzRxyz(suction_TCP)[:3]}")
-    print(f"  pickup TCP:  {Pose_2_TxyzRxyz(pickup_TCP)[:3]}")
+    t_full = Pose_2_TxyzRxyz(T_pickup_to_suction)
+    print(f"  suction TCP: {Pose_2_TxyzRxyz(suction_TCP)}")
+    print(f"  pickup TCP:  {Pose_2_TxyzRxyz(pickup_TCP)}")
+    print(f"  T_pickup_to_suction: pos=[{t_full[0]:.1f}, {t_full[1]:.1f}, {t_full[2]:.1f}] "
+          f"rot=[{t_full[3]:.1f}, {t_full[4]:.1f}, {t_full[5]:.1f}]")
 
     # ── Step 3: Compute pivot_as_suction_tcp per cone ───────────────────
     print("\n[STEP 3] Computing pivot_as_suction_tcp for each cone...")
@@ -499,8 +502,12 @@ def main():
         before_pickup = poses["before_pickup_offset"]
         pivot = before_pickup * T_pickup_to_suction
         poses["pivot_as_suction_tcp"] = pivot
+        bxyz = Pose_2_TxyzRxyz(before_pickup)[:3]
         pxyz = Pose_2_TxyzRxyz(pivot)[:3]
-        print(f"  {cone_name}: pivot at [{pxyz[0]:.1f}, {pxyz[1]:.1f}, {pxyz[2]:.1f}]")
+        delta = [pxyz[i] - bxyz[i] for i in range(3)]
+        print(f"  {cone_name}: before_pickup=[{bxyz[0]:.0f},{bxyz[1]:.0f},{bxyz[2]:.0f}] "
+              f"pivot=[{pxyz[0]:.0f},{pxyz[1]:.0f},{pxyz[2]:.0f}] "
+              f"delta=[{delta[0]:.0f},{delta[1]:.0f},{delta[2]:.0f}]")
 
     # ── Diagnostic: verify robot setup ──────────────────────────────────
     print("\n[DIAG] Robot setup before solving:")
