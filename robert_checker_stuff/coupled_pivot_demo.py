@@ -582,6 +582,103 @@ def find_config_overlap(suction_solutions, pivot_solutions, pickup_solutions):
     return overlap
 
 
+# ── PROGRAM BUILDING ────────────────────────────────────────────────────────
+
+PROGRAM_FOLDER_NAME = "pivot_programs"
+
+
+def pick_best_solution(solutions, target_cfg):
+    """Pick the first solution matching the target config. Prefer lowest theta."""
+    for sol in sorted(solutions, key=lambda s: s["theta_deg"]):
+        if config_key(sol["wrist_cfg"]) == target_cfg:
+            return sol
+    return None
+
+
+def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
+                       suction_sol, pivot_sol, pickup_sol, offset1_joints,
+                       program_folder):
+    """Build one RoboDK program for the full pivot sequence of a cone.
+
+    Sequence:
+      F1: JMove home → suction_offset_1 (knotting)
+      F2: JMove suction_offset_1 → suction_offset_2
+      F3: LMove suction_offset_2 → suction_position (grab string)
+      F4: LMove suction_position → suction_offset_2 (retract)
+      F5: LMove suction_offset_2 → pivot_after (pivot)
+      F6: tool switch knotting → pickup
+      F7: LMove before_pickup_offset → cone_pickup_pose (grab cone)
+      F8: LMove cone_pickup_pose → post_pickup_above (lift)
+      F9: JMove post_pickup_above → home
+    """
+    prog_name = f"{cone_name}_pivot_sequence"
+
+    # Clean up old program
+    for ptype in [ITEM_TYPE_PROGRAM, ITEM_TYPE_PROGRAM_PYTHON]:
+        old = RDK.Item(prog_name, ptype)
+        if old.Valid():
+            old.Delete()
+
+    # Create joint targets in the program folder
+    def make_target(name, joints):
+        tgt = RDK.AddTarget(name, program_folder, robot)
+        tgt.setJoints(joints)
+        tgt.setAsJointTarget()
+        return tgt
+
+    s_joints = suction_sol["joints"]
+    p_joints = pivot_sol["joints"]
+    pk_joints = pickup_sol["joints"]
+
+    t_home = make_target(f"{cone_name}_home", TRANSPORT_JOINTS)
+    t_offset1 = make_target(f"{cone_name}_suction_offset_1", offset1_joints)
+    t_offset2 = make_target(f"{cone_name}_suction_offset_2", s_joints["suction_offset_2"])
+    t_suction = make_target(f"{cone_name}_suction_position", s_joints["suction_position"])
+    t_pivot = make_target(f"{cone_name}_pivot_after", p_joints["pivot_after"])
+    t_pickup = make_target(f"{cone_name}_cone_pickup", pk_joints["cone_pickup_pose"])
+    t_post = make_target(f"{cone_name}_post_pickup", pk_joints["post_pickup_above"])
+
+    # Build program
+    prog = RDK.AddProgram(prog_name, robot)
+
+    prog.RunInstruction(f"# {cone_name} pivot sequence", 0)
+    prog.RunInstruction(f"# suction theta={suction_sol['theta_deg']:.0f} "
+                        f"pivot theta={pivot_sol['theta_deg']:.0f} "
+                        f"pickup theta={pickup_sol['theta_deg']:.0f}", 0)
+
+    # F1-F2: JMove approach (knotting tool)
+    prog.setPoseTool(suction_tool)
+    prog.MoveJ(t_home)
+    prog.MoveJ(t_offset1)
+    prog.MoveJ(t_offset2)
+
+    # F3: LMove grab string
+    prog.MoveL(t_suction)
+
+    # F4: LMove retract to offset_2
+    prog.MoveL(t_offset2)
+
+    # F5: LMove to pivot
+    prog.MoveL(t_pivot)
+
+    # F6: tool switch
+    prog.setPoseTool(pickup_tool)
+
+    # F7: LMove to cone pickup
+    prog.MoveL(t_pickup)
+
+    # F8: LMove lift out
+    prog.MoveL(t_post)
+
+    # F9: JMove home
+    prog.MoveJ(t_home)
+
+    # Move program into folder
+    prog.setParent(program_folder)
+
+    return prog
+
+
 # ── MAIN ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -591,7 +688,7 @@ def main():
     ap.add_argument("--step-deg", type=float, default=15.0,
                     help="Z-rotation step size in degrees (default: 15)")
     ap.add_argument("--skip", nargs="*", default=[],
-                    help="Phases to skip, e.g. --skip 3 4 4b 5 6")
+                    help="Phases to skip, e.g. --skip 3 4 4b 5 6 7")
     ap.add_argument("--non-verbose", action="store_true",
                     help="Suppress per-angle diagnostic output")
     args = ap.parse_args()
@@ -808,6 +905,68 @@ def main():
             print("No config overlap found for any cone.")
     else:
         print("\n── Phase 6: SKIPPED ──")
+
+    # ── Phase 7: Build RoboDK programs ────────────────────────────────
+    if "7" not in skip:
+        print(f"\n── Phase 7: Build RoboDK programs ──")
+
+        # Clean up old program folder
+        old_prog_folder = RDK.Item(PROGRAM_FOLDER_NAME, ITEM_TYPE_FOLDER)
+        if old_prog_folder.Valid():
+            old_prog_folder.Delete()
+            print(f"  [CLEAN] Deleted old '{PROGRAM_FOLDER_NAME}' folder")
+        program_folder = get_or_create_folder(RDK, PROGRAM_FOLDER_NAME)
+
+        built = 0
+        skipped = 0
+        for cone_name, res in all_results.items():
+            overlap = res.get("overlap", {})
+            if not overlap:
+                print(f"  [SKIP] {cone_name} — no config overlap")
+                skipped += 1
+                continue
+
+            # Pick the first overlapping config
+            target_cfg = sorted(overlap.keys())[0]
+
+            suction_sol = pick_best_solution(res.get("suction_sols", []), target_cfg)
+            pivot_sol = pick_best_solution(res.get("pivot_sols", []), target_cfg)
+            pickup_sol = pick_best_solution(res.get("pickup_sols", []), target_cfg)
+
+            if not all([suction_sol, pivot_sol, pickup_sol]):
+                print(f"  [SKIP] {cone_name} — missing solution for config {target_cfg}")
+                skipped += 1
+                continue
+
+            # Solve suction_offset_1 independently (JMove, Z-free)
+            robot.setPoseTool(suction_tool)
+            o1_joints, _, o1_angle = try_ik_z_sweep(
+                robot, RDK, cone_poses[cone_name]["suction_offset_1"],
+                label=f"{cone_name}_offset1"
+            )
+            if o1_joints is None:
+                print(f"  [SKIP] {cone_name} — suction_offset_1 unreachable (Z-free sweep)")
+                skipped += 1
+                continue
+
+            prog = build_cone_program(
+                robot, RDK, cone_name, suction_tool, pickup_tool,
+                suction_sol, pivot_sol, pickup_sol, o1_joints,
+                program_folder
+            )
+            n_ins = prog.InstructionCount()
+            print(f"  [PROG] {cone_name}: {n_ins} instructions — "
+                  f"config={target_cfg} "
+                  f"suction_theta={suction_sol['theta_deg']:.0f} "
+                  f"pivot_theta={pivot_sol['theta_deg']:.0f} "
+                  f"pickup_theta={pickup_sol['theta_deg']:.0f}")
+            built += 1
+
+        print(f"\n  Built: {built}, Skipped: {skipped}")
+        if built > 0:
+            print(f"  Step through in RoboDK: right-click program → Run step-by-step")
+    else:
+        print("\n── Phase 7: SKIPPED ──")
 
 
 if __name__ == "__main__":
