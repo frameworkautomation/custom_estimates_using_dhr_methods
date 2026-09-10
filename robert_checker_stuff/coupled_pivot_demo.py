@@ -465,8 +465,12 @@ def main():
 
     world_frame = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
     if not world_frame.Valid():
-        world_frame = RDK.Item("", ITEM_TYPE_FRAME)
+        print("  [WARN] WorldFrame not found — creating at identity")
+        station = RDK.ActiveStation()
+        world_frame = RDK.AddFrame("WorldFrame", station)
+        world_frame.setPose(eye(4))
     robot.setPoseFrame(world_frame)
+    print(f"  PoseFrame set to: {world_frame.Name()}")
 
     cone_poses = {}  # cone_name -> {suffix: Mat}
     for cone_name, frames in cone_cache.items():
