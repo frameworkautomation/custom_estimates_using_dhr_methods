@@ -38,8 +38,10 @@
 
 ## Immediate TODOs (branch: `back_bin_reachability`)
 
-- **Fix suction_offset_1 for cone_02 and cone_12** — these two cones' suction_offset_1 frames are unreachable at any Z-rotation. Need to reposition them in RoboDK to a reachable spot near the bin.
+- ~~**Fix suction_offset_1 for cone_02 and cone_12**~~ DONE — repositioned in RoboDK, all 6 cones now have working programs.
 - **Verify new bin position can be gripped** — check that the robot can reach and grip the bin at its new position (Robert's preferred config where robot doesn't enter cells).
+- **Optimization config for preferred end effector angle** — add a config that specifies a target angle (or angle range) the end effector should be as close to as possible. This affects how `find_viable_triplet` chooses among multiple valid solutions — prefer solutions where the end effector orientation is closest to the preferred angle.
+- **Add intermediate waypoints to avoid collisions** — current programs move directly between poses with no intermediate steps. Need to add waypoints (JMove or LMove) between key poses to route around the bin, adjacent cones, and other geometry. Especially needed between: home→offset_1, offset_2→pivot, and pivot→pickup transitions.
 
 ## Known Issues
 
