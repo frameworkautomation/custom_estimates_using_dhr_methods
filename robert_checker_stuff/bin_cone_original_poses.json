@@ -1,4 +1,64 @@
 {
+  "cone_in_bin_00_frame": {
+    "parent_frame": "cone_in_bin_00_frame",
+    "object_name": "sams_simple_cone",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      -0.0,
+      3.0429693121318326e-32,
+      5.7777898331617076e-33
+    ]
+  },
+  "cone_in_bin_01_frame": {
+    "parent_frame": "cone_in_bin_01_frame",
+    "object_name": "sams_simple_cone",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      -0.0,
+      0.0,
+      -0.0
+    ]
+  },
+  "cone_in_bin_02_frame": {
+    "parent_frame": "cone_in_bin_02_frame",
+    "object_name": "sams_simple_cone",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      -0.0,
+      0.0,
+      -0.0
+    ]
+  },
+  "cone_in_bin_10_frame": {
+    "parent_frame": "cone_in_bin_10_frame",
+    "object_name": "sams_simple_cone",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      -0.0,
+      0.0,
+      -0.0
+    ]
+  },
+  "cone_in_bin_11_frame": {
+    "parent_frame": "cone_in_bin_11_frame",
+    "object_name": "sams_simple_cone",
+    "pose": [
+      0.0,
+      0.0,
+      0.0,
+      -0.0,
+      0.0,
+      -0.0
+    ]
+  },
   "cone_in_bin_12_frame": {
     "parent_frame": "cone_in_bin_12_frame",
     "object_name": "sams_simple_cone",
