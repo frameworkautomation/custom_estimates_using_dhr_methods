@@ -290,16 +290,19 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         # Solve at suction_offset_1 (the from-pose of the LMove)
         j_offset1 = try_ik(robot, offset1_pose)
         if j_offset1 is None:
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=FAIL")
             continue
 
         # Solve at rotated_suction (the to-pose of F2)
         j_suction = try_ik(robot, rotated_suction, seed=j_offset1)
         if j_suction is None:
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=FAIL")
             continue
 
         # ── F3: rotated_suction -> pivot_as_suction_tcp (suction tool) ──
         j_pivot = try_ik(robot, pivot_as_suction_tcp, seed=j_suction)
         if j_pivot is None:
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=FAIL")
             continue
 
         # ── FK verify pivot: switch to pickup, check TCP ≈ before_pickup_offset ──
@@ -312,8 +315,7 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         robot.setJoints(HOME_SEED_6DOF)
 
         if pivot_err > FK_TOL_MM:
-            if i % 36 == 0:  # log every 36 steps
-                print(f"    [B] theta={theta_deg:.0f} pivot FK err={pivot_err:.1f}mm > {FK_TOL_MM}mm")
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk_err={pivot_err:.1f}mm FAIL")
             continue
 
         # ── Check config consistency F2-F3 ──
@@ -321,17 +323,20 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         cfg_suction = get_config_flags(robot, j_suction)
         cfg_pivot = get_config_flags(robot, j_pivot)
         if cfg_suction != cfg_pivot:
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
             continue
 
         # ── F5: before_pickup_offset -> cone_pickup_pose (pickup tool) ──
         robot.setPoseTool(pickup_tool)
         j_pickup = try_ik(robot, cone_pickup_pose_val, seed=j_pivot)
         if j_pickup is None:
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=FAIL")
             continue
 
         # ── Check config consistency F4-F5 ──
         cfg_pickup = get_config_flags(robot, j_pickup)
         if cfg_pivot != cfg_pickup:
+            print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=ok  pickup_cfg_mismatch pivot={cfg_pivot} pickup={cfg_pickup}")
             continue
 
         # All passed!
@@ -341,8 +346,7 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
             "pivot_as_suction_tcp": j_pivot,
             "cone_pickup_pose": j_pickup,
         }
-        print(f"    [B] SUCCESS at theta={theta_deg:.0f} deg, pivot_err={pivot_err:.1f}mm")
-        print(f"         configs: offset1={cfg_offset1} suction={cfg_suction} pivot={cfg_pivot} pickup={cfg_pickup}")
+        print(f"    [B] theta={theta_deg:5.0f}  SUCCESS  fk={pivot_err:.1f}mm  cfg={cfg_pivot}")
         return theta_deg, step_joints
 
     print(f"    [B] FAILED — no theta found in {n_steps} steps")
