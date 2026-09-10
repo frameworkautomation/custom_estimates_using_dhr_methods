@@ -13,6 +13,10 @@
 ## Global Constraints
 
 - Do NOT modify `robert_end_checker.py` — it is proven working code
+
+## TODO
+
+- [ ] Modify `robert_end_checker.py` to also try `ITEM_TYPE_FRAME` as a fallback when `ITEM_TYPE_TARGET` lookup fails — eliminates the frame-vs-target distinction as a potential error source during debugging. Remove the prep_bin_targets.py step once this is done.
 - The checker expects TARGET items, not FRAME items
 - All bin cone frames live under `Cone_Bin_Frame/bottom_corner/cone_*`
 - Child frames may be bare suffixes (e.g. `suction_position`) not prefixed
