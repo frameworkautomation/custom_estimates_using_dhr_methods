@@ -326,15 +326,17 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         theta_deg = step_deg * i
         theta_rad = theta_deg * math.pi / 180.0
 
-        # Rotate suction_position around its Z axis
-        rotated_suction = suction_pose * rotz(theta_rad)
+        # Rotate all suction poses around their Z axis by theta
+        rz = rotz(theta_rad)
+        rotated_suction = suction_pose * rz
+        rotated_offset1 = offset1_pose * rz
 
         # ── F2: suction_offset_1 -> rotated_suction (suction tool) ──
         robot.setPoseTool(suction_tool)
 
         # Solve at suction_offset_1 (the from-pose of the LMove)
         lbl = f"offset1@{theta_deg:.0f}" if verbose else ""
-        j_offset1 = try_ik(robot, offset1_pose, label=lbl)
+        j_offset1 = try_ik(robot, rotated_offset1, label=lbl)
         if j_offset1 is None:
             if verbose:
                 print(f"    [B] theta={theta_deg:5.0f}  offset1=FAIL")
