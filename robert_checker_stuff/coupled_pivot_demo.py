@@ -28,6 +28,7 @@ AI-generated code (Claude Opus 4.6) — human-reviewed before use.
 import sys
 import os
 import math
+import json
 import argparse
 
 sys.path.append("C:/RoboDK/Python")
@@ -84,6 +85,157 @@ FK_TOL_MM = 5.0
 TARGET_FOLDER_NAME = "discovered_targets"
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BIN_CONE_ATTACH_SCRIPTS_DIR = os.path.join(SCRIPT_DIR, "bin_cone_attach_scripts")
+BIN_CONE_POSES_PATH = os.path.join(SCRIPT_DIR, "bin_cone_original_poses.json")
+
+
+# ── PATH HELPERS ────────────────────────────────────────────────────────────
+
+def to_robodk_path(path):
+    """Convert WSL /mnt/c/... path to Windows C:/... for RoboDK."""
+    abs_path = os.path.abspath(path)
+    try:
+        if abs_path.startswith("/mnt/"):
+            parts = abs_path.split("/")
+            drive = parts[2].upper()
+            rest = "/".join(parts[3:])
+            return f"{drive}:/{rest}"
+    except (IndexError, AttributeError):
+        pass
+    return abs_path
+
+
+# ── CONE ATTACH/DETACH ─────────────────────────────────────────────────────
+
+def save_cone_original_poses(RDK, cone_cache):
+    """Save original parent + pose for each cone's mesh object.
+
+    Finds the first ITEM_TYPE_OBJECT child under each cone frame.
+    Saves to bin_cone_original_poses.json for detach restoration.
+    """
+    from robodk.robolink import ITEM_TYPE_OBJECT
+    poses = {}
+    for cone_name, frames in cone_cache.items():
+        # The cone mesh is an object child of the cone frame itself
+        # Walk up from any child frame to the cone frame
+        cone_frame = None
+        for suffix, item in frames.items():
+            cone_frame = item.Parent()
+            break
+        if cone_frame is None:
+            continue
+
+        # Find the mesh object under the cone frame
+        for child in cone_frame.Childs():
+            if child.Type() == ITEM_TYPE_OBJECT:
+                pose = Pose_2_TxyzRxyz(child.Pose())
+                poses[child.Name()] = {
+                    "parent": cone_frame.Name(),
+                    "cone_name": cone_name,
+                    "pose": list(pose),
+                }
+                break
+
+    with open(BIN_CONE_POSES_PATH, "w") as f:
+        json.dump(poses, f, indent=2)
+    print(f"  Saved {len(poses)} cone original poses to {os.path.basename(BIN_CONE_POSES_PATH)}")
+    return poses
+
+
+def _find_cone_object_name(RDK, cone_cache, cone_name):
+    """Find the mesh object name for a cone frame."""
+    from robodk.robolink import ITEM_TYPE_OBJECT
+    frames = cone_cache.get(cone_name, {})
+    cone_frame = None
+    for suffix, item in frames.items():
+        cone_frame = item.Parent()
+        break
+    if cone_frame is None:
+        return None
+    for child in cone_frame.Childs():
+        if child.Type() == ITEM_TYPE_OBJECT:
+            return child.Name()
+    return None
+
+
+def create_attach_detach_scripts(RDK, cone_cache, cone_names):
+    """Create per-cone attach and detach Python scripts, add to RoboDK station.
+
+    Returns dict: cone_name -> {"attach": prog_item, "detach": prog_item}
+    """
+    os.makedirs(BIN_CONE_ATTACH_SCRIPTS_DIR, exist_ok=True)
+
+    scripts_folder = get_or_create_folder(RDK, "bin_cone_scripts")
+    poses_robodk = to_robodk_path(BIN_CONE_POSES_PATH)
+
+    result = {}
+    for cone_name in cone_names:
+        obj_name = _find_cone_object_name(RDK, cone_cache, cone_name)
+        if obj_name is None:
+            print(f"  [WARN] No mesh object found for {cone_name}")
+            continue
+
+        # ── Attach script ──
+        attach_name = f"attach_{cone_name}"
+        attach_path = os.path.join(BIN_CONE_ATTACH_SCRIPTS_DIR, f"{attach_name}.py")
+        with open(attach_path, "w", encoding="utf-8") as f:
+            f.write(f'''from robodk.robolink import Robolink, ITEM_TYPE_TOOL, ITEM_TYPE_OBJECT
+RDK = Robolink()
+tool = RDK.Item("pickup", ITEM_TYPE_TOOL)
+cone = RDK.Item("{obj_name}", ITEM_TYPE_OBJECT)
+if tool.Valid() and cone.Valid():
+    cone.setParentStatic(tool)
+    print("Attached: {obj_name}")
+else:
+    print("Failed to attach {obj_name}")
+''')
+
+        # ── Detach script ──
+        detach_name = f"detach_{cone_name}"
+        detach_path = os.path.join(BIN_CONE_ATTACH_SCRIPTS_DIR, f"{detach_name}.py")
+        with open(detach_path, "w", encoding="utf-8") as f:
+            f.write(f'''import json
+from robodk.robolink import Robolink, ITEM_TYPE_OBJECT, ITEM_TYPE_FRAME
+from robodk.robomath import TxyzRxyz_2_Pose
+RDK = Robolink()
+cone = RDK.Item("{obj_name}", ITEM_TYPE_OBJECT)
+if cone.Valid():
+    try:
+        with open(r"{poses_robodk}", "r") as f:
+            poses = json.load(f)
+        info = poses["{obj_name}"]
+        parent = RDK.Item(info["parent"], ITEM_TYPE_FRAME)
+        if not parent.Valid():
+            parent = RDK.Item(info["parent"])
+        cone.setParentStatic(parent)
+        cone.setPose(TxyzRxyz_2_Pose(info["pose"]))
+        print("Detached: {obj_name}")
+    except Exception as e:
+        print(f"Detach failed: {{e}}")
+else:
+    print("Cone not found: {obj_name}")
+''')
+
+        # Add to RoboDK station
+        attach_item = RDK.Item(attach_name, ITEM_TYPE_PROGRAM_PYTHON)
+        if not attach_item.Valid():
+            attach_item = RDK.AddFile(to_robodk_path(attach_path))
+            if attach_item.Valid():
+                attach_item.setParent(scripts_folder)
+
+        detach_item = RDK.Item(detach_name, ITEM_TYPE_PROGRAM_PYTHON)
+        if not detach_item.Valid():
+            detach_item = RDK.AddFile(to_robodk_path(detach_path))
+            if detach_item.Valid():
+                detach_item.setParent(scripts_folder)
+
+        if attach_item.Valid() and detach_item.Valid():
+            result[cone_name] = {"attach": attach_item, "detach": detach_item}
+            print(f"  {cone_name}: attach + detach scripts ready")
+        else:
+            print(f"  [WARN] {cone_name}: failed to add scripts to station")
+
+    return result
 
 
 # ── CONNECT ─────────────────────────────────────────────────────────────────
@@ -900,7 +1052,7 @@ PROGRAM_PROGRAMS_SUBFOLDER = "programs"
 
 def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
                        suction_sol, pivot_sol, pickup_sol, offset1_joints,
-                       target_folder, program_folder):
+                       target_folder, program_folder, attach_scripts=None):
     """Build one RoboDK program for the full pivot sequence of a cone.
 
     Sequence:
@@ -972,11 +1124,19 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F7: LMove to cone pickup
     prog.MoveL(t_pickup)
 
+    # Attach cone to pickup tool
+    if attach_scripts and cone_name in attach_scripts:
+        prog.RunInstruction(f"attach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
+
     # F8: LMove lift out
     prog.MoveL(t_post)
 
     # F9: JMove home
     prog.MoveJ(t_home)
+
+    # Detach cone (restore to original position)
+    if attach_scripts and cone_name in attach_scripts:
+        prog.RunInstruction(f"detach_{cone_name}", INSTRUCTION_CALL_PROGRAM)
 
     # Move program into programs subfolder
     prog.setParent(program_folder)
@@ -1246,6 +1406,13 @@ def main():
         target_folder = get_or_create_folder(RDK, PROGRAM_TARGETS_SUBFOLDER, parent=root_folder)
         program_folder = get_or_create_folder(RDK, PROGRAM_PROGRAMS_SUBFOLDER, parent=root_folder)
 
+        # Save original cone poses and create attach/detach scripts
+        print("  Creating attach/detach scripts...")
+        save_cone_original_poses(RDK, cone_cache)
+        attach_scripts = create_attach_detach_scripts(
+            RDK, cone_cache, list(cone_poses.keys())
+        )
+
         built = 0
         skipped = 0
         built_programs = []
@@ -1292,7 +1459,7 @@ def main():
             prog = build_cone_program(
                 robot, RDK, cone_name, suction_tool, pickup_tool,
                 s_sol, p_sol, pk_sol, o1_joints,
-                target_folder, program_folder
+                target_folder, program_folder, attach_scripts
             )
             n_ins = prog.InstructionCount()
             print(f"  [PROG] {cone_name}: {n_ins} instructions")
