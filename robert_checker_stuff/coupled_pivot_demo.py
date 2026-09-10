@@ -690,17 +690,72 @@ def find_config_overlap(suction_solutions, pivot_solutions, pickup_solutions):
 PROGRAM_FOLDER_NAME = "pivot_programs"
 
 
-def pick_best_solution(solutions, target_cfg):
-    """Pick the first solution matching the target config. Prefer lowest theta."""
+def pick_best_solution(solutions, target_cfg, required_theta=None):
+    """Pick the first solution matching config (and optionally theta). Prefer lowest theta."""
     for sol in sorted(solutions, key=lambda s: s["theta_deg"]):
-        if config_key(sol["wrist_cfg"]) == target_cfg:
-            return sol
+        if config_key(sol["wrist_cfg"]) != target_cfg:
+            continue
+        if required_theta is not None and sol["theta_deg"] != required_theta:
+            continue
+        return sol
     return None
+
+
+def find_viable_triplet(suction_sols, pivot_sols, pickup_sols):
+    """Find a (suction, pivot, pickup) triplet that shares config AND theta.
+
+    The suction→pivot LMove requires the same Z-rotation (theta) so the TCP
+    orientations are compatible. Pickup can use a different theta (JMove after
+    tool switch breaks the continuity), but must share the wrist config.
+
+    Returns (suction_sol, pivot_sol, pickup_sol, cfg_key) or (None, None, None, None).
+    """
+    # Group by config
+    suction_by_cfg = {}
+    for s in suction_sols:
+        k = config_key(s["wrist_cfg"])
+        suction_by_cfg.setdefault(k, []).append(s)
+
+    pivot_by_cfg = {}
+    for p in pivot_sols:
+        k = config_key(p["wrist_cfg"])
+        pivot_by_cfg.setdefault(k, []).append(p)
+
+    pickup_by_cfg = {}
+    for pk in pickup_sols:
+        k = config_key(pk["wrist_cfg"])
+        pickup_by_cfg.setdefault(k, []).append(pk)
+
+    # Find configs present in all three
+    shared_cfgs = set(suction_by_cfg) & set(pivot_by_cfg) & set(pickup_by_cfg)
+
+    for cfg in sorted(shared_cfgs):
+        # Find suction+pivot pairs at the same theta
+        suction_thetas = {s["theta_deg"]: s for s in suction_by_cfg[cfg]}
+        pivot_thetas = {p["theta_deg"]: p for p in pivot_by_cfg[cfg]}
+        common_thetas = sorted(set(suction_thetas) & set(pivot_thetas))
+
+        if not common_thetas:
+            continue
+
+        # Pick lowest common theta for suction+pivot, any pickup with matching config
+        theta = common_thetas[0]
+        s_sol = suction_thetas[theta]
+        p_sol = pivot_thetas[theta]
+        pk_sol = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])[0]
+        return s_sol, p_sol, pk_sol, cfg
+
+    return None, None, None, None
+
+
+PROGRAM_FOLDER_NAME = "pivot_programs"
+PROGRAM_TARGETS_SUBFOLDER = "targets"
+PROGRAM_PROGRAMS_SUBFOLDER = "programs"
 
 
 def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
                        suction_sol, pivot_sol, pickup_sol, offset1_joints,
-                       program_folder):
+                       target_folder, program_folder):
     """Build one RoboDK program for the full pivot sequence of a cone.
 
     Sequence:
@@ -708,7 +763,7 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
       F2: JMove suction_offset_1 → suction_offset_2
       F3: LMove suction_offset_2 → suction_position (grab string)
       F4: LMove suction_position → suction_offset_2 (retract)
-      F5: LMove suction_offset_2 → pivot_after (pivot)
+      F5: LMove suction_offset_2 → pivot_after (pivot — same theta as suction)
       F6: tool switch knotting → pickup
       F7: LMove before_pickup_offset → cone_pickup_pose (grab cone)
       F8: LMove cone_pickup_pose → post_pickup_above (lift)
@@ -722,9 +777,11 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
         if old.Valid():
             old.Delete()
 
-    # Create joint targets in the program folder
+    # Create cone-specific target subfolder
+    cone_tgt_folder = get_or_create_folder(RDK, cone_name, parent=target_folder)
+
     def make_target(name, joints):
-        tgt = RDK.AddTarget(name, program_folder, robot)
+        tgt = RDK.AddTarget(name, cone_tgt_folder, robot)
         tgt.setJoints(joints)
         tgt.setAsJointTarget()
         return tgt
@@ -761,7 +818,7 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F4: LMove retract to offset_2
     prog.MoveL(t_offset2)
 
-    # F5: LMove to pivot
+    # F5: LMove to pivot (same theta as suction — orientations compatible)
     prog.MoveL(t_pivot)
 
     # F6: tool switch
@@ -776,7 +833,7 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F9: JMove home
     prog.MoveJ(t_home)
 
-    # Move program into folder
+    # Move program into programs subfolder
     prog.setParent(program_folder)
 
     return prog
@@ -1040,28 +1097,38 @@ def main():
         if old_prog_folder.Valid():
             old_prog_folder.Delete()
             print(f"  [CLEAN] Deleted old '{PROGRAM_FOLDER_NAME}' folder")
-        program_folder = get_or_create_folder(RDK, PROGRAM_FOLDER_NAME)
+        root_folder = get_or_create_folder(RDK, PROGRAM_FOLDER_NAME)
+        target_folder = get_or_create_folder(RDK, PROGRAM_TARGETS_SUBFOLDER, parent=root_folder)
+        program_folder = get_or_create_folder(RDK, PROGRAM_PROGRAMS_SUBFOLDER, parent=root_folder)
 
         built = 0
         skipped = 0
         for cone_name, res in all_results.items():
-            overlap = res.get("overlap", {})
-            if not overlap:
-                print(f"  [SKIP] {cone_name} — no config overlap")
+            suction_sols = res.get("suction_sols", [])
+            pivot_sols = res.get("pivot_sols", [])
+            pickup_sols = res.get("pickup_sols", [])
+
+            # Find triplet with matching config AND same theta for suction+pivot
+            s_sol, p_sol, pk_sol, cfg = find_viable_triplet(
+                suction_sols, pivot_sols, pickup_sols
+            )
+
+            if s_sol is None:
+                # Report why
+                s_cfgs = set(config_key(s["wrist_cfg"]) for s in suction_sols)
+                p_cfgs = set(config_key(p["wrist_cfg"]) for p in pivot_sols)
+                pk_cfgs = set(config_key(pk["wrist_cfg"]) for pk in pickup_sols)
+                shared = s_cfgs & p_cfgs & pk_cfgs
+                if not shared:
+                    print(f"  [SKIP] {cone_name} — no config overlap across all three")
+                else:
+                    print(f"  [SKIP] {cone_name} — shared configs {sorted(shared)} but no common theta for suction+pivot")
                 skipped += 1
                 continue
 
-            # Pick the first overlapping config
-            target_cfg = sorted(overlap.keys())[0]
-
-            suction_sol = pick_best_solution(res.get("suction_sols", []), target_cfg)
-            pivot_sol = pick_best_solution(res.get("pivot_sols", []), target_cfg)
-            pickup_sol = pick_best_solution(res.get("pickup_sols", []), target_cfg)
-
-            if not all([suction_sol, pivot_sol, pickup_sol]):
-                print(f"  [SKIP] {cone_name} — missing solution for config {target_cfg}")
-                skipped += 1
-                continue
+            print(f"  [MATCH] {cone_name}: config={cfg} "
+                  f"suction+pivot theta={s_sol['theta_deg']:.0f} "
+                  f"pickup theta={pk_sol['theta_deg']:.0f}")
 
             # Solve suction_offset_1 independently (JMove, Z-free)
             robot.setPoseTool(suction_tool)
@@ -1076,15 +1143,11 @@ def main():
 
             prog = build_cone_program(
                 robot, RDK, cone_name, suction_tool, pickup_tool,
-                suction_sol, pivot_sol, pickup_sol, o1_joints,
-                program_folder
+                s_sol, p_sol, pk_sol, o1_joints,
+                target_folder, program_folder
             )
             n_ins = prog.InstructionCount()
-            print(f"  [PROG] {cone_name}: {n_ins} instructions — "
-                  f"config={target_cfg} "
-                  f"suction_theta={suction_sol['theta_deg']:.0f} "
-                  f"pivot_theta={pivot_sol['theta_deg']:.0f} "
-                  f"pickup_theta={pickup_sol['theta_deg']:.0f}")
+            print(f"  [PROG] {cone_name}: {n_ins} instructions")
             built += 1
 
         print(f"\n  Built: {built}, Skipped: {skipped}")
