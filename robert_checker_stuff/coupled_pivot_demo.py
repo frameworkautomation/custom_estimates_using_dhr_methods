@@ -49,26 +49,19 @@ CHILD_SUFFIXES = [
     "post_pickup_above",
 ]
 
-# IK settings (6-DOF, no rail) — NO j2/j3 lock (workspace edge needs full extension)
-_OPT_AXES_6DOF = {
+# IK settings — EXACT match to proven robert_end_checker.py config
+# Uses 7-DOF config with j7 locked at 0 (robot still has 7 joints after extraction)
+_OPT_AXES_LOCKED = {
+    "AbsOn_7": 1, "AbsW_7": 100,
     "Algorithm": 3, "MaxIter": 500, "Tol": 0.001,
-    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1,
-    "RelOn_4": 1, "RelOn_5": 1, "RelOn_6": 1,
-    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50,
-    "RelW_4": 50, "RelW_5": 50, "RelW_6": 50,
+    "RelOn_1": 1, "RelOn_2": 1, "RelOn_3": 1, "RelOn_4": 1,
+    "RelOn_5": 1, "RelOn_6": 1, "RelOn_7": 1,
+    "RelW_1": 50, "RelW_2": 50, "RelW_3": 50, "RelW_4": 50,
+    "RelW_5": 50, "RelW_6": 50, "RelW_7": 50,
 }
+HOME_SEED = [0.0] * 7  # 7-DOF seed matching the proven checker
 
-HOME_SEEDS = {
-    "home":        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "transport":   [0.0, -50.0, 15.0, 0.0, -15.0, -90.0],
-    "elbow_up":    [0.0, 30.0, -90.0, 0.0, -30.0, 0.0],
-    "elbow_down":  [0.0, -30.0, 60.0, 0.0, 30.0, 0.0],
-    "j1_p170":     [170.0, -50.0, 15.0, 0.0, -15.0, -90.0],
-    "j1_n170":     [-170.0, -50.0, 15.0, 0.0, -15.0, -90.0],
-}
-HOME_SEED_6DOF = HOME_SEEDS["transport"]
-
-TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90]
+TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90, 0]  # 7-DOF (j7=0)
 
 # FK verification tolerance
 FK_TOL_MM = 5.0
@@ -103,17 +96,17 @@ def find_robot(RDK):
 
 # ── IK HELPERS (copied from setup_base_movements.py) ───────────────────────
 
-_last_ik_error = None  # stash last error for verbose reporting
+_last_ik_error = None
 
-def _try_ik_single(robot, pose, seed):
-    """Try IK with a single seed. Returns joints or None.
 
-    Does NOT reset joints after success — leaves the robot at the solved pose
-    so the user can see it in RoboDK.
-    """
+def _solve_ik_locked_j7(robot, RDK, pose, j7_target=0.0):
+    """Solve IK with j7 locked — EXACT copy of proven robert_end_checker pattern."""
     global _last_ik_error
-    robot.setParam("OptimAxes", _OPT_AXES_6DOF)
-    robot.setJoints(seed)
+    props = dict(_OPT_AXES_LOCKED)
+    props["AbsJnt_7"] = j7_target
+    robot.setParam("OptimAxes", props)
+
+    robot.setJoints(HOME_SEED)
     try:
         robot.MoveJ(pose)
         raw = robot.Joints()
@@ -121,67 +114,53 @@ def _try_ik_single(robot, pose, seed):
             joints = raw.list()
         except AttributeError:
             joints = list(raw)
+        robot.setJoints(HOME_SEED)
         if len(joints) < 6:
             _last_ik_error = f"got {len(joints)} joints"
-            return None
-        if all(abs(j) < 1e-6 for j in joints):
-            _last_ik_error = "all-zero solution"
-            return None
-        return joints
+            return None, False
+        return joints, True
     except Exception as e:
         _last_ik_error = str(e)
-        return None
+        robot.setJoints(HOME_SEED)
+        return None, False
 
 
-def try_ik(robot, pose, seed=None, label=""):
-    """Try IK with given seed first, then cycle all HOME_SEEDS as fallback."""
-    if seed is not None:
-        result = _try_ik_single(robot, pose, seed)
-        if result is not None:
-            return result
-
-    tried = []
-    for name, s in HOME_SEEDS.items():
-        if seed is not None and s == seed:
-            continue
-        result = _try_ik_single(robot, pose, s)
-        if result is not None:
-            return result
-        tried.append(name)
-
+def try_ik(robot, RDK, pose, label=""):
+    """Single IK attempt using the proven locked-j7 pattern."""
+    joints, ok = _solve_ik_locked_j7(robot, RDK, pose)
+    if ok:
+        return joints
     if label:
         xyz = Pose_2_TxyzRxyz(pose)[:3]
-        tool_name = "?"
-        try:
-            tool_name = robot.PoseTool().__class__.__name__
-        except Exception:
-            pass
-        frame_name = "?"
-        try:
-            frame_name = robot.PoseFrame().__class__.__name__
-        except Exception:
-            pass
-        print(f"      [try_ik] {label} FAILED all {len(tried)} seeds. "
-              f"target=[{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}] "
-              f"last_err={_last_ik_error}")
+        print(f"      [try_ik] {label} FAILED target=[{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}] err={_last_ik_error}")
     return None
 
 
-def solve_with_z_sweep(robot, target_pose, step_deg, seed=None):
-    """Z-rotation sweep for independent poses (Search A, Search C)."""
-    joints = try_ik(robot, target_pose, seed=seed)
-    if joints is not None:
-        return target_pose, joints, 0.0
-
-    n_steps = int(360 / step_deg)
-    for i in range(1, n_steps):
-        angle_deg = step_deg * i
+def try_ik_z_sweep(robot, RDK, pose, N=72, label=""):
+    """Z-rotation sweep using the proven pattern. Returns (joints, rotated_pose, angle_deg) or (None, None, None)."""
+    for i in range(N):
+        angle_deg = 360.0 * i / N
         angle_rad = angle_deg * math.pi / 180.0
-        rotated_pose = target_pose * rotz(angle_rad)
-        joints = try_ik(robot, rotated_pose, seed=seed)
-        if joints is not None:
-            return rotated_pose, joints, angle_deg
+        rotated_pose = pose * rotz(angle_rad)
+        joints, ok = _solve_ik_locked_j7(robot, RDK, rotated_pose)
+        if not ok:
+            continue
+        # FK verify
+        robot.MoveJ(joints)
+        achieved = robot.Pose()
+        t = Pose_2_TxyzRxyz(rotated_pose)
+        a = Pose_2_TxyzRxyz(achieved)
+        fk_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
+        robot.setJoints(HOME_SEED)
+        if fk_err > 50.0:
+            continue
+        if label:
+            print(f"      [z_sweep] {label} OK at {angle_deg:.0f} deg (fk={fk_err:.1f}mm)")
+        return joints, rotated_pose, angle_deg
 
+    if label:
+        xyz = Pose_2_TxyzRxyz(pose)[:3]
+        print(f"      [z_sweep] {label} FAILED all {N} angles target=[{xyz[0]:.0f},{xyz[1]:.0f},{xyz[2]:.0f}] err={_last_ik_error}")
     return None, None, None
 
 
@@ -304,13 +283,12 @@ def delete_if_exists(RDK, name, item_type):
 
 # ── SEARCH B: COUPLED Z-ROTATION SWEEP ─────────────────────────────────────
 
-def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
+def search_b_coupled(robot, RDK, robot_base, suction_tool, pickup_tool,
                      poses, T_pickup_to_suction, step_deg, verbose=True):
     """Coupled Z-rotation sweep over suction_position.
 
-    poses: dict with keys matching CHILD_SUFFIXES, values are Mat poses.
+    Uses the proven 7-DOF locked-j7 IK pattern from robert_end_checker.py.
     Returns (theta_deg, step_joints) or (None, None) on failure.
-    step_joints is a dict: {suffix_or_label: joints_list}
     """
     suction_pose = poses["suction_position"]
     offset1_pose = poses["suction_offset_1"]
@@ -334,17 +312,15 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         # ── F2: suction_offset_1 -> rotated_suction (suction tool) ──
         robot.setPoseTool(suction_tool)
 
-        # Solve at suction_offset_1 (the from-pose of the LMove)
         lbl = f"offset1@{theta_deg:.0f}" if verbose else ""
-        j_offset1 = try_ik(robot, rotated_offset1, label=lbl)
+        j_offset1 = try_ik(robot, RDK, rotated_offset1, label=lbl)
         if j_offset1 is None:
             if verbose:
                 print(f"    [B] theta={theta_deg:5.0f}  offset1=FAIL")
             continue
 
-        # Solve at rotated_suction (the to-pose of F2)
         lbl = f"suction@{theta_deg:.0f}" if verbose else ""
-        j_suction = try_ik(robot, rotated_suction, seed=j_offset1, label=lbl)
+        j_suction = try_ik(robot, RDK, rotated_suction, label=lbl)
         if j_suction is None:
             if verbose:
                 print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=FAIL")
@@ -352,7 +328,7 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
 
         # ── F3: rotated_suction -> pivot_as_suction_tcp (suction tool) ──
         lbl = f"pivot@{theta_deg:.0f}" if verbose else ""
-        j_pivot = try_ik(robot, pivot_as_suction_tcp, seed=j_suction, label=lbl)
+        j_pivot = try_ik(robot, RDK, pivot_as_suction_tcp, label=lbl)
         if j_pivot is None:
             if verbose:
                 print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=FAIL")
@@ -365,6 +341,7 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         t = Pose_2_TxyzRxyz(before_pickup_pose)
         a = Pose_2_TxyzRxyz(achieved_pickup)
         pivot_err = math.sqrt(sum((t[k] - a[k]) ** 2 for k in range(3)))
+        robot.setJoints(HOME_SEED)
 
         if pivot_err > FK_TOL_MM:
             if verbose:
@@ -377,23 +354,23 @@ def search_b_coupled(robot, robot_base, suction_tool, pickup_tool,
         cfg_pivot = get_config_flags(robot, j_pivot)
         if cfg_suction != cfg_pivot:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
+                print(f"    [B] theta={theta_deg:5.0f}  ...  cfg_mismatch suction={cfg_suction} pivot={cfg_pivot}")
             continue
 
         # ── F5: before_pickup_offset -> cone_pickup_pose (pickup tool) ──
         robot.setPoseTool(pickup_tool)
         lbl = f"pickup@{theta_deg:.0f}" if verbose else ""
-        j_pickup = try_ik(robot, cone_pickup_pose_val, seed=j_pivot, label=lbl)
+        j_pickup = try_ik(robot, RDK, cone_pickup_pose_val, label=lbl)
         if j_pickup is None:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=FAIL")
+                print(f"    [B] theta={theta_deg:5.0f}  ...  cfg=ok  pickup=FAIL")
             continue
 
         # ── Check config consistency F4-F5 ──
         cfg_pickup = get_config_flags(robot, j_pickup)
         if cfg_pivot != cfg_pickup:
             if verbose:
-                print(f"    [B] theta={theta_deg:5.0f}  offset1=ok  suction=ok  pivot=ok  fk={pivot_err:.1f}mm  cfg=ok  pickup=ok  pickup_cfg_mismatch pivot={cfg_pivot} pickup={cfg_pickup}")
+                print(f"    [B] theta={theta_deg:5.0f}  ...  pickup_cfg_mismatch pivot={cfg_pivot} pickup={cfg_pickup}")
             continue
 
         # All passed!
@@ -537,7 +514,7 @@ def main():
         # ── Search B (coupled) ──
         print(f"  [Search B] Coupled Z-rotation sweep...")
         theta, step_joints = search_b_coupled(
-            robot, robot_base, suction_tool, pickup_tool,
+            robot, RDK, robot_base, suction_tool, pickup_tool,
             poses, T_pickup_to_suction, args.step_deg,
             verbose=args.verbose
         )
@@ -547,23 +524,24 @@ def main():
             continue
         result["search_b"] = {"theta_deg": theta, "joints": step_joints}
 
-        # ── Search A (F1: JMove to suction_offset_2, unconstrained) ──
-        print(f"  [Search A] Solve suction_offset_2 (unconstrained)...")
+        # ── Search A (F1: JMove to suction_offset_2, Z-free sweep) ──
+        print(f"  [Search A] Solve suction_offset_2 (Z-free sweep)...")
         robot.setPoseTool(suction_tool)
-        j_offset2 = try_ik(robot, poses["suction_offset_2"])
-        if j_offset2 is None:
+        a_joints, a_pose, a_angle = try_ik_z_sweep(
+            robot, RDK, poses["suction_offset_2"], label="offset2"
+        )
+        if a_joints is None:
             print(f"    [A] FAILED — suction_offset_2 unreachable")
             results[cone_name] = result
             continue
-        print(f"    [A] SUCCESS")
-        result["search_a"] = {"joints": j_offset2}
+        print(f"    [A] SUCCESS at {a_angle:.0f} deg")
+        result["search_a"] = {"joints": a_joints}
 
         # ── Search C (F6: post_pickup_above, Z-free sweep) ──
         print(f"  [Search C] Solve post_pickup_above (Z-free sweep)...")
         robot.setPoseTool(pickup_tool)
-        c_pose, c_joints, c_angle = solve_with_z_sweep(
-            robot, poses["post_pickup_above"], args.step_deg,
-            seed=step_joints["cone_pickup_pose"]
+        c_joints, c_pose, c_angle = try_ik_z_sweep(
+            robot, RDK, poses["post_pickup_above"], label="post_pickup"
         )
         if c_joints is None:
             print(f"    [C] FAILED — post_pickup_above unreachable")
