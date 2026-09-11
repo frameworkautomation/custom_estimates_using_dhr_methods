@@ -1138,13 +1138,32 @@ PROGRAM_TARGETS_SUBFOLDER = "targets"
 PROGRAM_PROGRAMS_SUBFOLDER = "programs"
 
 
+def _find_human_target(RDK, name):
+    """Find a target under WorldFrame/human_made_targets by name."""
+    # Walk: WorldFrame -> human_made_targets -> target
+    wf = RDK.Item("WorldFrame", ITEM_TYPE_FOLDER)
+    if not wf.Valid():
+        wf = RDK.Item("WorldFrame", ITEM_TYPE_FRAME)
+    if not wf.Valid():
+        return None
+    for child in wf.Childs():
+        if child.Name() == "human_made_targets" and child.Type() == ITEM_TYPE_FOLDER:
+            for tgt in child.Childs():
+                if tgt.Name() == name and tgt.Type() == ITEM_TYPE_TARGET:
+                    return tgt
+    # Fallback: try direct lookup
+    tgt = RDK.Item(name, ITEM_TYPE_TARGET)
+    return tgt if tgt.Valid() else None
+
+
 def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
                        suction_sol, pivot_sol, pickup_sol, offset1_joints,
-                       target_folder, program_folder, attach_scripts=None):
+                       target_folder, program_folder, attach_scripts=None,
+                       t_transport=None, t_reversed_right=None):
     """Build one RoboDK program for the full pivot sequence of a cone.
 
     Sequence:
-      F1: JMove home → suction_offset_1 (knotting)
+      F1: JMove home → transport → reversed_right → suction_offset_1 (knotting)
       F2: JMove suction_offset_1 → suction_offset_2
       F3: LMove suction_offset_2 → suction_position (grab string)
       F4: LMove suction_position → suction_offset_2 (retract)
@@ -1152,7 +1171,7 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
       F6: tool switch knotting → pickup
       F7: LMove before_pickup_offset → cone_pickup_pose (grab cone)
       F8: LMove cone_pickup_pose → post_pickup_above (lift)
-      F9: JMove post_pickup_above → home
+      F9: JMove post_pickup_above → reversed_right → transport → home
     """
     prog_name = f"{cone_name}_pivot_sequence"
 
@@ -1194,6 +1213,8 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F1-F2: JMove approach (knotting tool)
     prog.setPoseTool(suction_tool)
     prog.MoveJ(t_home)
+    prog.MoveJ(t_transport)
+    prog.MoveJ(t_reversed_right)
     prog.MoveJ(t_offset1)
     prog.MoveJ(t_offset2)
 
@@ -1219,7 +1240,9 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F8: LMove lift out
     prog.MoveL(t_post)
 
-    # F9: JMove home
+    # F9: JMove home via reversed_right → transport
+    prog.MoveJ(t_reversed_right)
+    prog.MoveJ(t_transport)
     prog.MoveJ(t_home)
 
     # Detach cone (restore to original position)
@@ -1293,6 +1316,15 @@ def main():
         frames = assert_cone_frames(cone_name, cone_item)
         cone_cache[cone_name] = frames
         print(f"  {cone_name}: all {len(CHILD_SUFFIXES)} child frames OK")
+
+    # Assert transport/reversed_right targets exist
+    t_transport = _find_human_target(RDK, "transport")
+    assert t_transport is not None, "Target 'transport' not found under WorldFrame/human_made_targets"
+    print(f"  Transport target: {t_transport.Name()}")
+
+    t_reversed_right = _find_human_target(RDK, "Reversed_right")
+    assert t_reversed_right is not None, "Target 'Reversed_right' not found under WorldFrame/human_made_targets"
+    print(f"  Reversed_right target: {t_reversed_right.Name()}")
 
     print("[OK] All prerequisites met.\n")
 
@@ -1564,7 +1596,8 @@ def main():
             prog = build_cone_program(
                 robot, RDK, cone_name, suction_tool, pickup_tool,
                 s_sol, p_sol, pk_sol, o1_joints,
-                target_folder, program_folder, attach_scripts
+                target_folder, program_folder, attach_scripts,
+                t_transport=t_transport, t_reversed_right=t_reversed_right,
             )
             n_ins = prog.InstructionCount()
             print(f"  [PROG] {cone_name}: {n_ins} instructions")
