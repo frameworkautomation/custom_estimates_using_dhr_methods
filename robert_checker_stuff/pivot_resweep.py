@@ -70,7 +70,11 @@ def main():
                     help="Z-rotation step size in degrees (default: 15)")
     ap.add_argument("--config", default=None,
                     help="Path to pivot_program_config.json for angle-biased selection")
+    ap.add_argument("--no-config", action="store_true",
+                    help="Ignore --config and use original lowest-theta selection")
     args = ap.parse_args()
+    if args.no_config:
+        args.config = None
 
     RDK = connect(args.robodk_ip)
     RDK._setTimeout(300)

@@ -1244,9 +1244,13 @@ def main():
                     help="Phases to skip, e.g. --skip 3 4 4b 5 6 7")
     ap.add_argument("--config", default=None,
                     help="Path to pivot_program_config.json for angle-biased selection")
+    ap.add_argument("--no-config", action="store_true",
+                    help="Ignore --config and use original lowest-theta selection")
     ap.add_argument("--non-verbose", action="store_true",
                     help="Suppress per-angle diagnostic output")
     args = ap.parse_args()
+    if args.no_config:
+        args.config = None
     args.verbose = not args.non_verbose
 
     skip = {s.upper() for s in args.skip}

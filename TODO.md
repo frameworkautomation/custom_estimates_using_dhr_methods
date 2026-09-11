@@ -43,10 +43,10 @@
 - ~~**Optimization config for preferred end effector angle** — add a config that specifies a target angle (or angle range) the end effector should be as close to as possible. This affects how `find_viable_triplet` chooses among multiple valid solutions — prefer solutions where the end effector orientation is closest to the preferred angle.~~ DONE — `pivot_program_config.json` with cascading per-cone/per-pose preferred theta.
 - **Tune per-cone preferred angles** — run each cone's program, observe end effector orientation, set overrides in `pivot_program_config.json` for cones that swing into poles/obstacles. Status:
   - `cone_in_bin_00_frame`: OK (no config override needed)
-  - `cone_in_bin_01_frame`: needs testing
-  - `cone_in_bin_02_frame`: needs testing
-  - `cone_in_bin_10_frame`: needs testing
-  - `cone_in_bin_11_frame`: needs testing
+  - `cone_in_bin_01_frame`: OK (no config override needed)
+  - `cone_in_bin_02_frame`: OK (no config override needed)
+  - `cone_in_bin_10_frame`: OK (no config override needed)
+  - `cone_in_bin_11_frame`: testing
   - `cone_in_bin_12_frame`: needs testing
 - **Add intermediate waypoints to avoid collisions** — current programs move directly between poses with no intermediate steps. Need to add waypoints (JMove or LMove) between key poses to route around the bin, adjacent cones, and other geometry. Especially needed between: home→offset_1, offset_2→pivot, and pivot→pickup transitions.
 
