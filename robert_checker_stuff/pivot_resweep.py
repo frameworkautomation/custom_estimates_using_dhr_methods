@@ -52,6 +52,7 @@ from coupled_pivot_demo import (
     find_viable_triplet, build_cone_program,
     try_ik_z_sweep,
     save_cone_original_poses, create_attach_detach_scripts,
+    load_program_config, get_preferred_theta,
 )
 
 
@@ -67,6 +68,8 @@ def main():
                     help="Which phase to re-run")
     ap.add_argument("--step-deg", type=float, default=15.0,
                     help="Z-rotation step size in degrees (default: 15)")
+    ap.add_argument("--config", default=None,
+                    help="Path to pivot_program_config.json for angle-biased selection")
     args = ap.parse_args()
 
     RDK = connect(args.robodk_ip)
@@ -178,6 +181,10 @@ def main():
             print(f"  Saved to {TARGET_FOLDER_NAME}/{cone_name}/pickup_solutions/")
 
     elif args.phase == "program":
+        program_config = load_program_config(args.config)
+        if program_config:
+            print(f"[CONFIG] Loaded program config from {args.config}")
+
         for cone_name in target_cones:
             print(f"=== {cone_name}: build program ===")
 
@@ -200,8 +207,15 @@ def main():
                 print(f"  [SKIP] No config overlap")
                 continue
 
+            # Look up per-cone preferred thetas from config
+            s_pref = get_preferred_theta(program_config, cone_name, "suction")
+            p_pref = get_preferred_theta(program_config, cone_name, "pivot")
+            pk_pref = get_preferred_theta(program_config, cone_name, "pickup")
+
             s_sol, p_sol, pk_sol, cfg = find_viable_triplet(
-                robot, RDK, suction_tool, pickup_tool, s_sols, p_sols, pk_sols
+                robot, RDK, suction_tool, pickup_tool, s_sols, p_sols, pk_sols,
+                suction_preferred=s_pref, pivot_preferred=p_pref,
+                pickup_preferred=pk_pref,
             )
             if s_sol is None:
                 print(f"  [SKIP] No viable triplet found")

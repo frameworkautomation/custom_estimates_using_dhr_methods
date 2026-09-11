@@ -87,6 +87,64 @@ TARGET_FOLDER_NAME = "discovered_targets"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BIN_CONE_ATTACH_SCRIPTS_DIR = os.path.join(SCRIPT_DIR, "bin_cone_attach_scripts")
 BIN_CONE_POSES_PATH = os.path.join(SCRIPT_DIR, "bin_cone_original_poses.json")
+DEFAULT_PROGRAM_CONFIG_PATH = os.path.join(SCRIPT_DIR, "pivot_program_config.json")
+
+
+# ── ANGLE-BIASED SELECTION HELPERS ──────────────────────────────────────────
+
+def theta_distance(a, b):
+    """Circular distance between two angles in degrees."""
+    d = abs(a - b) % 360
+    return min(d, 360 - d)
+
+
+def load_program_config(path=None):
+    """Load pivot_program_config.json. Returns dict or empty dict if no path/missing file."""
+    if path is None:
+        return {}
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"  [WARN] Could not load config {path}: {e}")
+        return {}
+
+
+def get_preferred_theta(config, cone_name, group):
+    """Cascading lookup for preferred theta.
+
+    Lookup order:
+      1. per_cone.<cone>.<group>_preferred_theta_deg
+      2. per_cone.<cone>.preferred_theta_deg
+      3. default_preferred_theta_deg
+      4. None (no preference)
+
+    Returns float or None.
+    """
+    if not config:
+        return None
+
+    per_cone = config.get("per_cone", {}).get(cone_name, {})
+
+    # Level 1: per-cone per-group
+    group_key = f"{group}_preferred_theta_deg"
+    if group_key in per_cone:
+        val = per_cone[group_key]
+        if val is not None:
+            return float(val)
+        # explicit null — fall through to next level
+
+    # Level 2: per-cone default
+    val = per_cone.get("preferred_theta_deg")
+    if val is not None:
+        return float(val)
+
+    # Level 3: global default
+    val = config.get("default_preferred_theta_deg")
+    if val is not None:
+        return float(val)
+
+    return None
 
 
 # ── PATH HELPERS ────────────────────────────────────────────────────────────
@@ -953,13 +1011,18 @@ def verify_all_lmoves(robot, RDK, suction_tool, pickup_tool,
 
 
 def find_viable_triplet(robot, RDK, suction_tool, pickup_tool,
-                        suction_sols, pivot_sols, pickup_sols):
+                        suction_sols, pivot_sols, pickup_sols,
+                        suction_preferred=None, pivot_preferred=None,
+                        pickup_preferred=None):
     """Find a (suction, pivot, pickup) triplet where ALL LMoves pass.
 
     Tests in stages to avoid redundant work:
       1. Filter suction solutions: F3 (offset2→suction) + F4 (suction→offset2)
       2. For each passing suction, try pivot solutions: F5 (offset2→pivot)
       3. For each passing suction+pivot, try pickup solutions: F7 (pivot→pickup) + F8 (pickup→post)
+
+    When preferred theta angles are given, solutions are sorted by proximity
+    to the preferred angle (circular distance). When None, sorts by lowest theta.
 
     Returns (suction_sol, pivot_sol, pickup_sol, cfg_key) or (None, None, None, None).
     """
@@ -980,10 +1043,24 @@ def find_viable_triplet(robot, RDK, suction_tool, pickup_tool,
 
     shared_cfgs = set(suction_by_cfg) & set(pivot_by_cfg) & set(pickup_by_cfg)
 
+    if suction_preferred is not None or pivot_preferred is not None or pickup_preferred is not None:
+        print(f"    [PREF] suction={suction_preferred} pivot={pivot_preferred} pickup={pickup_preferred}")
+
     for cfg in sorted(shared_cfgs):
-        s_list = sorted(suction_by_cfg[cfg], key=lambda x: x["theta_deg"])
+        # Stage 1 sort: by preferred theta distance or raw theta
+        if suction_preferred is not None:
+            s_list = sorted(suction_by_cfg[cfg],
+                            key=lambda x: theta_distance(x["theta_deg"], suction_preferred))
+        else:
+            s_list = sorted(suction_by_cfg[cfg], key=lambda x: x["theta_deg"])
+        # Pivot list — will be re-sorted per suction solution in Stage 2
         p_list = sorted(pivot_by_cfg[cfg], key=lambda x: x["theta_deg"])
-        pk_list = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])
+        # Stage 3 sort: by preferred theta distance or raw theta
+        if pickup_preferred is not None:
+            pk_list = sorted(pickup_by_cfg[cfg],
+                             key=lambda x: theta_distance(x["theta_deg"], pickup_preferred))
+        else:
+            pk_list = sorted(pickup_by_cfg[cfg], key=lambda x: x["theta_deg"])
 
         # Stage 1: filter suction solutions that pass F3+F4
         valid_suction = []
@@ -1165,6 +1242,8 @@ def main():
                     help="Z-rotation step size in degrees (default: 15)")
     ap.add_argument("--skip", nargs="*", default=[],
                     help="Phases to skip, e.g. --skip 3 4 4b 5 6 7")
+    ap.add_argument("--config", default=None,
+                    help="Path to pivot_program_config.json for angle-biased selection")
     ap.add_argument("--non-verbose", action="store_true",
                     help="Suppress per-angle diagnostic output")
     args = ap.parse_args()
@@ -1383,6 +1462,10 @@ def main():
         print("\n── Phase 6: SKIPPED ──")
 
     # ── Phase 7: Build RoboDK programs ────────────────────────────────
+    program_config = load_program_config(args.config)
+    if program_config:
+        print(f"\n[CONFIG] Loaded program config from {args.config}")
+
     if "7" not in skip:
         print(f"\n── Phase 7: Build RoboDK programs ──")
 
@@ -1432,10 +1515,17 @@ def main():
             pivot_sols = res.get("pivot_sols", [])
             pickup_sols = res.get("pickup_sols", [])
 
+            # Look up per-cone preferred thetas from config
+            s_pref = get_preferred_theta(program_config, cone_name, "suction")
+            p_pref = get_preferred_theta(program_config, cone_name, "pivot")
+            pk_pref = get_preferred_theta(program_config, cone_name, "pickup")
+
             # Find triplet: matching config + ALL LMoves verified (incl. J5 singularity)
             s_sol, p_sol, pk_sol, cfg = find_viable_triplet(
                 robot, RDK, suction_tool, pickup_tool,
-                suction_sols, pivot_sols, pickup_sols
+                suction_sols, pivot_sols, pickup_sols,
+                suction_preferred=s_pref, pivot_preferred=p_pref,
+                pickup_preferred=pk_pref,
             )
 
             if s_sol is None:
