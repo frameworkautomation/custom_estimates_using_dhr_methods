@@ -29,7 +29,7 @@ sys.path.append("C:/RoboDK/Python")
 from robodk.robolink import (
     Robolink, ITEM_TYPE_ROBOT, ITEM_TYPE_TOOL, ITEM_TYPE_FRAME,
     ITEM_TYPE_OBJECT, ITEM_TYPE_TARGET, ITEM_TYPE_PROGRAM,
-    ITEM_TYPE_PROGRAM_PYTHON, INSTRUCTION_CALL_PROGRAM,
+    ITEM_TYPE_PROGRAM_PYTHON, ITEM_TYPE_FOLDER, INSTRUCTION_CALL_PROGRAM,
 )
 from robodk.robomath import Pose_2_TxyzRxyz
 
@@ -61,6 +61,7 @@ BIN_RETRACT_SEQUENCE = [
 TRANSPORT_JOINTS = [0, -50, 15, 0, -15, -90]
 
 PROGRAM_NAME = "back_bin_demo"
+BIN_DEMO_FOLDER_NAME = "bin_demo"
 
 
 # ── CONNECT ─────────────────────────────────────────────────────────────────
@@ -179,7 +180,12 @@ def main():
 
     print("\n[OK] All items found.")
 
-    # ── Clean up old program/targets if re-running ────────────────────
+    # ── Clean up old folder/programs if re-running ──────────────────────
+    old_folder = RDK.Item(BIN_DEMO_FOLDER_NAME, ITEM_TYPE_FOLDER)
+    if old_folder.Valid():
+        old_folder.Delete()
+        print(f"[CLEAN] Deleted old '{BIN_DEMO_FOLDER_NAME}' folder")
+
     helper_names = ["attach_gripper", "detach_gripper",
                     "grab_cone_bin_buffer", "release_cone_bin_buffer"]
     for prog_name in [PROGRAM_NAME] + helper_names:
@@ -194,9 +200,16 @@ def main():
         old_folder.Delete()
         print("[CLEAN] Deleted old bin_demo_targets folder")
 
+    # ── Create station folder for all bin demo items ─────────────────
+    RDK.Command("AddFolder", BIN_DEMO_FOLDER_NAME)
+    demo_folder = RDK.Item(BIN_DEMO_FOLDER_NAME, ITEM_TYPE_FOLDER)
+    assert demo_folder.Valid(), f"Failed to create folder '{BIN_DEMO_FOLDER_NAME}'"
+    print(f"\n[FOLDER] Created '{BIN_DEMO_FOLDER_NAME}'")
+
     # ── Create targets ────────────────────────────────────────────────
     print("\n[TARGETS] Creating targets...")
     target_folder = RDK.AddFrame("bin_demo_targets")
+    target_folder.setParent(demo_folder)
     robot.setPoseFrame(robot_base)
 
     # Home / transport target
@@ -261,6 +274,7 @@ print("Released {GRAB_OBJECT} to {grab_obj_home_parent}")
     for name, code in helper_scripts.items():
         prog = add_python_program(RDK, name, code)
         assert prog.Valid(), f"Failed to create helper program '{name}'"
+        prog.setParent(demo_folder)
         print(f"  Created: {name}")
 
     # ── Build main program ────────────────────────────────────────────
@@ -359,6 +373,8 @@ print("Released {GRAB_OBJECT} to {grab_obj_home_parent}")
 
     prog.MoveJ(home_target)
     print("  MoveJ -> home (done)")
+
+    prog.setParent(demo_folder)
 
     n_ins = prog.InstructionCount()
     print(f"\n[DONE] Program '{PROGRAM_NAME}' created with {n_ins} instructions.")
