@@ -46,8 +46,9 @@
   - `cone_in_bin_01_frame`: OK (no config override needed)
   - `cone_in_bin_02_frame`: OK (no config override needed)
   - `cone_in_bin_10_frame`: OK (no config override needed)
-  - `cone_in_bin_11_frame`: testing
-  - `cone_in_bin_12_frame`: needs testing
+  - `cone_in_bin_11_frame`: OK (no config override needed)
+  - `cone_in_bin_12_frame`: OK (no config override needed)
+  - **Result: all 6 cones OK with default preferred_theta=0, no per-cone overrides needed.**
 - **Add intermediate waypoints to avoid collisions** — current programs move directly between poses with no intermediate steps. Need to add waypoints (JMove or LMove) between key poses to route around the bin, adjacent cones, and other geometry. Especially needed between: home→offset_1, offset_2→pivot, and pivot→pickup transitions.
 
 ## Known Issues
