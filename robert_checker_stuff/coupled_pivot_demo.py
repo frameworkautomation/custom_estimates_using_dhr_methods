@@ -1159,11 +1159,12 @@ def _find_human_target(RDK, name):
 def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
                        suction_sol, pivot_sol, pickup_sol, offset1_joints,
                        target_folder, program_folder, attach_scripts=None,
-                       t_transport=None, t_reversed_right=None):
+                       t_cone_transport=None, t_reversed_right_cones=None,
+                       t_cone_pull_away_1=None):
     """Build one RoboDK program for the full pivot sequence of a cone.
 
     Sequence:
-      F1: JMove home → transport → reversed_right → suction_offset_1 (knotting)
+      F1: JMove home → cone_transport → Reversed_right_cones → suction_offset_1 (knotting)
       F2: JMove suction_offset_1 → suction_offset_2
       F3: LMove suction_offset_2 → suction_position (grab string)
       F4: LMove suction_position → suction_offset_2 (retract)
@@ -1171,7 +1172,7 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
       F6: tool switch knotting → pickup
       F7: LMove before_pickup_offset → cone_pickup_pose (grab cone)
       F8: LMove cone_pickup_pose → post_pickup_above (lift)
-      F9: JMove post_pickup_above → reversed_right → transport → home
+      F9: LMove cone_pull_away_1 → JMove Reversed_right_cones → cone_transport → home
     """
     prog_name = f"{cone_name}_pivot_sequence"
 
@@ -1213,8 +1214,8 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F1-F2: JMove approach (knotting tool)
     prog.setPoseTool(suction_tool)
     prog.MoveJ(t_home)
-    prog.MoveJ(t_transport)
-    prog.MoveJ(t_reversed_right)
+    prog.MoveJ(t_cone_transport)
+    prog.MoveJ(t_reversed_right_cones)
     prog.MoveJ(t_offset1)
     prog.MoveJ(t_offset2)
 
@@ -1240,9 +1241,10 @@ def build_cone_program(robot, RDK, cone_name, suction_tool, pickup_tool,
     # F8: LMove lift out
     prog.MoveL(t_post)
 
-    # F9: JMove home via reversed_right → transport
-    prog.MoveJ(t_reversed_right)
-    prog.MoveJ(t_transport)
+    # F9: exit via cone_pull_away_1 → Reversed_right_cones → cone_transport → home
+    prog.MoveL(t_cone_pull_away_1)
+    prog.MoveJ(t_reversed_right_cones)
+    prog.MoveJ(t_cone_transport)
     prog.MoveJ(t_home)
 
     # Detach cone (restore to original position)
@@ -1317,14 +1319,18 @@ def main():
         cone_cache[cone_name] = frames
         print(f"  {cone_name}: all {len(CHILD_SUFFIXES)} child frames OK")
 
-    # Assert transport/reversed_right targets exist
-    t_transport = _find_human_target(RDK, "transport")
-    assert t_transport is not None, "Target 'transport' not found under WorldFrame/human_made_targets"
-    print(f"  Transport target: {t_transport.Name()}")
+    # Assert intermediate waypoint targets exist
+    t_cone_transport = _find_human_target(RDK, "cone_transport")
+    assert t_cone_transport is not None, "Target 'cone_transport' not found under WorldFrame/human_made_targets"
+    print(f"  cone_transport target: {t_cone_transport.Name()}")
 
-    t_reversed_right = _find_human_target(RDK, "Reversed_right")
-    assert t_reversed_right is not None, "Target 'Reversed_right' not found under WorldFrame/human_made_targets"
-    print(f"  Reversed_right target: {t_reversed_right.Name()}")
+    t_cone_pull_away_1 = _find_human_target(RDK, "cone_pull_away_1")
+    assert t_cone_pull_away_1 is not None, "Target 'cone_pull_away_1' not found under WorldFrame/human_made_targets"
+    print(f"  cone_pull_away_1 target: {t_cone_pull_away_1.Name()}")
+
+    t_reversed_right_cones = _find_human_target(RDK, "Reversed_right_cones")
+    assert t_reversed_right_cones is not None, "Target 'Reversed_right_cones' not found under WorldFrame/human_made_targets"
+    print(f"  Reversed_right_cones target: {t_reversed_right_cones.Name()}")
 
     print("[OK] All prerequisites met.\n")
 
@@ -1597,7 +1603,9 @@ def main():
                 robot, RDK, cone_name, suction_tool, pickup_tool,
                 s_sol, p_sol, pk_sol, o1_joints,
                 target_folder, program_folder, attach_scripts,
-                t_transport=t_transport, t_reversed_right=t_reversed_right,
+                t_cone_transport=t_cone_transport,
+                t_reversed_right_cones=t_reversed_right_cones,
+                t_cone_pull_away_1=t_cone_pull_away_1,
             )
             n_ins = prog.InstructionCount()
             print(f"  [PROG] {cone_name}: {n_ins} instructions")

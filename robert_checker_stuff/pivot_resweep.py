@@ -247,16 +247,20 @@ def main():
                 RDK, cone_cache, [cone_name]
             )
 
-            t_transport = _find_human_target(RDK, "transport")
-            assert t_transport is not None, "Target 'transport' not found under WorldFrame/human_made_targets"
-            t_reversed_right = _find_human_target(RDK, "Reversed_right")
-            assert t_reversed_right is not None, "Target 'Reversed_right' not found under WorldFrame/human_made_targets"
+            t_cone_transport = _find_human_target(RDK, "cone_transport")
+            assert t_cone_transport is not None, "Target 'cone_transport' not found under WorldFrame/human_made_targets"
+            t_cone_pull_away_1 = _find_human_target(RDK, "cone_pull_away_1")
+            assert t_cone_pull_away_1 is not None, "Target 'cone_pull_away_1' not found under WorldFrame/human_made_targets"
+            t_reversed_right_cones = _find_human_target(RDK, "Reversed_right_cones")
+            assert t_reversed_right_cones is not None, "Target 'Reversed_right_cones' not found under WorldFrame/human_made_targets"
 
             prog = build_cone_program(
                 robot, RDK, cone_name, suction_tool, pickup_tool,
                 s_sol, p_sol, pk_sol, o1_joints,
                 target_folder, program_folder, attach_scripts,
-                t_transport=t_transport, t_reversed_right=t_reversed_right,
+                t_cone_transport=t_cone_transport,
+                t_reversed_right_cones=t_reversed_right_cones,
+                t_cone_pull_away_1=t_cone_pull_away_1,
             )
             print(f"  [PROG] {prog.Name()}: {prog.InstructionCount()} instructions")
             print(f"  config={cfg} s={s_sol['theta_deg']:.0f} "
