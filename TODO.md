@@ -8,12 +8,12 @@
 ## Branch: `back_bin_reachability`
 
 3. ~~**Back bin reachability demo** — demonstrate that the robot (at j7=0, no rail) can reach the back bin position, pick up cone_bin_buffer, and return home~~ DONE
-4. **End effector rear reachability** *(almost done)* — verify end effector can reach items in the rear of the robot (knotter, cone picker-upper)
-   - 4a. IK optimizer constraints (no side-flipping) — when searching for poses, optimizer must ensure robot doesn't flip sides while using end effector
-   - 4b. J1 continuity constraint (no 360-degree wrap) — ensure robot doesn't rotate ~360 degrees about J1 between yarn pickup and cone pickup. May not be needed — Robert provided better knotter movement specifications
-   - 4c. **Coupled feasibility search for vacuum-to-pickup pivot** — the movement sequence is: vacuum base cone → vacuum offset → vacuum rotate into pickup offset → pickup. The transition to pickup requires pivoting about the vacuum point, which is a series of MoveL instructions with an end effector change. These moves must be searched for feasibility **together** (not individually) — find a Z-rotation where the entire series of L-moves is feasible, not just each pose in isolation.
-5. **Run DHR's movement sequence with back bin present** *(almost done)* — step through DHR's existing state machine code with the back bin in position, visually check for collisions during the specific programmed path *(not a coding task — run and observe)*
-6. **Envelope boundary check** *(almost done)* — verify the robot's reachable workspace (at any j7 position, any arm config) does not penetrate the back wall or robo fence. Separate from task 5: this checks the static geometry envelope, not just one movement sequence *(human task — visual inspection in RoboDK)*
+4. ~~**End effector rear reachability** — verify end effector can reach items in the rear of the robot (knotter, cone picker-upper)~~ DONE
+   - 4a. ~~IK optimizer constraints (no side-flipping)~~ DONE
+   - 4b. ~~J1 continuity constraint (no 360-degree wrap)~~ DONE
+   - 4c. ~~**Coupled feasibility search for vacuum-to-pickup pivot**~~ DONE
+5. **Run DHR's movement sequence with back bin present** *(next up)* — step through DHR's existing state machine code with the back bin in position, visually check for collisions during the specific programmed path *(not a coding task — run and observe)*
+6. **Envelope boundary check** *(next up)* — verify the robot's reachable workspace (at any j7 position, any arm config) does not penetrate the back wall or robo fence. Separate from task 5: this checks the static geometry envelope, not just one movement sequence *(human task — visual inspection in RoboDK)*
 
 ## Branch: `auto_collision_check`
 
